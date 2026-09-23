@@ -1,0 +1,128 @@
+{
+  "inputs": [
+    {
+      "name": "ani-governance.zip",
+      "bytes": 4254767,
+      "sha256": "6ec4d90fb17d63bfef9b0fe394a5f84bfe6e3fc7a1a1881461c4bc0768fe20cb"
+    },
+    {
+      "name": "GPU资源管理服务设计包_v1.1.zip",
+      "bytes": 170771,
+      "sha256": "6f8462c3b69963011baa7860c5952b132c827e1b9e603c6a932d081c49b4a9d9"
+    },
+    {
+      "name": "GPU资源管理服务详细设计_v1.1.html",
+      "bytes": 245481,
+      "sha256": "5bb2038a36dab3af6e70242f44c2c2360ac8c0ac77ab5647032b3f2e2c1a121c"
+    },
+    {
+      "name": "GPU资源管理服务_v1.1_评审意见.md",
+      "bytes": 13962,
+      "sha256": "69e25c63c7f74dbdca6b47eafba56b27f013b7a8f856b9623b84ad2a3886d1e6"
+    }
+  ],
+  "reviewed_source_files": [
+    {
+      "id": "G1",
+      "path": "app/admin/service/internal/data/quota_ledger_repo.go",
+      "sha256": "5bf22377a0e388b27479936be7999d5db0b55b999161c7af9ba38f0a91e86774",
+      "line_count": 1142
+    },
+    {
+      "id": "G2",
+      "path": "app/admin/service/internal/service/quota_adapter.go",
+      "sha256": "300fdfc06ea7f61df218bd770f41c421e9afe8477bfa4217a5b5f65d52a1c63d",
+      "line_count": 127
+    },
+    {
+      "id": "G3",
+      "path": "app/admin/service/internal/service/quota_dispatch_worker.go",
+      "sha256": "ba6ea53fa5fcc14ad74cbed5a54fa96af726284fd4727040dbf982e593b5a4a9",
+      "line_count": 238
+    },
+    {
+      "id": "G4",
+      "path": "app/admin/service/cmd/server/wiring_quota_default.go",
+      "sha256": "f066a3f040d3ec0d34885e09cd89c3a3c99b96b9d69bdbfb51b2e2b8aa19b0fc",
+      "line_count": 36
+    },
+    {
+      "id": "G5",
+      "path": "app/admin/service/cmd/server/wiring_quota_lab.go",
+      "sha256": "986eb4764f215e9764b87f1e193eaa93918b9d285d8614ea0d5d5169fa2b7bf6",
+      "line_count": 87
+    },
+    {
+      "id": "G6",
+      "path": "app/admin/service/internal/server/quota_internal_server.go",
+      "sha256": "35bb5b4b8e66d7bddc4a82097711b49f19f39f71ec16681d1f1f1c77eb203cf8",
+      "line_count": 334
+    },
+    {
+      "id": "G7",
+      "path": "api/protos/quota/service/v1/quota_release.proto",
+      "sha256": "322ab4d943cb26a24bbb1374fb8754c7fa538b790aeeedbf6af4d6d46057fcbc",
+      "line_count": 50
+    },
+    {
+      "id": "G8",
+      "path": "app/admin/service/internal/data/quota_admin_repo.go",
+      "sha256": "dd10fc73bb0c927176359ab359d1742c291e06e3f7015f78e2e99f14d7e4ed68",
+      "line_count": 183
+    },
+    {
+      "id": "G9",
+      "path": "api/protos/quota/service/v1/quota_catalog.proto",
+      "sha256": "5f2150389811b6e17357a36602f06623fcb72c1878725eaf5dea7f4238bf89dd",
+      "line_count": 41
+    },
+    {
+      "id": "G10",
+      "path": "app/admin/service/internal/service/quota_admin_service.go",
+      "sha256": "57354680abc7ce44d64e564f227682a848f9b80f5984d8ba0af783f8cdad951a",
+      "line_count": 64
+    },
+    {
+      "id": "G11",
+      "path": "api/protos/identity/service/v1/module.proto",
+      "sha256": "da7f7855c2c47b54221dc2616d511e2e4d6e06a84f6b953b2826a1abe22ea0df",
+      "line_count": 22
+    },
+    {
+      "id": "G12",
+      "path": "docs/evidence/quota-gpu-local-01/README.md",
+      "sha256": "cbfe14e2bf424989c83fca28fbe510b38c5a6e735ef4ef81046c9f2873807d58",
+      "line_count": 41
+    },
+    {
+      "id": "G13",
+      "path": "app/admin/service/internal/data/ent/schema/quota_operation.go",
+      "sha256": "c46922f51bad0426f13f53cad6879b9e0602a0360fd906d702d001a66f769931",
+      "line_count": 184
+    },
+    {
+      "id": "G14",
+      "path": "app/admin/service/internal/data/ent/schema/quota_charge.go",
+      "sha256": "0fda1600e0f50fb0456ef719f0fd9f577777b1ac491ede11f52db9d3ff00a533",
+      "line_count": 88
+    },
+    {
+      "id": "G15",
+      "path": "app/admin/service/schema.sql",
+      "sha256": "66c30dfecdebe5a5f2e8da5f9ae4fa00c19e0c55aef597f18c4a2ebbde56a430",
+      "line_count": 3488
+    },
+    {
+      "id": "G16",
+      "path": "AGENTS.md",
+      "sha256": "902d17988dd9edc2e1b8128d29890476a47a712bff8111dcbea5f3c7bc564d7f",
+      "line_count": 75
+    },
+    {
+      "id": "G17",
+      "path": "go.mod",
+      "sha256": "fdfcd79913ed313d1aff9a45ec7e61e33d9771ae0412c3fe82b771bc042d853f",
+      "line_count": 232
+    }
+  ]
+}

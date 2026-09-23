@@ -1,0 +1,17 @@
+{
+  "releaseEventId": "00000011-1111-4111-8111-000000000011",
+  "operationId": "00000008-1111-4111-8111-000000000008",
+  "items": [
+    {
+      "chargeId": "00000010-1111-4111-8111-000000000010",
+      "quotaCode": "gpu.shared_memory_mib",
+      "releasedTotal": "12288"
+    }
+  ],
+  "reason": "RESOURCE_RELEASED",
+  "resourceRefs": [
+    {
+      "resourceId": "00000007-1111-4111-8111-000000000007"
+    }
+  ]
+}

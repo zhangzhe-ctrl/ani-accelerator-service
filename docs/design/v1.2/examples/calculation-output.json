@@ -1,0 +1,50 @@
+{
+  "shared_6_gib": [
+    {
+      "factor": 1,
+      "memory_blocks": 6144,
+      "quota_mib": 6144
+    },
+    {
+      "factor": 256,
+      "memory_blocks": 24,
+      "quota_mib": 6144
+    },
+    {
+      "factor": 1024,
+      "memory_blocks": 6,
+      "quota_mib": 6144
+    }
+  ],
+  "two_replicas": {
+    "per_pod_memory_blocks": 6,
+    "quota": {
+      "gpu.shared_memory_mib": 12288
+    }
+  },
+  "physical_tail": {
+    "per_device": [
+      {
+        "physical_mib": 49140,
+        "blocks": 191,
+        "reported_mib": 48896,
+        "tail_mib": 244
+      }
+    ],
+    "blocks": 191,
+    "reported_mib": 48896
+  },
+  "whole_quota": {
+    "gpu.physical.count": 1
+  },
+  "release_first_and_duplicate": [
+    [
+      12288,
+      12288
+    ],
+    [
+      12288,
+      0
+    ]
+  ]
+}

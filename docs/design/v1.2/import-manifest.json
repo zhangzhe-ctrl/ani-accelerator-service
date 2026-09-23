@@ -1,0 +1,326 @@
+{
+  "schema_version": 1,
+  "imported_on": "2026-09-23",
+  "source_directory": "/home/chabking/下载/ani-gpu-design-v1.2",
+  "destination_repository": "/home/chabking/workspace/ani-accelerator-service",
+  "source_preserved": true,
+  "source_checksum": {
+    "manifest": "SHA256SUMS",
+    "sha256": "921712ba8f5b60db808670ce511a2fa9f70e6064faabb75bd8603a83ceb28e28",
+    "entries": 50,
+    "passed": 50,
+    "failed": 0,
+    "result": "pass"
+  },
+  "copied_file_count": 39,
+  "omitted_file_count": 12,
+  "copied_files": [
+    {
+      "source_relative": "README.md",
+      "dest_relative": "docs/design/v1.2/来源README.md",
+      "sha256": "4dfb1d0260e02178a22bac5a702d5a8e21de49563d947b716483628981789bf1",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "SHA256SUMS",
+      "dest_relative": "docs/design/v1.2/source-SHA256SUMS",
+      "sha256": "921712ba8f5b60db808670ce511a2fa9f70e6064faabb75bd8603a83ceb28e28",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "db/001_accelerator.proposed.sql",
+      "dest_relative": "docs/design/v1.2/schema/001_accelerator.proposed.sql",
+      "sha256": "cb24d1ff3e1911ed5c63ef66958d9e320146ddb71dd6baadbc675ae1fbd77f3b",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "db/002_governance_gpu_increment.proposed.sql",
+      "dest_relative": "docs/design/v1.2/integration/governance/002_governance_gpu_increment.proposed.sql",
+      "sha256": "59c3546d169e4cdff33a12000f5f6b938f3e56956a672adad1ea8458df076f50",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "db/003_quota_catalog_increment.proposed.sql",
+      "dest_relative": "docs/design/v1.2/integration/governance/003_quota_catalog_increment.proposed.sql",
+      "sha256": "5434b74da169abf8bfded7d56403ec1fab80b55f40bd140534d467c2859153ea",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/README.md",
+      "dest_relative": "docs/design/v1.2/examples/README.md",
+      "sha256": "93b1fe9ece68be873c47da551f8820b3fa61129037d9399850d836f56b39968c",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/calculation-output.json",
+      "dest_relative": "docs/design/v1.2/examples/calculation-output.json",
+      "sha256": "02305d40fd30c950c537297c4b0e3460e0188f4feee43bae480698ccabc893a1",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/design_reference.py",
+      "dest_relative": "docs/design/v1.2/examples/design_reference.py",
+      "sha256": "2a7a408af3f168c3a85f02d5ad2b764cde6c21a380a6a9afd5800d10360d268d",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/gpu-request.json",
+      "dest_relative": "docs/design/v1.2/examples/gpu-request.json",
+      "sha256": "dc8a8bf6b1f94f5fbc2ace02474038fbe62f47df65b5472ac12ce1abe992b4fd",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/node-config.example.json",
+      "dest_relative": "docs/design/v1.2/examples/node-config.example.json",
+      "sha256": "47f26c196081a7ad4f421b6a4e2c8d7a234fd6cdf4f2e05c14a4a7248fd42668",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/owner-create-attachment.json",
+      "dest_relative": "docs/design/v1.2/examples/owner-create-attachment.json",
+      "sha256": "c5319f25354d503cb102fd7ae4079413641adb7cc666c75238afec5ebec1e381",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/owner-delete-attachment.json",
+      "dest_relative": "docs/design/v1.2/examples/owner-delete-attachment.json",
+      "sha256": "2f8415ba556806077a2916d882f4f2173dcd0d8aa5f8e4a978e47374c2681c6d",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/plan-quota-bff.json",
+      "dest_relative": "docs/design/v1.2/examples/plan-quota-bff.json",
+      "sha256": "f069d366587113f3b8350b01c1ab0f898ee1e1e5b8af2c58a921fd229c4a673e",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/protobuf-json-manifest.json",
+      "dest_relative": "docs/design/v1.2/examples/protobuf-json-manifest.json",
+      "sha256": "072d8c55de65ea136b69f0a515d2983163ef50f737ece47bcf0c7a846a1da3ad",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/quota-release-existing-contract.json",
+      "dest_relative": "docs/design/v1.2/examples/quota-release-existing-contract.json",
+      "sha256": "ef425cd9fbeee00b0904137cb204c0d7129293340e5392c7c5e026af436286aa",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/resolved-plan-f1024.json",
+      "dest_relative": "docs/design/v1.2/examples/resolved-plan-f1024.json",
+      "sha256": "c7c4c9ace259b206e2022410ffa6b6da91d98d3d88cf17044bf7e043a523d20e",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/shared-gpu.fragment.yaml",
+      "dest_relative": "docs/design/v1.2/examples/shared-gpu.fragment.yaml",
+      "sha256": "7816e01a8addb9a0edfcbcbfee522319e835dd872b231c99191bd1012e1cc6f0",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/usage-declared.json",
+      "dest_relative": "docs/design/v1.2/examples/usage-declared.json",
+      "sha256": "e90d8992190a6bd5f52301d99e8ac202f3df2703348a4276d39fc330b82ca69b",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/usage-ended.json",
+      "dest_relative": "docs/design/v1.2/examples/usage-ended.json",
+      "sha256": "0f055b80a3acf5b32dd797a5c5e19bb8540a1a118b40df490083196dd3e54273",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "examples/whole-gpu.fragment.yaml",
+      "dest_relative": "docs/design/v1.2/examples/whole-gpu.fragment.yaml",
+      "sha256": "b0e34f5b9182a06f70bf1b0a535d4993e3c51c042a06d97a325de3e0cc948bf1",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "references/Governance源码核对.md",
+      "dest_relative": "docs/design/v1.2/references/Governance源码核对.md",
+      "sha256": "a4a4cb4bce1406a2a5243810be41322d5400c6b6c1b4d43bfd1c056e2ae02f26",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "references/input-sha256.json",
+      "dest_relative": "docs/design/v1.2/references/input-sha256.json",
+      "sha256": "87e6f0c99637b7848f3d2825afbaaa80bc04bb9a45ef50caf8eff0fd46d3ee6e",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "references/上游核对.md",
+      "dest_relative": "docs/design/v1.2/references/上游核对.md",
+      "sha256": "9fe2fc952cbf38597d2c51c023eb673e9150df93d99163d4324d9a94c1eebee1",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "references/评审意见处置.md",
+      "dest_relative": "docs/design/v1.2/references/评审意见处置.md",
+      "sha256": "9286ba07891edbfddb4eb18f4e474df71ad1cf8737272beeae808a1b30f78264",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "tests/test_design.py",
+      "dest_relative": "docs/design/v1.2/tests/test_design.py",
+      "sha256": "397c22fc28a348dc7fe029afe3d7f720e0a76cc70c40b784a2341929115f2551",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/build-output.json",
+      "dest_relative": "docs/design/v1.2/source-validation/build-output.json",
+      "sha256": "4945d909a530760644145da7b3b8bfdfa626d70d21cf178fcb438213a16bee3d",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/contract-counts.json",
+      "dest_relative": "docs/design/v1.2/source-validation/contract-counts.json",
+      "sha256": "c7557d50f2197516e01768036df9ee26d27096c6f897071b91a556548f866fdc",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/examples-checks.json",
+      "dest_relative": "docs/design/v1.2/source-validation/examples-checks.json",
+      "sha256": "83472ca157f911d1a595fb1b3951fc898af211280144e05fa29cf04a039a025e",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/html-checks.json",
+      "dest_relative": "docs/design/v1.2/source-validation/html-checks.json",
+      "sha256": "f62869937ca173e354299136c394a61a9d36e71b50cfd714b8c04f560cb5fc93",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/protoc.txt",
+      "dest_relative": "docs/design/v1.2/source-validation/protoc.txt",
+      "sha256": "fced8fd0d42bfcd5da11a9a58a4fe105d4dff978fd6a8691f3654e2a461effcd",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/sql-checks.json",
+      "dest_relative": "docs/design/v1.2/source-validation/sql-checks.json",
+      "sha256": "1278c8a600298203886f2f209ac2151b931d55e39c7922d882e789fb61f2d42d",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/unit-tests.txt",
+      "dest_relative": "docs/design/v1.2/source-validation/unit-tests.txt",
+      "sha256": "71403debe949c7be9972b255b9a7e333cfcdfb7aad7a5e1fb44ab99846a148a4",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/validation.json",
+      "dest_relative": "docs/design/v1.2/source-validation/validation.json",
+      "sha256": "8be6931103894dabe8be948b09b835f6e5b0ac2ba37ff539508224f28178046a",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "validation/验证说明.md",
+      "dest_relative": "docs/design/v1.2/source-validation/验证说明.md",
+      "sha256": "c6bde80bd1f0188c775750c4f3c4c77993b24a0cdc1aab69009b6bdf62038ece",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "完整计划.html",
+      "dest_relative": "docs/design/v1.2/完整计划.html",
+      "sha256": "be29c67a3467f77aa8f43101c1563b0d617918d1ac69a56b56a96e9b876011de",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "完整计划.md",
+      "dest_relative": "docs/design/v1.2/完整计划.md",
+      "sha256": "839aa1308f60890504737f57449ece56b345d8b5aae0c584000222fa9212424e",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "接口字段字典.md",
+      "dest_relative": "docs/design/v1.2/接口字段字典.md",
+      "sha256": "aefa5f6604a1d3a523c346c0bf17de42a49927e4c683aa2c488c8946b9002978",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "设计方案.md",
+      "dest_relative": "docs/design/v1.2/设计方案.md",
+      "sha256": "43a062d82948298eebb3cbd27f00e87e1c06d7b9f355cf1dd7d55aa3ff83799c",
+      "transfer": "byte_identical_copy"
+    },
+    {
+      "source_relative": "运行配置与产品接线.md",
+      "dest_relative": "docs/design/v1.2/运行配置与产品接线.md",
+      "sha256": "c5de7a016fb0e8ca554e78201eceec2a0973c1130d0af3819406ce50c281bd9e",
+      "transfer": "byte_identical_copy"
+    }
+  ],
+  "omitted_files": [
+    {
+      "source_relative": "api/accelerator/v1/accelerator.proto",
+      "sha256": "79b33adfd65400fb47b126a1ec6735e5ad30cdc9f43ee6405559f2a21759d4e0",
+      "reason": "API合同由仓库正式生成流程单独导入，补充go_package；本设计快照不保留第二份活跃Proto。",
+      "active_contract_target": "api/protos/accelerator/v1/accelerator.proto"
+    },
+    {
+      "source_relative": "api/integration/v1/owner_gpu_attachment.proto",
+      "sha256": "43e3b422f66af22af924939f4220136eb6b24c804f3b9fffa77b5c76d6aed356",
+      "reason": "API合同由仓库正式生成流程单独导入，补充go_package；本设计快照不保留第二份活跃Proto。",
+      "active_contract_target": "api/protos/accelerator/integration/v1/owner_gpu_attachment.proto"
+    },
+    {
+      "source_relative": "tools/build_contracts.py",
+      "sha256": "1eb57da2ee6383c2c479af519eb49e0f014148dde7ad3a25f21b2cede6f59cb9",
+      "reason": "原设计生成器不纳入服务工具链：可能重写Proto tag/go_package、依赖原/mnt/data及/opt路径并覆盖历史验证记录。"
+    },
+    {
+      "source_relative": "tools/build_examples.py",
+      "sha256": "9cee97f6d7976056b5b85c41d43e7c7cf9587564cd8820b6b19e2d045b083f63",
+      "reason": "原设计生成器不纳入服务工具链：可能重写Proto tag/go_package、依赖原/mnt/data及/opt路径并覆盖历史验证记录。"
+    },
+    {
+      "source_relative": "tools/build_references.py",
+      "sha256": "ecdbbc22c035178b9c7a18cd128a94d8a2fdb88246154a1a1cc76d3c824a557c",
+      "reason": "原设计生成器不纳入服务工具链：可能重写Proto tag/go_package、依赖原/mnt/data及/opt路径并覆盖历史验证记录。"
+    },
+    {
+      "source_relative": "tools/check_html.py",
+      "sha256": "c6e2c12d817b05b0d0977c97dcec6c825b673a5df6fa1872e1c64be6b957681b",
+      "reason": "原设计生成器不纳入服务工具链：可能重写Proto tag/go_package、依赖原/mnt/data及/opt路径并覆盖历史验证记录。"
+    },
+    {
+      "source_relative": "tools/validate_and_render.py",
+      "sha256": "12310da1fe253feee8e87c1c61300e19b69bc3dd64bc1196f7e634973b9cbe7a",
+      "reason": "原设计生成器不纳入服务工具链：可能重写Proto tag/go_package、依赖原/mnt/data及/opt路径并覆盖历史验证记录。"
+    },
+    {
+      "source_relative": "validation/contracts.pb",
+      "sha256": "183e9c40dcfb793c912f1957e4c916762ba48efc4df1a69f9ec91d63617a309f",
+      "reason": "旧PNG/descriptor属于来源包历史生成产物，不迁入新服务或作为本轮验证证据。"
+    },
+    {
+      "source_relative": "validation/desktop.png",
+      "sha256": "00ec03f6318c941e67e689807afbab44b2d3b534ae48dbec5834347bb05e7c97",
+      "reason": "旧PNG/descriptor属于来源包历史生成产物，不迁入新服务或作为本轮验证证据。"
+    },
+    {
+      "source_relative": "validation/existing-gov-release.pb",
+      "sha256": "ab4b407b1cd4d3c774177208e980ddb6eb1191a844109b7101837d25f7b99087",
+      "reason": "旧PNG/descriptor属于来源包历史生成产物，不迁入新服务或作为本轮验证证据。"
+    },
+    {
+      "source_relative": "validation/factor-section.png",
+      "sha256": "608086170b94877d58e64a688dfe6a1df3375655b22959779d37388c92bf1769",
+      "reason": "旧PNG/descriptor属于来源包历史生成产物，不迁入新服务或作为本轮验证证据。"
+    },
+    {
+      "source_relative": "validation/mobile.png",
+      "sha256": "70c526562f4db68bb82e2ec14c283ac1ca5aaaa97d9e0a428092d94bdea8bbd6",
+      "reason": "旧PNG/descriptor属于来源包历史生成产物，不迁入新服务或作为本轮验证证据。"
+    }
+  ],
+  "new_documentation_files": [
+    "README.md",
+    "docs/design/v1.2/README.md",
+    "docs/design/v1.2/schema/README.md",
+    "docs/design/v1.2/integration/governance/README.md",
+    "docs/design/v1.2/source-validation/README.md",
+    "docs/design/v1.2/import-manifest.json"
+  ],
+  "scope": "文档和设计样例来源导入记录；不等于服务运行、数据库迁移、模型推理或集群验证。"
+}

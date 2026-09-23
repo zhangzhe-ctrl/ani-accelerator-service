@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+die() {
+  printf 'verify-source: %s\n' "$*" >&2
+  exit 1
+}
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+    return
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+    return
+  fi
+  die "sha256sum or shasum is required"
+}
+
+[[ $# -eq 1 ]] || die "usage: scripts/verify-source <buf>"
+buf_path=$1
+[[ -x $buf_path ]] || die "buf is not executable: $buf_path"
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+repository_root=$(cd "$script_dir/.." && pwd -P)
+generated_file=$repository_root/internal/conf/v1/conf.pb.go
+[[ -f $generated_file ]] || die "generated config is missing"
+
+temporary_root=$(mktemp -d "${TMPDIR:-/tmp}/ani-source.XXXXXX")
+cleanup() {
+  if [[ -n ${temporary_root:-} && -d $temporary_root ]]; then
+    case $temporary_root in
+      "${TMPDIR:-/tmp}/ani-source."*) rm -rf -- "$temporary_root" ;;
+      *) printf 'verify-source: refusing unexpected cleanup path: %s\n' "$temporary_root" >&2 ;;
+    esac
+  fi
+}
+trap cleanup EXIT
+
+write_manifest() {
+  local output_file=$1
+  local file_list=$output_file.files
+  find "$repository_root" -type f \
+    -not -path "$repository_root/.git/*" \
+    -not -path "$repository_root/.tools/*" \
+    -not -path "$repository_root/.work/*" \
+    -not -path "$repository_root/.tmp/*" \
+    -not -path "$repository_root/bin/*" \
+    -print0 >"$file_list"
+  : >"$output_file"
+  while IFS= read -r -d '' file; do
+    relative_path=${file#"$repository_root/"}
+    [[ $relative_path != *$'\n'* ]] || die "newline in repository path is unsupported"
+    printf '%s  %s\n' "$(sha256_file "$file")" "$relative_path" >>"$output_file"
+  done <"$file_list"
+  LC_ALL=C sort -o "$output_file" "$output_file"
+  rm -f -- "$file_list"
+}
+
+write_manifest "$temporary_root/before"
+(cd "$repository_root" && "$buf_path" lint)
+(cd "$repository_root" && "$buf_path" build)
+(cd "$repository_root" && "$buf_path" generate --template buf.gen.yaml)
+(cd "$repository_root" && "$buf_path" generate --template buf.gen.api.yaml)
+(cd "$repository_root" && go generate ./...)
+write_manifest "$temporary_root/after"
+if ! cmp --silent "$temporary_root/before" "$temporary_root/after"; then
+  diff -u "$temporary_root/before" "$temporary_root/after" >&2 || true
+  die "generation changed the repository tree"
+fi
+
+find "$repository_root" -type f -name '*.go' \
+  -not -path "$repository_root/.git/*" \
+  -not -path "$repository_root/.tools/*" \
+  -print0 >"$temporary_root/go-files"
+go_files=()
+while IFS= read -r -d '' file; do
+  go_files+=("$file")
+done <"$temporary_root/go-files"
+[[ ${#go_files[@]} -gt 0 ]] || die "no Go files found"
+gofmt -l "${go_files[@]}" >"$temporary_root/unformatted"
+[[ ! -s $temporary_root/unformatted ]] || {
+  cat "$temporary_root/unformatted" >&2
+  die "gofmt check failed"
+}

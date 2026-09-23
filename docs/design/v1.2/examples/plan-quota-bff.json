@@ -1,0 +1,7 @@
+{
+  "data": {
+    "planId": 12,
+    "quotaCode": "gpu.shared_memory_mib",
+    "quotaValue": "36864"
+  }
+}

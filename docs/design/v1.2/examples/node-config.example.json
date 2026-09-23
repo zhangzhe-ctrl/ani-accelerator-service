@@ -1,0 +1,18 @@
+{
+  "nodeconfig": [
+    {
+      "name": "example-whole-node",
+      "operatingmode": "hami-core",
+      "devicememoryscaling": 1,
+      "devicecorescaling": 1,
+      "devicesplitcount": 1
+    },
+    {
+      "name": "example-shared-node",
+      "operatingmode": "hami-core",
+      "devicememoryscaling": 1,
+      "devicecorescaling": 1,
+      "devicesplitcount": 4
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+version: v2
+modules:
+  - path: internal
+  - path: api/protos
+    lint:
+      use:
+        - STANDARD
+      except:
+        # Preserve the reviewed v1.2 enum and RPC message names on import.
+        - ENUM_VALUE_PREFIX
+        - RPC_REQUEST_STANDARD_NAME
+        - RPC_RESPONSE_STANDARD_NAME
+        - RPC_REQUEST_RESPONSE_UNIQUE

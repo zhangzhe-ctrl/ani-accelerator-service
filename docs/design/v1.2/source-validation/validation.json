@@ -1,0 +1,41 @@
+{
+  "date": "2026-09-23",
+  "scope": "design_artifacts_only",
+  "proto_compile": "pass",
+  "protoc_version": "libprotoc 3.13.0",
+  "contract_counts": {
+    "files": 2,
+    "services": 3,
+    "rpcs": 22,
+    "messages": 64,
+    "fields": 295,
+    "enums": 8
+  },
+  "python_tests": {
+    "count": 48,
+    "pass": 48
+  },
+  "protobuf_json_checks": 7,
+  "source_bytes_unchanged": true,
+  "sql_postgres": "not_verified",
+  "go_build": "not_verified",
+  "real_gpu": "not_verified",
+  "inference": "not_verified",
+  "tls_calls": "not_verified",
+  "k8s_apply": "not_verified",
+  "html_render": {
+    "result": "pass",
+    "engine": "local Chromium via Playwright set_content",
+    "viewports": [
+      "1440x1000",
+      "430x932"
+    ],
+    "page_overflow": false,
+    "broken_internal_links": 0,
+    "external_assets": 0,
+    "visual_review": [
+      "desktop.png",
+      "factor-section.png"
+    ]
+  }
+}

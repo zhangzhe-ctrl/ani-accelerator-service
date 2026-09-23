@@ -1,0 +1,8 @@
+{
+  "gpu-request.json": "accelerator.v1.GpuRequest",
+  "resolved-plan-f1024.json": "accelerator.v1.ResolvedGpuPlan",
+  "owner-create-attachment.json": "accelerator.integration.v1.GpuOwnerCreateAttachment",
+  "owner-delete-attachment.json": "accelerator.integration.v1.GpuOwnerDeleteAttachment",
+  "usage-declared.json": "accelerator.v1.SyncGpuUsageRequest",
+  "usage-ended.json": "accelerator.v1.SyncGpuUsageRequest"
+}

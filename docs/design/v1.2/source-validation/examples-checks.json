@@ -1,0 +1,51 @@
+{
+  "protobuf_json": [
+    {
+      "file": "gpu-request.json",
+      "protobuf_type": "accelerator.v1.GpuRequest",
+      "result": "pass"
+    },
+    {
+      "file": "resolved-plan-f1024.json",
+      "protobuf_type": "accelerator.v1.ResolvedGpuPlan",
+      "result": "pass"
+    },
+    {
+      "file": "owner-create-attachment.json",
+      "protobuf_type": "accelerator.integration.v1.GpuOwnerCreateAttachment",
+      "result": "pass"
+    },
+    {
+      "file": "owner-delete-attachment.json",
+      "protobuf_type": "accelerator.integration.v1.GpuOwnerDeleteAttachment",
+      "result": "pass"
+    },
+    {
+      "file": "usage-declared.json",
+      "protobuf_type": "accelerator.v1.SyncGpuUsageRequest",
+      "result": "pass"
+    },
+    {
+      "file": "usage-ended.json",
+      "protobuf_type": "accelerator.v1.SyncGpuUsageRequest",
+      "result": "pass"
+    },
+    {
+      "file": "quota-release-existing-contract.json",
+      "protobuf_type": "uploaded quota.service.v1.ReportQuotaReleaseRequest",
+      "result": "pass"
+    }
+  ],
+  "yaml": [
+    {
+      "file": "whole-gpu.fragment.yaml",
+      "documents": 1,
+      "result": "parse_pass"
+    },
+    {
+      "file": "shared-gpu.fragment.yaml",
+      "documents": 1,
+      "result": "parse_pass"
+    }
+  ]
+}

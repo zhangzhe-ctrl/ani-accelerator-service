@@ -1,0 +1,4580 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GPU资源管理服务详细计划 v1.2</title><style>*{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;color:#173344;background:#f1f5f7;font-family:system-ui,"Noto Sans CJK SC","Microsoft YaHei",sans-serif;font-size:16px;line-height:1.85}aside{position:fixed;left:0;top:0;bottom:0;width:270px;overflow:auto;background:#123a4b;padding:25px 20px;color:#e6f0f4}aside strong{font-size:21px;display:block}aside p{color:#bad3df;font-size:13px}nav a{overflow-wrap:anywhere;display:block;color:#d4e7ef;font-size:12px;line-height:1.55;text-decoration:none;padding:5px 0}nav a.h1{font-weight:700;margin-top:10px;border-top:1px solid #396072;padding-top:10px}main{margin-left:270px;max-width:1500px;padding:40px 48px 80px;background:white;min-width:0}h1{font-size:30px;margin:28px 0 20px}h2{font-size:24px;margin:42px 0 17px;padding-top:20px;border-top:1px solid #c9d9e1}h3{font-size:19px;margin:30px 0 12px}h1,h2,h3{overflow-wrap:anywhere;word-break:break-word;line-height:1.45;scroll-margin-top:20px}p,li{overflow-wrap:anywhere}p{margin:12px 0}a{color:#15647e}code{font-family:ui-monospace,monospace;font-size:.86em;background:#edf3f6;padding:2px 4px;border-radius:3px}pre{background:#102d3c;color:#e9f2f6;padding:18px 20px;overflow:auto;line-height:1.65;max-width:100%;border-radius:5px}pre code{background:none;color:inherit;padding:0}table{border-collapse:collapse;width:100%;font-size:13px;line-height:1.65;margin:16px 0 22px}th,td{border:1px solid #cfdee6;padding:10px 12px;vertical-align:top;overflow-wrap:anywhere}th{background:#e9f2f6;color:#214d61}tr:nth-child(even){background:#f7fafb}.table-wrap{overflow-x:auto;max-width:100%}blockquote{margin:20px 0;padding:12px 18px;background:#eef5f8;border-left:4px solid #29758d}ul,ol{padding-left:25px}.banner{border-bottom:3px solid #26738b;padding-bottom:18px;color:#526e7e;font-size:14px}.kicker{font-size:12px;letter-spacing:2px;color:#23677e}hr{border:0;border-top:2px solid #9db8c7;margin:48px 0}@media(max-width:950px){aside{position:relative;width:100%;max-height:330px}nav{columns:2}main{margin:0;padding:28px 22px}h1{font-size:26px}}@media(max-width:580px){nav{columns:1}main{padding:22px 16px}table{min-width:600px}}@media print{aside,.banner,.kicker{display:none}main{margin:0;padding:0}body{font-size:10pt;background:white}pre{white-space:pre-wrap;background:#f2f4f5;color:#123}table{font-size:8pt}tr{break-inside:avoid}h2,h3{break-after:avoid}.table-wrap{overflow:visible}}</style></head><body><aside><strong>ANI · GPU资源服务</strong><p>v1.2 · 2026-09-23<br>factor单位适配 / Governance源码接入<br>一次占额 / 关联旁路 / 无库存锁</p><nav><a class="h1" href="#s1">ANI GPU 资源管理服务详细计划 v1.2</a><a class="h2" href="#s2">1. 结论、边界与变化</a><a class="h2" href="#s6">2. 上传Governance代码核对与实施依据</a><a class="h2" href="#s10">3. gpu-memory-factor：完整单位闭环</a><a class="h2" href="#s17">4. 服务边界与两条流程</a><a class="h2" href="#s21">5. 字段级对象与接口原则</a><a class="h2" href="#s28">6. 最新Governance上的具体接法</a><a class="h2" href="#s37">7. Inference执行、删除与证据</a><a class="h2" href="#s43">8. 容量读模型：固定规格下的算法</a><a class="h2" href="#s49">9. 完整例子</a><a class="h2" href="#s56">10. 产品及BFF适配</a><a class="h2" href="#s57">11. 数据库与持久化</a><a class="h2" href="#s61">12. 错误与幂等</a><a class="h2" href="#s62">13. 实施顺序与明确修改文件</a><a class="h2" href="#s69">14. 验收清单</a><a class="h2" href="#s70">15. 扩展空间与本次未实现项</a><a class="h2" href="#s71">16. 本次交付验证边界</a><a class="h1" href="#s72">运行配置、BFF字段和现有仓库接线</a><a class="h2" href="#s73">1. 应用配置增量</a><a class="h2" href="#s74">2. 新BFF建议路径与字段</a><a class="h2" href="#s75">3. 租户公开使用关联DTO</a><a class="h2" href="#s76">4. 预检响应字段</a><a class="h2" href="#s77">5. 正式创建与删除的接线检查</a><a class="h1" href="#s78">接口字段字典 v1.2</a><a class="h2" href="#s79">accelerator/v1/accelerator.proto</a><a class="h2" href="#s150">integration/v1/owner_gpu_attachment.proto</a><a class="h1" href="#s156">Governance 源码核对与改动地图</a><a class="h2" href="#s157">1. 实际定位</a><a class="h2" href="#s158">2. 相对旧计划应纠正的说法</a><a class="h2" href="#s159">3. 需要实施的定向改动</a><a class="h2" href="#s160">4. 正常链之外但要记录的已有代码差异</a><a class="h2" href="#s161">5. 尚未获得的依据</a><a class="h2" href="#s162">6. 允许说明的验证结论</a><a class="h1" href="#s163">gpu-memory-factor 与上游能力核对</a><a class="h2" href="#s164">关键结论</a><a class="h2" href="#s165">不作的推定</a><a class="h1" href="#s166">前序评审与讨论处置</a><a class="h1" href="#s167">本次实际验证说明</a></nav></aside><main><div class="kicker">DESIGN & IMPLEMENTATION PLAN</div><div class="banner">本版为待实施设计。已检查Proto与计算模型；真实GPU、Inference、PostgreSQL及mTLS运行未验证。离线文件不加载外部资源。</div><h1 id="s1">ANI GPU 资源管理服务详细计划 v1.2</h1>
+<p><strong>日期：2026-09-23｜建议服务：ani-accelerator｜基线：本次上传的 ani-governance.zip + v1.1 设计 + 后续明确讨论。</strong></p>
+<p>本版是待实施的设计，不修改用户业务仓库，不宣称真实 GPU 接入通过。文件内标记“源码事实”指本次上传包或指明版本的官方源码；“本版决定”指新增设计。所引路径及行号、输入 SHA256、验证范围见附件。旧计划的“尚未实现”不能覆盖新上传源码中已经存在的实现；已有历史验收文件也不等于本次重新执行。</p>
+<h2 id="s2">1. 结论、边界与变化</h2>
+<h3 id="s3">1.1 gpu-memory-factor 影响单位合同，不推翻架构</h3>
+<p><strong>它不是可以忽略的展示倍率。</strong>本次读取的 <code>volcano-vgpu-device-plugin/v1.12.0</code> 源码中，Node 显存资源和节点设备注解均按 factor 缩小；Volcano 按请求中的同类数值调度；插件将分配数值乘回 factor 后设置容器显存限制。[W1–W4]</p>
+<p>因此旧版“6 GiB 固定写 <code>volcano.sh/vgpu-memory=6144</code>”只对 factor=1 的这条适配路径成立。factor=1024 时应写6，而 Governance 仍占6144 MiB。<strong>新版明确区分平台MiB、provider显存块、物理bytes和实时监控bytes。</strong></p>
+<p>架构仍然是：配额在Governance，资源执行在Inference，供给和实际绑定在GPU服务。没有额外库存扣减，没有TCC确认阶段，没有RegisterConsumer强前置。</p>
+<h3 id="s4">1.2 首期范围</h3>
+<p>同一集群静态整卡节点组与静态共享节点组；同节点同型号，供给组内节点匹配规格；每集群一种固定共享资源向量，另有整卡规格。共享是主功能，与整卡一起验证。每Pod一个GPU容器、每容器一张设备，业务可有多个固定副本；实际副本上限服从Inference已验证能力。</p>
+<p>保留Inference既有控制器和正常重启；请求规格、副本数与factor基线在业务开放后冻结。没有在线模式切换、动态扩缩、额外滚动GPU副本、精确预留、独立Agent平台、自动排空或通用工作流。需要修改GPU实例镜像/模型而触发额外副本时，首期不默认开放该更新入口。</p>
+<p>“预留”仅在末章记录扩展位置，不提供其Proto/数据表，也不将配额上限展示成已经预留。后续统一称“首期”，不把范围标签当成新组件。</p>
+<h3 id="s5">1.3 对v1.1的明确替换</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>v1.1事项</th>
+<th>v1.2决定</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Inference先RegisterConsumer再创建</td>
+<td>删除强前置；Gov异步同步GPU使用关联</td>
+</tr>
+<tr>
+<td>注册返回consumer_id才能打标签</td>
+<td>直接使用Gov持久resource_id/create_operation_id；不另造必需Consumer ID</td>
+</tr>
+<tr>
+<td>MarkConsumerClosing/FinalizeConsumer</td>
+<td>从首期执行链删除；关联只接收声明/结束投影</td>
+</tr>
+<tr>
+<td>ObserveRelease依赖Consumer/generation</td>
+<td>按可信资源引用+完整实际Pod范围核对；关联缺失不阻塞查询</td>
+</tr>
+<tr>
+<td>固定vgpu-memory=MiB</td>
+<td>改为MiB/factor的整数块数，并冻结换算基线</td>
+</tr>
+<tr>
+<td>stable replica/allocation ordinal强制</td>
+<td>删除首期强制；使用实际Pod UID+容器+父卡</td>
+</tr>
+<tr>
+<td>管理员GetCapacity使用必填租户上下文</td>
+<td>独立AdminGetCapacity，明确平台权限</td>
+</tr>
+<tr>
+<td>其他设备证据冲突传播</td>
+<td>先按设备归并，冲突局部化，汇总PARTIAL</td>
+</tr>
+<tr>
+<td>数据库归属与实际Binding强FK前置</td>
+<td>绑定允许未关联；已验证后填关联，不漏记实际占用</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s6">2. 上传Governance代码核对与实施依据</h2>
+<p>完整定位见 <code>references/Governance源码核对.md</code>，这里只总结与接入直接有关的事实。</p>
+<h3 id="s7">2.1 已有代码，不重写</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>已有内容</th>
+<th>本次定位</th>
+<th>使用方式</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>通用目录、套餐quotaCode兼容、账户、操作、charge、receipt</td>
+<td><code>api/protos/quota/...</code>、<code>ent/schema/quota_*.go</code>、既有迁移</td>
+<td>延用；不建立GPU专用额度表</td>
+</tr>
+<tr>
+<td><code>QuotaLedgerRepo.Occupy/Release/CancelUnsent</code></td>
+<td><code>internal/data/quota_ledger_repo.go</code></td>
+<td>在同一账本上增加正式资源适配</td>
+</tr>
+<tr>
+<td><code>QuotaAdapterRegistry</code>与<code>QuotaDispatchWorker</code></td>
+<td><code>internal/service/quota_adapter.go</code>及worker</td>
+<td>注册真实Inference owner/actions，不引入第二个业务投递系统</td>
+</tr>
+<tr>
+<td>mTLS内部<code>ReportQuotaRelease</code></td>
+<td><code>internal/server/quota_internal_server.go</code></td>
+<td>保留现有Proto/tag/int64语义</td>
+</tr>
+<tr>
+<td>管理配额查询与套餐CRUD</td>
+<td><code>i_quota.proto</code>、<code>i_plan_quota.proto</code></td>
+<td>保留现有路径和JSON风格</td>
+</tr>
+<tr>
+<td>实验构建隔离及既有证据文件</td>
+<td><code>wiring_quota_default.go</code>、<code>wiring_quota_lab.go</code>、<code>docs/evidence/...</code></td>
+<td>实验保持独立，不拿模拟器作正式owner</td>
+</tr>
+</tbody>
+</table></div>
+<p>包内历史报告称本地模拟69项pass、真实GPU未验证；本次没有重新运行这些PG/多进程测试，不将其升级为当前部署结论。[G12]</p>
+<h3 id="s8">2.2 当前缺口与建议改动</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>源码事实</th>
+<th>必要增量/处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G-01</td>
+<td>正式<code>newQuotaAdapterRegistry</code>返回空registry；owner map为nil</td>
+<td>配置完整时注册<code>ani-inference</code>与正式CREATE/DELETE；配置不完整时关闭新入口，不能吞错放行</td>
+</tr>
+<tr>
+<td>G-02</td>
+<td><code>DeriveEnforcement</code>把所有非旧三项编码返回LAB_ONLY；Proto也无正式enforced值</td>
+<td>增量加入<code>ENFORCED=3</code>、<code>NOT_ENABLED=4</code>；旧值不改；执行级别来自实际注册/启用配置，不由前端填</td>
+</tr>
+<tr>
+<td>G-03</td>
+<td>删除查询及worker回退只取原操作第一笔charge</td>
+<td>新增<code>ListChargesForOperation</code>按quota_code排序；正式删除传完整原向量；读取失败不继续发空charge命令</td>
+</tr>
+<tr>
+<td>G-04</td>
+<td>worker命令只有拼接的<code>Actor</code>字符串</td>
+<td>增量携带ActorType/ActorID；保留实验路径兼容，不用分隔字符串猜主体</td>
+</tr>
+<tr>
+<td>G-05</td>
+<td>无正式GPU规格解析、请求快照、使用关联同步</td>
+<td>新增GPU业务适配、固定canonical schema和独立关联同步进度；不向通用账本加入Consumer状态</td>
+</tr>
+<tr>
+<td>G-06</td>
+<td>当前模块枚举没有GPU/Inference</td>
+<td>不伪装成实验TENANT模块；正式登记选定新增模块值并同步DB校验、API目录/套餐/Casbin；编号需统一登记后固定</td>
+</tr>
+<tr>
+<td>G-07</td>
+<td>账户查询只接平台管理员</td>
+<td>增加<code>/api/v1/me/quota-accounts</code>，从Principal取tenant；不能直接暴露管理员任意tenant路径</td>
+</tr>
+<tr>
+<td>G-08</td>
+<td><code>Occupy</code>在幂等查询前检查tenant到期/套餐，时间使用<code>time.Now</code></td>
+<td>明确公网当前权限仍检查；增加受权后的幂等快速读取，避免重试重新Resolve；需要兑现旧计划DB时钟约束时定向修复，不静默宣称现状一致</td>
+</tr>
+<tr>
+<td>G-09</td>
+<td><code>OccupyResult.ChargeIDs</code>注释说输入顺序，实际新建按code排序，重放查询无排序</td>
+<td>正式适配按<code>quota_code/charge_id</code>引用，不按数组位置映射；补有类型的charge返回/有序查询</td>
+</tr>
+<tr>
+<td>G-10</td>
+<td><code>CreateDeleteOperation</code>与<code>CancelUnsent</code>是两条独立入口</td>
+<td>正式删除明确选择安全未发撤销或owner关闭；接口必须区分结果，不能两次操作之间丢失删除意图</td>
+</tr>
+</tbody>
+</table></div>
+<p>这不是完整业务仓库审计。例：现有worker批量领取后串行RPC、领取二次检查和租约可观察性需要在新增场景下回归；不能因为沿用代码就跳过并发回归。资源端真实Inference代码未提供，不能写死它的实际AcceptCreate方法名、控制器类型或模型字段。</p>
+<h3 id="s9">2.3 不修改的合同</h3>
+<p>不重命名<code>gpu.count</code>实验口径，不重编号旧quota enum，不删除旧quota_type/tag，不将quota-lab路由放进正式OpenAPI，不修改其他旧配额真实用量。</p>
+<p>上传代码的退额数量是<code>int64</code>，请求<code>reason</code>为既有枚举，<code>resource_refs</code>只用于审计。本方案不另行声明一个同名退额服务。将真实owner映射加入mTLS白名单是必要新增，不是仅设置一个URL就接通。</p>
+<h2 id="s10">3. gpu-memory-factor：完整单位闭环</h2>
+<h3 id="s11">3.1 上游源码事实与适用边界</h3>
+<p>本次核对的发布路径为插件<code>v1.12.0</code>及Volcano<code>v1.12.0</code>对应源码，并对照公开问题记录。<strong>这不等于用户当前部署版本，也不保证其他tag或分支相同。</strong>正式接入必须锁镜像digest、代码修订、命令参数、配置摘要和实际有效值。</p>
+<ul>
+<li>插件<code>apiDevices()</code>：每张卡生成<code>floor(floor(total_bytes/2^20)/F)</code>个显存设备条目。[W1]</li>
+<li>插件<code>ConvertDeviceInfo()</code>：节点注册注解的<code>Devmem</code>同样除F。[W2]</li>
+<li>Volcano读取请求内的memory整数与节点Devmem比较；它不会替平台把“6144MiB”自动换成6块。[W3]</li>
+<li>插件Allocate在HAMi软件路径设置<code>CUDA_DEVICE_MEMORY_LIMIT_i = Usedmem × F</code>，再加<code>m</code>后缀。[W1]</li>
+</ul>
+<p>公开问题#85报告过多卡、大显存时ListAndWatch消息过大、Node显存上报为0，并建议提高factor。[W5] 不把某份FAQ的“32767”写成所有Kubernetes扩展资源的通用上限；本问题应按真实版本的设备条目/消息大小和错误日志定位。</p>
+<h3 id="s12">3.2 平台字段与单位</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th>单位</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>physical_memory_bytes</code></td>
+<td>bytes</td>
+<td>NVML真实物理容量，不从缩小上报反推精确值</td>
+</tr>
+<tr>
+<td><code>memory_block_mib</code>（F）</td>
+<td>MiB/块</td>
+<td>该冻结部署中一份provider显存单位代表多少MiB</td>
+</tr>
+<tr>
+<td><code>provider_memory_blocks</code></td>
+<td>块</td>
+<td>Node注解/资源上报原值；不是张数、不是MiB</td>
+</tr>
+<tr>
+<td><code>reported_memory_mib</code></td>
+<td>MiB</td>
+<td><code>provider_memory_blocks × F</code>，量化后的可表达容量</td>
+</tr>
+<tr>
+<td><code>safe_memory_budget_mib</code></td>
+<td>MiB</td>
+<td>经验证且不高于上报/物理容量的预算</td>
+</tr>
+<tr>
+<td><code>shared_memory_mib</code>（m）</td>
+<td>MiB/逻辑GPU</td>
+<td>产品规格与Gov计额依据</td>
+</tr>
+<tr>
+<td><code>memory_blocks_per_device</code>（q）</td>
+<td>块/设备</td>
+<td>渲染到vgpu-memory和归一化设备承诺的数值</td>
+</tr>
+<tr>
+<td><code>runtime_limit_bytes</code></td>
+<td>bytes</td>
+<td>真实运行时验证/指标；不得再次乘F</td>
+</tr>
+</tbody>
+</table></div>
+<p>F不等于<code>deviceMemoryScaling</code>。前者改变表示粒度；后者涉及超配比例。首期memory/core scaling均为1，不通过factor增加物理容量。[W4]</p>
+<h3 id="s13">3.3 精确换算：首期不静默取整</h3>
+<pre><code class="language-text">q = m / F，要求F &gt; 0、m &gt; 0、m % F == 0
+实际设置的显存MiB = q × F = m
+本次共享占额MiB = replicas × devices_per_replica × m
+</code></pre>
+<p>首期拒绝无法精确表达的规格，错误<code>MEMORY_GRANULARITY_MISMATCH</code>；校验发生在发布/解析阶段、占额之前。后续可在“发布规格”时显式向上量化，必须显示实际规格并按实际量计额；不能创建时偷偷向下取整，或者界面6GiB而实际给5.996GiB。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th style="text-align:right">F</th>
+<th style="text-align:right">产品规格m</th>
+<th style="text-align:right">vgpu-memory q</th>
+<th style="text-align:right">Gov单设备占额</th>
+<th>处理</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:right">1</td>
+<td style="text-align:right">6144</td>
+<td style="text-align:right">6144</td>
+<td style="text-align:right">6144</td>
+<td>精确</td>
+</tr>
+<tr>
+<td style="text-align:right">256</td>
+<td style="text-align:right">6144</td>
+<td style="text-align:right">24</td>
+<td style="text-align:right">6144</td>
+<td>精确</td>
+</tr>
+<tr>
+<td style="text-align:right">1024</td>
+<td style="text-align:right">6144</td>
+<td style="text-align:right">6</td>
+<td style="text-align:right">6144</td>
+<td>精确</td>
+</tr>
+<tr>
+<td style="text-align:right">10</td>
+<td style="text-align:right">6144</td>
+<td style="text-align:right">无精确整数</td>
+<td style="text-align:right">不占额</td>
+<td>拒绝发布该组合</td>
+</tr>
+</tbody>
+</table></div>
+<p>F=10时<code>614</code>对应6140MiB、<code>615</code>对应6150MiB；这两个都不是6144MiB。不能称factor只是展示倍率。另一个纯算术示例：<code>12285MiB/10</code>向下取整为1228块，实际只表达12280MiB；不推定用户实际factor或设备容量。</p>
+<h3 id="s14">3.4 上报总量是逐卡取整再汇总</h3>
+<pre><code class="language-text">T_d = floor(physical_memory_bytes_d / 2^20)
+R_d = floor(T_d / F)
+node_reported_blocks = sum(R_d)
+node_quantized_mib = sum(R_d × F)
+</code></pre>
+<p>不要用<code>floor(sum(T_d)/F)</code>代替<code>sum(floor(T_d/F))</code>；逐卡余数不能跨设备组成一块。Node.status.allocatable是可用于分配的容量口径，不是已减去所有Pod申请后的实时free。</p>
+<p>例如一张49140MiB设备，F=256：上报191块，对应48896MiB，244MiB是量化尾差；物理容量仍49140MiB。其他设备不能借用这244MiB来凑一个完整块。</p>
+<p>平台读取多个来源时先标注来源单位：节点注解和调度分配Usedmem按块×F；NVML/bytes指标除2^20仅做展示；已归一化MiB不再次乘F。</p>
+<h3 id="s15">3.5 整卡路径与尾差</h3>
+<p>整卡组仍使用number=1、cores=100、memory-percentage=100（需实际版本验证），不同时发送绝对memory。百分比100无需除F，但底层按量化后的父设备显存预算分配，再乘F，因此也可能留下不足F的尾差。</p>
+<p>产品“整卡”表示该设备不与其他消费者共享，并不授权平台掩盖量化后可用显存。详情展示物理容量与验证后的可用容量。若业务要求不接受该尾差，应在业务开放前选择更小且可上报的F，或单独验证不重叠整卡节点组的固定配置；不动态改变运行中的F。</p>
+<h3 id="s16">3.6 factor选择与配置检查</h3>
+<p>建议首期同一供给组所有节点使用相同F；能统一全GPU节点时更简单，但不把F写成不可扩展的全平台常量。不同F节点不得混入同一可替换组，否则同一Pod数值可能产生不同限制。</p>
+<p>初装需要核对进程实际args和已加载配置，不只读ConfigMap期望值。本次源码有CLI与ConfigMap覆盖处理，其他版本可能不同；显式固定有效参数，禁止F=0。[W6]</p>
+<p>选择F时同时满足固定规格整除、上报规模可接受、量化尾差可接受；1024只作为示例，不是对所有集群的部署建议。<code>memory_block_mib</code>进入baseline摘要和ResolvedGpuPlan，历史请求永不按最新F重算。观测报告还携带来源F/baseline，不能将旧样本乘新F。</p>
+<p>配置未知或单组F不一致：停止发布/新解析，标记<code>CONFIG_DRIFT</code>或<code>MEMORY_UNIT_UNVERIFIED</code>；不是普通容量不足排队。已有Pending不因数据库CLOSED自动被底层隔离，必须按实际运维流程处理，不能宣称已有设备禁入能力。</p>
+<h2 id="s17">4. 服务边界与两条流程</h2>
+<h3 id="s18">4.1 职责</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>服务</th>
+<th>负责</th>
+<th>不负责</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Governance</td>
+<td>套餐/额度/一次占额、业务命令可靠投递、原charge退额、GPU使用关联可靠同步</td>
+<td>父卡选择、Pod删除、GPU运行状态权威</td>
+</tr>
+<tr>
+<td>Inference</td>
+<td>业务校验、持久接受、模型/镜像/工作负载、真实推理、关闭和清理、释放事实</td>
+<td>GPU公共供给配置、另一份配额账本</td>
+</tr>
+<tr>
+<td>GPU服务</td>
+<td>静态组/规格/单位适配、设备清单、真实绑定和容量读模型、GPU使用关联投影</td>
+<td>先抢库存、创建推理工作负载、决定Gov退款</td>
+</tr>
+<tr>
+<td>Volcano/插件/HAMi</td>
+<td>已验证的调度、分配和限制</td>
+<td>套餐与平台用户权益</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s19">4.2 主流程与旁路</h3>
+<pre><code class="language-text">创建主链：
+用户 → Gov(认证/规格解析/一次占额+持久命令) → Inference(持久接受)
+                                              → K8s/Volcano/HAMi → 模型加载/真实推理
+
+关联旁路：
+Gov从已提交原操作与charge派生“声明/结束” → SyncGpuUsage → GPU查询读模型
+
+删除主链：
+用户/受权管理员 → Gov(持久DELETE) → Inference(封闭创建+完整清理)
+                               ← ReportQuotaRelease ← 删除完成事实
+Gov幂等退额；旁路随后同步关联结束。
+</code></pre>
+<p>使用关联不是新的资源权利，不需要Confirm/Cancel三阶段。GPU服务不可用会影响新请求的必要规格解析；已经拿到冻结计划、完成Gov受理的请求，不再因为关联同步延迟而阻塞执行。清理需要的真实证据缺失可以阻塞退款，这是执行事实未知，不是Consumer行缺失。</p>
+<h3 id="s20">4.3 简化身份</h3>
+<p>不强制另造Consumer ID。<code>GpuUsageRef</code>为<code>tenant_id + owner_service + resource_id + create_operation_id</code>。Gov生成稳定resource/operation，资源租户使用已有持久UUID映射；Gov内部tenant主键仍uint32。</p>
+<p>Pod标签至少包含resource-id、create-operation-id、owner-service、resource-tenant-id，均由受权owner从已接受命令注入；完整摘要用annotation，避免64位hex超过label值63字符。规格范围通过受管supply-group/model-key/baseline-id标签约束。</p>
+<p>不强制replica ordinal；实际绑定身份为<code>cluster_id + pod_uid + container_name + physical_device_id</code>。同一Pod多个来源去重，不同Pod UID不合并。平台资源ID不是物理GPU UUID。</p>
+<h2 id="s21">5. 字段级对象与接口原则</h2>
+<p>完整字段/tag、类型、必填和范围见本包Proto及字段字典；BFF字段与新配置键见<code>运行配置与产品接线.md</code>。以下业务不变量与字段注释共同构成合同。源域RPC仅内部gRPC，无HTTP注解；Gov BFF单独映射，不增加跨服务HTTP。</p>
+<h3 id="s22">5.1 核心对象</h3>
+<ul>
+<li><code>Cluster/Pool/SupplyGroup</code>：静态配置，不包含可手改的“剩余库存余额”。组内节点唯一归属；Node UID变化不得自动继承旧资格。</li>
+<li><code>ProviderBaseline</code>：实际组件标识/digest、F、单位语义、共享上限、配置证据；证据不足不能自报VERIFIED。</li>
+<li><code>GpuProfile</code>：不可变规格版本；共享绝对MiB、计算比例、适用组、provider块数与recipe。</li>
+<li><code>ResolvedGpuPlan</code>：冻结GpuRequest、profile、runtime片段、MiB总量和F；摘要排除时间、观察状态和未来Pod身份。</li>
+<li><code>GpuUsageProjection</code>：Gov申请在GPU域中的读投影，只有DECLARED/ENDED，不复制Inference Running/Failed。</li>
+<li><code>GpuBinding</code>：实际分配或待确认事实；可先于关联投影存在；ACTIVE/RELEASE_CONFIRMED/UNKNOWN与业务状态分开。</li>
+</ul>
+<h3 id="s23">5.2 管理接口</h3>
+<p>RegisterCluster、CreatePool、AdoptSupplyGroup、PublishProfile用于一次初始化；Get/List供查询。Adopt只核对既有安装，不写ConfigMap、不重启组件。发布必须满足组内F一致、型号匹配、规格整除、真实名额配置与验证证据。</p>
+<p>AdminGetCapacity使用AdminRead，不要求假租户。现有Gov平台用户tenant_id=0是其认证表示，本方案不重写该模型；Gov验证平台权限后，向GPU服务映射显式AdminRead，不把0当资源租户UUID传递。</p>
+<p>SetAdmission只停止新的Resolve，原已接受请求仍使用冻结plan；不声称取消已有调度。在线维护写能力不提供。</p>
+<h3 id="s24">5.2.1 初装标签和唯一写入方</h3>
+<p>Adopt核对已有插件配置并生成CLOSED状态的group_id；运维在业务开放前通过现有安装流程，把该group_id、model_key和baseline_id写入对应Node的受管标签。GPU服务不在本次任务中增加Node配置writer，但PublishProfile/OPEN必须实际读取并核对这些标签、Node UID与组成员一致。仅在数据库登记了节点，而Node标签未生效时不能开放规格。给用户容器或业务请求的权限不得包含修改这些节点标签。</p>
+<p>这是一轮明确的初始化交接：登记静态组 → 运维设置该组受管标签 → 核对与真实消费验证 → 发布/OPEN。不是每次创建时修改标签，也不是两个writer并发维护同一配置。实际plugin/scheduler安装流程继续由现有运维负责。</p>
+<h3 id="s25">5.3 租户查询与预检</h3>
+<p>List/GetProfiles限定授权范围；Resolve参数包括cluster/pool/profile/version/replicas/devices_per_replica/container_name。设备数量首期=1，replicas&lt;=当前owner上限；不允许GPU init/sidecar或额外GPU容器绕过计数。</p>
+<p>GetCapacity只读估计。CheckGpuFit可给出容量不足/未知/形态不支持。<strong>合法规格+权限+额度通过、当前容量不足可以提交等待；GPU fit=0不是表单提交上限。</strong>配置未验证、请求形态不受支持、组关闭或额度不足分别拒绝。</p>
+<p>客户侧不见其他租户、设备UUID、节点名和原始上报；Binding列表只展示自己已核验的归属。管理员设备详情通过独立接口读取。</p>
+<h3 id="s26">5.4 GPU使用关联同步接口</h3>
+<p><code>SyncGpuUsage</code>只接受Governance精确mTLS身份，<code>ref.owner_service</code>仍为ani-inference，不要求等于调用者。验证Gov委托来源与受支持owner、原创建、规格摘要和结构；不会查实时GPU空闲决定是否接纳。</p>
+<p>每资源只有两种逻辑版本：1=DECLARED，2=ENDED；revision是读投影版本，不是worker租约或执行fencing。两种消息均携带同一不可变ref和GPU计划摘要。ENDED带<code>GOVERNANCE_CANCELED_UNSENT</code>或<code>OWNER_RESOURCE_RELEASED</code>及事实引用；缺少依据拒绝。</p>
+<p>同资源同revision同摘要重放幂等，异内容拒绝；2先到可以直接建立终态，后来的1只允许相同不可变计划且不回退；不得让同resource用新create_operation复活。关系结束不删除真实Binding、不执行QuotaRelease。</p>
+<h3 id="s27">5.5 ObserveRelease不依赖投影</h3>
+<p>直接调用者只能是该资源受支持owner；输入可信GpuUsageRef、全部PodRef和关闭操作引用，不要求GPU关联表先存在。查询只返回事实证据，不推进资源关闭，不发退款。</p>
+<p>未发出任何外部创建时，owner自己的关闭记录可证明“不曾分配且不再创建”，不调用假GPU释放。曾发出但结果未知时，空Pod列表不能证明无资源；owner必须查清全部可能的副作用。</p>
+<h2 id="s28">6. 最新Governance上的具体接法</h2>
+<h3 id="s29">6.1 两个正式目录项</h3>
+<p><code>gpu.physical.count / gpu / CONCURRENT</code>与<code>gpu.shared_memory_mib / MiB / CONCURRENT</code>。使用新增版本数据脚本，不修改001实验目录数据脚本，不用启动播种。旧gpu.count继续LAB_ONLY。</p>
+<p>新enum<code>ENFORCED</code>仅表达额度执行已接线，不表示GPU有空闲或硬件通过全部验收。注册表+显式启用配置派生状态；已装配但当前下游故障时不修改账本或静默取消强制检查。错误和可用性单独表达。</p>
+<p>共享向量<code>replicas × devices_per_replica × profile.shared_memory_mib</code>，整卡向量<code>replicas × devices_per_replica</code>。共享不另扣物理卡，整卡不扣共享MiB。安全int64整数，去重quota_code，乘加溢出拒绝。</p>
+<h3 id="s30">6.2 原始输入与冻结计划</h3>
+<p>新增正式<code>GpuInferenceCreateCanonicalV1</code>，仍显式schema_version=1，并用<code>request_kind=inference.gpu.create.v1</code>区分实验。保存经过实际Inference合同验证的业务参数、GPU原请求、完整冻结plan、gpu-metering-v1。不得将密码、Bearer、任意凭据、未验证GPU字段放进canonical。</p>
+<p>request_hash基于可信tenant/actor/owner/action和规范业务输入，<strong>不含解析时间、resource新UUID、当前容量或新生成plan时间</strong>。new请求在事务外Resolve；受权幂等重放先读原请求，内容一致则复用原计划，不再访问最新目录。并发最终仍由Occupy事务内幂等锁/唯一约束决定，不能仅靠前置查询防重。</p>
+<p>原源码把到期检查放在Occupy幂等查询之前。正式入口不能默认这已经符合“历史重放与新受理分离”的需求：按当前权限允许查询原操作；新请求才按当前套餐准入；后台投递使用原记录不再占额。是否允许过期用户访问原操作遵循现有入口权限，不能绕过全局闸门。</p>
+<h3 id="s31">6.3 Consumer旁路的落地方式：可靠派生，不增加关键链写依赖</h3>
+<p><strong>本版根据已上传账本代码选择“可恢复扫描+同步进度”，而不是要求改造Occupy/Release为跨库事务或新增强前置注册。</strong>Gov已有不可变canonical、原操作及charges，足以持久派生关联的目标状态。</p>
+<p>新增<code>sys_gpu_usage_sync</code>仅存关联投递进度，不存第二份额度和运行状态。后台枚举正式GPU CREATE操作，核对至少有一笔完整合法原charge后派生：</p>
+<pre><code class="language-text">原CREATE=CANCELED_UNSENT → desired_revision=2，reason=GOVERNANCE_CANCELED_UNSENT
+全部原charge的released_units=original_units → desired_revision=2，reason=OWNER_RESOURCE_RELEASED
+否则 → desired_revision=1
+</code></pre>
+<p>不能仅凭DELETE ACKED、receipt到达一部分或Pod结束产生revision2；也不能用“无charge集合的all条件为真”将坏数据结束。</p>
+<p>每轮将目标与acked_revision比较，落同步进度并领取；提交领取后调用SyncGpuUsage，回执CAS只更新本次租约和已确认revision。revision2由账本最终状态派生，因此即使占额提交后进程崩溃、未写同步行，恢复扫描仍能补齐。必须定期按稳定operation_id分页核对，不只扫新增时间戳，否则旧operation后来的Release会漏掉。</p>
+<p>这是相对上一轮“同事务另写同步意图”的工程收敛：可靠依据已经在Gov同事务账本里，旁路可从其重建；创建/退额无需等待GPU同步。已有operation仍是唯一业务投递意图，<strong>不为业务创建再建第二份dispatch表</strong>。</p>
+<p>source引用采用可重建的确定性键：受理用<code>quota-operation:&lt;id&gt;:accepted</code>，未发撤销用<code>quota-operation:&lt;id&gt;:canceled-unsent</code>，最终释放用<code>quota-operation:&lt;id&gt;:gpu-fully-released</code>，通过该键可查原charge及相关receipt。单次receipt不必囊括全部charge，但结束前必须核对原向量全量。时间字段只携带原CREATE的持久created_at，不冒充删除完成时间；不得使用每轮扫描时间、最新重试receipt或updated_at生成不同payload。相同ref/revision始终生成同一内容，即使同步进度行重建也一致。同步payload不含账本余额和凭据。</p>
+<h3 id="s32">6.4 同步状态与业务投递完全分开</h3>
+<p>原<code>sys_quota_operations.attempt_count</code>只统计向Inference发送，不能加上SyncGpuUsage调用；<code>dispatch_state</code>仍只有现有投递状态。sync worker失败只更新同步表，永不扣额/退额、永不调用Inference创建。</p>
+<p>新请求提交成功但关联延迟：显示“使用关联同步中”；GPU观测到的未关联真实分配仍计容量，等待可信关联后才向租户展示。不让GPU投影成为幂等受理/物理计数的新权威。</p>
+<h3 id="s33">6.5 正式业务投递</h3>
+<p>复用QuotaDispatchAdapter注册ani-inference。正式CREATE读取canonical与全量charges，转换为真实Inference方法需要的参数；DELETE携带原create_operation和完整charge快照。业务owner接受完整业务+GPU参数，不能只对GPU摘要ACK。</p>
+<p>现有worker只回补第一笔charge，必须修成全量查询并按code排序，失败不调用下游。<code>QuotaDispatchCommand</code>增量保存结构化actor字段，不能为统一格式破坏实验adapter。</p>
+<p>正式owner接受ACK必须核对operation_id/resource_id/accepted=true；下游业务失败但已接受时仍返回持久接受，失败状态留owner，Gov不按错误字符串退款。</p>
+<h3 id="s34">6.6 删除和未发撤销的决定</h3>
+<p>正式DELETE入口先校验当前用户/管理员权限，按租户、owner、resource定位原创建。在本地事务里统一决定：</p>
+<ul>
+<li>原创建确认QUEUED且attempt_count=0：沿既有CancelUnsent算法封闭领取并退额；同时持久记录本DELETE幂等受理结果，标<code>CANCELED_BEFORE_DISPATCH</code>，不是伪造owner ACK。本版用小型<code>sys_gpu_delete_acceptances</code>保存公开DELETE的幂等结果；排队分支指向现有DELETE operation，本地撤销分支不生成假投递对象。该表没有worker或第二份删除任务，不新增通用dispatch枚举。</li>
+<li>已尝试发送或已接受：持久保存现有DELETE operation，不新建charge，可靠交给owner关闭。</li>
+<li>并发领取竞争：必须共享原operation锁，不先查询再分两个事务乐观退款。对既有方法做局部transaction helper抽取，复用算法，不复制一套余额实现。</li>
+</ul>
+<p>有明确DELETE先到支持：信封带原完整计划/charge摘要，owner按ref保存关闭墓碑，即使没有先收到CREATE；迟到CREATE命中终态不执行。若选择不同顺序合同必须另行评审，不能默默依赖单worker按时间排序。</p>
+<h3 id="s35">6.7 保留退额服务</h3>
+<p><code>quota.service.v1.QuotaReleaseService/ReportQuotaRelease</code>不变。共享items.released_total仍MiB，不是provider块数；原create operation_id，不是DELETE operation_id。重复全量回调无增量。Inference精确SAN加入已注册owner映射，GPU服务不加入该业务charge的退款owner。</p>
+<p>首期Inference只在明确DELETE且整实例完全清理后报告所有原GPU charge全量；部分Pod清理、失败、退出、重启不报告。Gov不跟踪模型Loading/Ready，不用Kubernetes查询判断退款。</p>
+<h3 id="s36">6.8 API与模块登记</h3>
+<p>保留已存在<code>/admin/v1/quota-definitions</code>、<code>/admin/v1/tenants/{id}/quota-accounts</code>及套餐CRUD。新增建议路径见后文。正式Inference路由未在上传Gov中定位，也未取得Inference代码，因此实施前必须完成真实方法/请求/响应/权限映射，不能以文档示意路径假定已实现。</p>
+<p>当前module.proto无Inference/GPU枚举。新增业务模块需要显式确认统一编号，同步Proto/Ent enum/数据库检查/API目录/套餐/Casbin，不把实验TENANT默认授权当正式归属。更新<code>docs/interface-integration-register.md</code>、定向生成脚本与OpenAPI；保留当前固定Go工具基线，不运行广泛升级或全量Wire。</p>
+<h2 id="s37">7. Inference执行、删除与证据</h2>
+<h3 id="s38">7.1 创建</h3>
+<p>受理时验证Gov mTLS、tenant/resource/operation、完整业务摘要、计划摘要、MiB总量与charge向量一致。持久保存业务实例、计划和原charge之后ACK，后台继续创建。无需调用RegisterConsumer。</p>
+<p>渲染时按计划的q写vgpu-memory，每副本一份；不能用整个实例的总额写每Pod，也不能临时读取最新factor重新转换。实际replicas与GpuRequest相同，container_name唯一；额外GPU容器/init容器不属于本版。</p>
+<p>模型版本、镜像、模型下载/挂载、服务入口沿用实际Inference合同。不同Pod不共享伪造ordinal。创建后必须加载模型并通过真实推理请求，不能以sleep或HTTP存活检查代替。</p>
+<h3 id="s39">7.2 等待和运行失败</h3>
+<p>GPU暂满但合法请求受理后Pending，占额不变。容量预检不锁资源。配置不支持、factor未知、参数不合法在受理前拒绝；已接受后遇到基础设施异常留owner阻塞原因，不归成普通“队列满”。不设置首期自动排队退款。</p>
+<p>模型失败保留可删除实例；容器普通重启沿既有策略。原资源声明仍存在，因此Gov额度不变化；设备绑定是否变化由实际观测决定，不一概称所有重建保持旧分配。</p>
+<h3 id="s40">7.3 创建中删除的四种分支</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>阶段</th>
+<th>处理和退额依据</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Gov从未尝试发CREATE</td>
+<td>Gov原子撤销+退额，投影是否同步无关</td>
+</tr>
+<tr>
+<td>已尝试发送，owner接受情况未知</td>
+<td>不本地退款，可靠DELETE给owner；owner处理先到关闭</td>
+</tr>
+<tr>
+<td>owner接受但从未发外部创建</td>
+<td>owner封闭本实例后形成未分配关闭事实；不用假ObserveRelease</td>
+</tr>
+<tr>
+<td>K8s写在途、Pending或运行</td>
+<td>查清结果、停止继续生成、清理全部相关控制器/Pod/分配，完整完成后报告</td>
+</tr>
+</tbody>
+</table></div>
+<p>终态检查必须在实际创建执行控制点成立。单写closed字段不能取消已经通过检查且发出的K8s写入；这类结果未查明就继续持额。首期至少验证“接受后暂缓创建→DELETE→恢复旧执行”普通交错，不把它全部归到未来复杂容灾。</p>
+<h3 id="s41">7.4 正常释放证据的正向规则</h3>
+<p>provider adapter必须输出每个实际使用键的<code>ACTIVE / RELEASE_CONFIRMED / UNKNOWN</code>，并有当前部署的证据映射表。调度注解只能说明选择；插件成功和运行事实用于确认实际绑定。不能把PodResources返回的伪设备ID或memory块条目直接当硬件UUID。</p>
+<p>正常在线节点的释放需要核对工作负载控制器已停止生成、相关Pod/容器已终止、设备分配记录已解除，以及owner没有未知在途创建。具体查询采用现有采集/插件/Kubelet/运行时可用接口，必须填入真实路径；本包不捏造上游存在一个统一ReleaseConfirmed API。[W7]</p>
+<p>对同一使用关系，可信解除证据到达后，将其覆盖范围内的旧scheduler选择/旧插件分配退出有效集合。只保留旧true而不退休会永久占容量；随便任一false覆盖全部也不正确。</p>
+<p>未知节点/读取失败/单次缺项不表示释放。强删API对象不证明节点进程已停止。[W8] 永久失联自动恢复不作为首期实现，但不能因此自动退额。</p>
+<h3 id="s42">7.5 两个结束互不代替</h3>
+<p>GpuUsageProjection.ENDED只是Gov申请结束投影；Binding.RELEASE_CONFIRMED是实际使用解除事实。投影结束不得清Binding；Binding消失不得自动结束业务申请或退额。投影关闭而仍观察到残留访问时，保留占用并报告一致性问题。</p>
+<p>完整删除事实和待发ReportQuotaRelease在Inference自身本地事务内持久化，响应丢失继续发同event_id；不同DELETE key关联同一实例结束事实，不重复累计。没有原创建记录而DELETE先到时，使用Gov可信原charge快照，保留对应create墓碑。</p>
+<h2 id="s43">8. 容量读模型：固定规格下的算法</h2>
+<h3 id="s44">8.1 不建设库存交易系统</h3>
+<p>物理设备清单、名义供给、已知分配、容量估计都保留；没有LockInventory/CommitInventory/ReturnInventory。GPU服务不能在查询时改变设备分配，也不先挑一张父卡写占用后要求Volcano使用它。</p>
+<h3 id="s45">8.2 单位归一化与去重</h3>
+<p>先按<code>cluster+device</code>划分证据，再按<code>pod_uid+container</code>归并；同使用的多来源只占一份。原始source值注明BLOCKS/MIB/BYTES和来源F；归一化后存memory_mib用于容量计算。不同来源归一化后矛盾则该设备结果未知，不取最小量，也不使其他设备查询全部失败。</p>
+<p>不同物理节点上相同索引不是同设备。未放置请求不平均分摊到父GPU；使用关联还没同步不丢实际占用。未纳管工作负载同样减少物理容量。</p>
+<h3 id="s46">8.3 计算</h3>
+<p>已验证每卡安全预算<code>B_d &lt;= R_d × F</code>，固定规格<code>m % F=0</code>，实际最大份数K，已去重有效或未能排除的占用集合C：</p>
+<pre><code class="language-text">used_units_d = |C|
+committed_mib_d = sum(claim.memory_mib)
+nominal_units_d = min(K, floor(B_d/m), 验证过的计算预算上限)
+free_units_d = min(K-used_units_d,
+                   floor((B_d-committed_mib_d)/m),
+                   验证过的剩余计算预算上限)
+</code></pre>
+<p>先检查负数/超预算/模式冲突等不变量，再计算，不用max(0,...)掩盖错误。计算比例仅在后端基线证明可按此硬预算相加时参与；否则需按固定满额运行测试形成保守K，不宣传固定吞吐比例。</p>
+<p>首期用真实<code>devicesplitcount</code>兑现安全份数。B只能装3份就实际配置K=3，不是页面减成3、底层仍允许4。factor造成量化预算缩小后也重新核对这一点。</p>
+<p>整卡组每父卡名义1、存在任何占用冲突则free0；共享与整卡物理集合不重叠，可并列统计，不把两者相加成物理总数。</p>
+<h3 id="s47">8.4 未知、过期和冲突</h3>
+<p>故障设备保留绑定，暂停贡献已知free。汇总返回<code>known_free_units</code>和<code>complete=false</code>及原因；数字0+未知不能显示“全池耗尽”。只读估计未知本身不成为新增请求硬拒绝；实际供给配置不可验证则停止新解析。</p>
+<p>错误<code>CAPACITY_INVARIANT_VIOLATION</code>表示读模型保守排除冲突设备和停止相关新解析，不宣称自动阻止了所有在途/存量Pending分配。需要真实隔离时走运维流程。</p>
+<h3 id="s48">8.5 运行指标与配额不同</h3>
+<p>显存实际用了1GiB但申请6GiB，Gov仍占6144MiB，物理供给仍按6GiB承诺。Node allocatable、实时空闲、已占额度和预计可新增副本分别展示。新请求主流程不依赖精确free数。</p>
+<h2 id="s49">9. 完整例子</h2>
+<h3 id="s50">9.1 factor与共享申请、整卡并存</h3>
+<p>假设整卡组W0/W1各1张；共享组S0/S1各物理24576MiB，F=1024，上报24块，每份m=6144MiB/q=6/cores25，K=4，所有组合已经实测。</p>
+<p>S0已有2份、S1已有1份；W0已有整卡消费者、W1空闲：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>项目</th>
+<th style="text-align:right">结果</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>物理GPU</td>
+<td style="text-align:right">4张</td>
+</tr>
+<tr>
+<td>整卡名义/可用</td>
+<td style="text-align:right">2/1张</td>
+</tr>
+<tr>
+<td>共享名义/已用/参考可用</td>
+<td style="text-align:right">8/3/5份</td>
+</tr>
+<tr>
+<td>共享已承诺</td>
+<td style="text-align:right">18GiB</td>
+</tr>
+<tr>
+<td>共享参考可新增容量</td>
+<td style="text-align:right">30GiB</td>
+</tr>
+</tbody>
+</table></div>
+<p>租户上限36GiB、已占12GiB，申请两副本，每副本一张6GiB：Gov占12288MiB，使账户到24GiB；<strong>每个Pod写memory=6，两个Pod不是写12，也不是6144。</strong>实际落在哪张卡由调度器决定；整卡组容量不会因为共享申请而改变。</p>
+<h3 id="s51">9.2 上报错误的对照</h3>
+<p>同上F=1024，却误写memory=6144：调度器会按6144块理解，远大于单卡24块；通常无法放置，不能把它当普通“资源都被别人用完”。若数量被允许进入实际分配，插件的乘F语义也不是6GiB，说明合同本身错误。</p>
+<p>反过来，平台读Node上报24并显示“24MiB”会低估1024倍；把真实bytes指标也再乘F会高估1024倍。测试必须覆盖三个方向，不能仅核对页面单位文本。</p>
+<h3 id="s52">9.3 因量化和安全预算只能卖三份</h3>
+<p>物理23552MiB，F=1024 → 23块 →23552MiB；规格6块=6144MiB。floor(23/6)=3，所以K&lt;=3；尾部5120MiB不够一份，不是第四张逻辑卡。其他节点剩余不能拼给这个单设备请求。</p>
+<p>若F=10且规格6144，首期直接在发布时拒绝，不进入“算3份或4份”的阶段。要开放需选择可表达的固定规格/F组合并重新实测。</p>
+<h3 id="s53">9.4 无空闲但有额度</h3>
+<p>共享8份都满，B租户额度24GiB、已占0，申请2份：Gov占12GiB并受理，Pod等待；consumer同步可能还未到达。物理仍只分配8份，不是实际超卖10份。两份释放后调度，Gov仍12GiB，不第二次扣。</p>
+<h3 id="s54">9.5 删除与旁路失败</h3>
+<p>新实例原charge12288MiB；一个Pod退出/重启不退额，DELETE后只清理一个Pod也不退额。两者完全清理，owner报告released_total12288，Gov只退一次。GPU关联结束投影暂时失败，不阻断已完成的退款；设备容量根据解除事实恢复，不等投影结束。</p>
+<p>Sync revision2先到、旧revision1后到，GPU侧维持ENDED。真实Binding先于projection存在，记入未关联占用并等待归属核验，不丢弃。</p>
+<h3 id="s55">9.6 创建中删除</h3>
+<p>Gov已占额且projection已同步，但CREATE.attempt_count=0：可以本地安全撤销，随后projection变ENDED，不要求Inference伪造删除完成。</p>
+<p>CREATE已尝试、ACK丢失：Gov不能因GetResource暂时NotFound退款。DELETE携带原身份/charge给owner；关闭墓碑使迟到CREATE不能新建；已发外部请求查清并清理。未知继续持额，不能靠TTL补偿。</p>
+<h2 id="s56">10. 产品及BFF适配</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>页面/入口</th>
+<th>保留或修改</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>用户选GPU规格和张数</td>
+<td>保留；不展示F为用户选择项，不让客户传块数</td>
+</tr>
+<tr>
+<td>BOSS物理/逻辑库存总数</td>
+<td>物理卡单列，整卡与共享供给按单位分列</td>
+</tr>
+<tr>
+<td>Console配额</td>
+<td>整卡N张；共享已占/上限GiB；不再混成统一3/6</td>
+</tr>
+<tr>
+<td>规格可新增数量</td>
+<td>按当前规格换算余额；当前容量参考不作提交最大值</td>
+</tr>
+<tr>
+<td>切分配置</td>
+<td>首期初始化工具核对并发布；开放后只读；F和量化尾差管理员详情可见</td>
+</tr>
+<tr>
+<td>分给租户/已预留</td>
+<td>首期改为额度配置，不显示已兑现资源预留</td>
+</tr>
+<tr>
+<td>使用关联</td>
+<td>来自Gov异步投影，可显示待同步；业务状态仍查Inference</td>
+</tr>
+<tr>
+<td>请求Pending</td>
+<td>显示等待与真实阻塞原因，不等于GPU服务分配队列</td>
+</tr>
+<tr>
+<td>删除</td>
+<td>受理不等于完成；Gov账本在owner事实后变化</td>
+</tr>
+<tr>
+<td>过期/失权资源清理</td>
+<td>显式管理员/系统权限仍走同一owner删除链，不直接改余额</td>
+</tr>
+</tbody>
+</table></div>
+<p>建议新BFF：管理员<code>/admin/v1/accelerator/{clusters,pools,supply-groups,profiles,devices,capacity}</code>；租户<code>/api/v1/accelerator/{profiles,capacity,admission-preview,usages}</code>、<code>/api/v1/me/quota-accounts</code>。完整请求字段来自对应Proto；列表现有分页接口要做明确映射，不借此统一改造全平台JSON。</p>
+<p>Inference创建/删除/GET继续接其正式产品接口，新GPU字段作为附件；本次未获得实际owner API，不发明替代模型/镜像字段。Gov新适配必须增加Api目录和权限/模块，<code>sync-apis</code>不等于自动授权。</p>
+<h2 id="s57">11. 数据库与持久化</h2>
+<h3 id="s58">11.1 GPU自有库</h3>
+<p>本包SQL分为设施、投影和观测：clusters/pools/supply_groups/group_nodes/profiles；gpu_usages；devices/bindings/release_observations。供给配置强约束，容量可由配置与有效分配重建；无inventory_available可手工修改余额。</p>
+<p>Binding先保存实际身份、原始引用和单位归一化信息；<code>verified_usage_ref</code>可空。后续已验证关联采用同tenant/resource/create匹配，原始未验证标签另存白名单，不靠缺省0租户填充。ENDED不级联删除Binding；从实际分配筛选后再left join投影。</p>
+<h3 id="s59">11.2 Governance增量</h3>
+<p><code>sys_gpu_usage_sync</code>一行对应一份正式GPU原创建操作，FK只在Gov本库关联，字段包括desired_revision、acked_revision、payload_digest、租约、下次同步、错误摘要。没有occupied/reserved/running字段；不把它当通用quota项目必须依赖的Consumer表。</p>
+<p>原canonical保存完整计划和业务输入。关联任务可以从该持久源重建；不跨库FK、不让GPU服务读Gov数据库。原账本仍满足<code>occupied=sum(original-released)</code>。</p>
+<p><code>sys_gpu_delete_acceptances</code>保存公开删除受理结果与幂等键：本地撤销或关联既有DELETE operation。没有第二套执行状态或投递worker，不写假owner ACK。具体Ent schema、导出器、Atlas新迁移顺序要按上传仓库工具生成，SQL提案不是已执行迁移。</p>
+<h3 id="s60">11.3 事务和恢复边界</h3>
+<p>占额/退额和业务投递源继续现有本地事务；GPU同步在事务外且独立重试。owner接受/关闭/完成事实/通知在owner自身事务。真实K8s操作无法加入PG事务，用稳定身份、执行关闭和结果核对解决，不声称跨服务恰好一次。</p>
+<p>关联sync终态保留，历史操作/charge不会为了页面清理硬删除。进程重启恢复已提交事实；当前只读信息不能覆盖实际副作用的不确定性。</p>
+<h2 id="s61">12. 错误与幂等</h2>
+<p>保留原Quota错误。新增GPU稳定reason：<code>MEMORY_UNIT_UNVERIFIED</code>、<code>MEMORY_GRANULARITY_MISMATCH</code>、<code>FACTOR_MISMATCH</code>、<code>CONFIG_DRIFT</code>、<code>PROFILE_NOT_ACTIVE</code>、<code>SHAPE_UNSUPPORTED</code>、<code>USAGE_PROJECTION_CONFLICT</code>、<code>BINDING_EVIDENCE_CONFLICT</code>、<code>SOURCE_UNKNOWN</code>。</p>
+<p>发布/Resolve中的单位不明、漂移、形态不支持是FailedPrecondition或InvalidArgument；capacity读中未知/不足是结构化结果，不一般返回资源分配失败。已经受理后错误不回滚成“未发生”。</p>
+<p>同步同ref/revision异payload冲突保持现场，暂停该条自动覆盖但不操作资源/额度；网络失败重试原数据。投影revision和投递lease_generation不是同一字段。</p>
+<h2 id="s62">13. 实施顺序与明确修改文件</h2>
+<h3 id="s63">阶段A：固定实际部署与最小单位实验</h3>
+<p>取得真实plugin/Volcano/HAMi版本、effective F、两组节点、单卡物理容量、Node原始上报与annot、实际owner入口。跑F与6GiB正向/错误数值负向、共享至少两个真实推理和整卡排他。先用现有部署，不重写scheduler。条件不满足时，文档/代码独立工作可继续，真实资源交付不得宣布通过。</p>
+<h3 id="s64">阶段B：GPU服务目录和单位适配</h3>
+<p>实现初始化Adopt、固定规格Resolve、设备/容量查询；AdminGetCapacity独立权限；factor字段进入baseline/plan。修复单设备冲突传播和分配解除正向规则。优先复用已有采集，不为流程搭全部Agent接口。</p>
+<h3 id="s65">阶段C：Governance正式接入</h3>
+<p>主要修改现有<code>quota_adapter.go</code>、<code>quota_dispatch_worker.go</code>、<code>quota_ledger_repo.go</code>有限辅助、<code>quota_admin_repo.go</code>、<code>quota_catalog.proto</code>、wiring与mTLS owner map。新增<code>gpu_request_service.go</code>、<code>inference_quota_adapter.go</code>、<code>accelerator_client.go</code>、<code>gpu_usage_sync_repo.go/worker.go</code>及Ent schema、正式BFF Proto/定向生成模板、目录数据脚本。</p>
+<p>具体方法复用和新增见源码核对表；新模块编号、真实Inference包路径由统一登记确认，不使用本地跨repo replace。只修改本任务直接相关路径；不升级无关依赖、不改变旧认证/套餐JSON。</p>
+<h3 id="s66">阶段D：Inference与删除</h3>
+<p>在取得实际源码后，列出已有创建/更新/重建/删除/模型加载入口，再嵌入附件。去除Register/Mark/Finalize依赖，保留真实资源清理与ReportQuotaRelease，支持创建中删除与DELETE先到。固定副本，ordinal非必需，禁止未经计额的额外GPU副本。</p>
+<h3 id="s67">阶段E：旁路与产品</h3>
+<p>Gov使用关联任务从原始记录可靠派生，GPU幂等接纳。绑定先到、结束先到都正确。接BOSS/Console读，明确sync延迟、额度/容量单位、已受理/Ready/已删除差异；不把F暴露为租户参数。</p>
+<h3 id="s68">阶段F：验收和交付</h3>
+<p>执行下表，分别记录设计静态/真实DB/真实GPU结果。已有模拟证据仅作为回归基线，不能替代新两类资源与旁路测试。迁移保持Atlas流程、运行账号无DDL、不启动播种，不自动部署或推送。</p>
+<h2 id="s69">14. 验收清单</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>ID</th>
+<th>场景</th>
+<th>必须成立</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>UNIT-01</td>
+<td>F=1/256/1024、m=6144</td>
+<td>q分别6144/24/6，Gov均6144</td>
+</tr>
+<tr>
+<td>UNIT-02</td>
+<td>F=10、m=6144</td>
+<td>发布/解析拒绝，未占额</td>
+</tr>
+<tr>
+<td>UNIT-03</td>
+<td>多卡逐卡余数量化</td>
+<td>逐卡floor再sum，不能跨卡拼块</td>
+</tr>
+<tr>
+<td>UNIT-04</td>
+<td>注解blocks与bytes指标</td>
+<td>恰好归一化一次，无漏乘/双乘</td>
+</tr>
+<tr>
+<td>UNIT-05</td>
+<td>F=0/未知/组内不一致</td>
+<td>拒绝新供给，不假装满额排队</td>
+</tr>
+<tr>
+<td>UNIT-06</td>
+<td>历史样本与F漂移</td>
+<td>不按新F解释旧分配；历史账本仍原MiB</td>
+</tr>
+<tr>
+<td>REAL-01</td>
+<td>F&gt;1的共享实例真实请求</td>
+<td>Pod值、分配值、运行限制与Gov一致</td>
+</tr>
+<tr>
+<td>REAL-02</td>
+<td>同父卡至少两个实例推理</td>
+<td>真实模型加载和请求通过，限制在支持范围实测</td>
+</tr>
+<tr>
+<td>REAL-03</td>
+<td>实际K满后新增</td>
+<td>Pending，不越过固定资源预算</td>
+</tr>
+<tr>
+<td>REAL-04</td>
+<td>整卡竞争及量化尾差</td>
+<td>真排他；物理与有效显存透明</td>
+</tr>
+<tr>
+<td>CAP-01</td>
+<td>三来源同一实际使用</td>
+<td>只计一次</td>
+</tr>
+<tr>
+<td>CAP-02</td>
+<td>单设备证据矛盾</td>
+<td>局部未知；正常设备可查</td>
+</tr>
+<tr>
+<td>CAP-03</td>
+<td>正常设备解除</td>
+<td>旧选择/分配证据退出，容量恢复</td>
+</tr>
+<tr>
+<td>CAP-04</td>
+<td>投影缺失或ENDED</td>
+<td>不漏计仍然存在的Binding</td>
+</tr>
+<tr>
+<td>GOV-01</td>
+<td>并发/重放与计划冻结</td>
+<td>一次占额、同resource/plan、无重复Resolve漂移</td>
+</tr>
+<tr>
+<td>GOV-02</td>
+<td>不足/到期/缺项/未启用</td>
+<td>占额前拒绝，现有规则明确</td>
+</tr>
+<tr>
+<td>GOV-03</td>
+<td>共享和整卡</td>
+<td>扣MiB或张数，不交叉重复</td>
+</tr>
+<tr>
+<td>GOV-04</td>
+<td>原操作多charge删除</td>
+<td>完整向量、按code匹配、读取失败不投递</td>
+</tr>
+<tr>
+<td>GOV-05</td>
+<td>正式与实验构建</td>
+<td>正式owner可接，lab不泄漏生产</td>
+</tr>
+<tr>
+<td>GOV-06</td>
+<td>enforcement展示</td>
+<td>注册和目录吻合，未知code不一律LAB_ONLY</td>
+</tr>
+<tr>
+<td>SYNC-01</td>
+<td>projection不可用</td>
+<td>已受理创建继续，恢复后收敛</td>
+</tr>
+<tr>
+<td>SYNC-02</td>
+<td>2先到1后到、重复/冲突</td>
+<td>终态不复活、异报文不覆盖</td>
+</tr>
+<tr>
+<td>SYNC-03</td>
+<td>占额后同步行尚未插入即重启</td>
+<td>从原持久op重建，不丢同步</td>
+</tr>
+<tr>
+<td>SYNC-04</td>
+<td>旧op后续全部释放</td>
+<td>定期重查派生2，不因只扫新时间漏掉</td>
+</tr>
+<tr>
+<td>DEL-01</td>
+<td>未发撤销与领取竞争</td>
+<td>严格两种结果，无退款后业务发送</td>
+</tr>
+<tr>
+<td>DEL-02</td>
+<td>owner接受未创建时删除</td>
+<td>无假Consumer/假释放数据，旧创建不执行</td>
+</tr>
+<tr>
+<td>DEL-03</td>
+<td>DELETE先到或ACK丢失</td>
+<td>关闭墓碑、原charge全量，未知持额</td>
+</tr>
+<tr>
+<td>DEL-04</td>
+<td>一个Pod退出/部分删除</td>
+<td>不退；整实例删完才全量</td>
+</tr>
+<tr>
+<td>DEL-05</td>
+<td>重复全量回调/关联结束同步失败</td>
+<td>只退一次，同步不阻断退款</td>
+</tr>
+<tr>
+<td>API-01</td>
+<td>平台/租户查询</td>
+<td>无假tenant、无跨租户泄漏</td>
+</tr>
+<tr>
+<td>API-02</td>
+<td>GPU字段篡改和额外副本</td>
+<td>在受理/owner校验中拒绝</td>
+</tr>
+<tr>
+<td>API-03</td>
+<td>满容量但有额度</td>
+<td>能受理等待，不被预检0拦截</td>
+</tr>
+</tbody>
+</table></div>
+<p>复杂节点故障自动恢复可后置，但遇到未知不能退额；私有云首期不宣称HAMi软件机制提供任意恶意代码强隔离。[W9]</p>
+<h2 id="s70">15. 扩展空间与本次未实现项</h2>
+<p>未来多规格仍按MiB计额；多个规格共享父卡时分别计算可容纳量，不能相加理论库存。多卡请求需真实不同设备/拓扑验证。MIG增加硬件分区身份和独立单位映射，不能照抄当前F规则。</p>
+<p>容量保障会引入真实资源使用权，因此独立合同，不把本次只读关联同步“升级成偷偷锁卡”。只保留稳定业务引用和规格/计量适配边界；将来可增量加入明确source类型，当前不定义预留字段或写入口。</p>
+<p>其他配额只使用Gov通用账本和业务适配器，不强制建立GPU使用关联。COUNTER类累计调用与并发资源归还不是同一生命周期，需要另设明确计量政策。</p>
+<h2 id="s71">16. 本次交付验证边界</h2>
+<p>本次实际动作仅在隔离目录读取上传代码、查阅官方源码、生成本设计、检查Proto编译、JSON/YAML解析和SQL静态结构，并运行纯计算测试；详细结果以<code>validation/验证说明.md</code>为准。没有改业务仓库、没有获取Inference源码、没有访问真实数据库和集群。</p>
+<p><strong>可以据此开始实施，但不能以本包的模型测试替代GPU上报、实际内存限制、PostgreSQL事务、mTLS、Inference执行封闭或真实推理验证。</strong></p>
+<hr/>
+<h1 id="s72">运行配置、BFF字段和现有仓库接线</h1>
+<p>本章字段是v1.2新增建议，明确区别于上传代码已有入口。所有写入仍从Governance经过现有认证、租户资格、模块与角色检查；内部仅gRPC，不新建对外HTTP服务。</p>
+<h2 id="s73">1. 应用配置增量</h2>
+<p>保留已有<code>ANI_QUOTA_ENABLED</code>及内部释放监听/TLS配置。以下新配置建议放既有配置加载模块中，环境名须最终登记；不能靠配置加载一个未知owner/任意URL作为运行插件。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>新键</th>
+<th>类型/默认</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ANI_GPU_INFERENCE_ENABLED</td>
+<td>bool / false</td>
+<td>注册正式Inference GPU创建/删除能力，缺必需连接信息时启用失败；禁用不抹掉已有账本</td>
+</tr>
+<tr>
+<td>ANI_ACCELERATOR_GRPC_ADDR</td>
+<td>string / 空</td>
+<td>GPU服务受管地址，启用时必填，不接受客户端提供</td>
+</tr>
+<tr>
+<td>ANI_INFERENCE_GRPC_ADDR</td>
+<td>string / 空</td>
+<td>真实Inference地址；需核对现有配置是否已有可复用项</td>
+</tr>
+<tr>
+<td>ANI_RESOURCE_CLIENT_CA_FILE</td>
+<td>path / 空</td>
+<td>出站受管CA文件引用，可复用已有配置；不能明文降级</td>
+</tr>
+<tr>
+<td>ANI_RESOURCE_CLIENT_CERT_FILE</td>
+<td>path / 空</td>
+<td>Gov客户端证书，服务端精确验证Gov身份</td>
+</tr>
+<tr>
+<td>ANI_RESOURCE_CLIENT_KEY_FILE</td>
+<td>path / 空</td>
+<td>私钥只从文件/secret载入，不进业务数据库或日志</td>
+</tr>
+<tr>
+<td>ANI_ACCELERATOR_SERVER_NAME</td>
+<td>string / 已登记服务身份</td>
+<td>TLS校验目标，不能skipVerify</td>
+</tr>
+<tr>
+<td>ANI_INFERENCE_SERVER_NAME</td>
+<td>string / 已登记服务身份</td>
+<td>TLS校验真实owner目标</td>
+</tr>
+<tr>
+<td>ANI_GPU_USAGE_SYNC_INTERVAL</td>
+<td>duration / 5s建议</td>
+<td>独立旁路扫描周期，不是资源清理/退款TTL</td>
+</tr>
+<tr>
+<td>ANI_GPU_USAGE_SYNC_BATCH</td>
+<td>int / 50建议</td>
+<td>单页扫描量；定期扫描既有未收敛/旧原操作，不能只扫新create</td>
+</tr>
+<tr>
+<td>ANI_GPU_USAGE_SYNC_RPC_TIMEOUT</td>
+<td>duration / 3s建议</td>
+<td>超时重试同步，不取消工作负载</td>
+</tr>
+</tbody>
+</table></div>
+<p>factor不放Governance环境变量。它属于GPU服务各静态组的已验证基线，Resolve返回编码参数；Gov只按MiB计量。创建已受理后计划不受新配置重新解释。</p>
+<p>构造函数只装配依赖，worker由现有应用Start/Stop管理；密钥权限、日志脱敏复用已有实现。投影worker不调用业务创建方法，不修改业务dispatch_state/attempt_count。</p>
+<h2 id="s74">2. 新BFF建议路径与字段</h2>
+<p>路径仅为本次建议，真实Inference业务路径未随上传源码提供，不发明一套替代业务API。JSON数量遵循对应Proto，64位整数使用十进制字符串，小的replicas/devices使用JSON数字。列表统一映射已有分页，不借本任务改全平台包装。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>方法/路径</th>
+<th>主要输入字段</th>
+<th>调用合同/主要输出</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GET /admin/v1/accelerator/clusters</td>
+<td>pageSize,pageToken</td>
+<td>Admin.ListClusters；items[{clusterId,displayName,connectionRef,version}]，nextPageToken；connectionRef为引用非密钥</td>
+</tr>
+<tr>
+<td>POST /admin/v1/accelerator/clusters</td>
+<td>data{displayName,connectionRef}，Idempotency-Key</td>
+<td>RegisterCluster；管理员初始化</td>
+</tr>
+<tr>
+<td>GET /admin/v1/accelerator/pools</td>
+<td>clusterId,pageSize,pageToken</td>
+<td>ListPools；items[{poolId,clusterId,displayName}]</td>
+</tr>
+<tr>
+<td>POST /admin/v1/accelerator/pools</td>
+<td>data{clusterId,displayName}</td>
+<td>CreatePool；初始化</td>
+</tr>
+<tr>
+<td>GET /admin/v1/accelerator/supply-groups</td>
+<td>poolId,pageSize,pageToken</td>
+<td>ListSupplyGroups；当前静态模式、已生效配置摘要和入口状态</td>
+</tr>
+<tr>
+<td>POST /admin/v1/accelerator/supply-groups:adopt</td>
+<td>data{poolId,displayName,mode,nodes,modelKey,baseline,queueName}</td>
+<td>AdoptSupplyGroup；仅初装，不下发切卡；baseline由受控证据核对</td>
+</tr>
+<tr>
+<td>POST /admin/v1/accelerator/supply-groups/{groupId}:set-admission</td>
+<td>data{expectedVersion,desired,reason}</td>
+<td>SetAdmission；仅阻止新Resolve</td>
+</tr>
+<tr>
+<td>GET /admin/v1/accelerator/profiles</td>
+<td>clusterId,pageSize,pageToken</td>
+<td>AdminListProfiles；平台目录，无假租户</td>
+</tr>
+<tr>
+<td>POST /admin/v1/accelerator/profiles</td>
+<td>data{displayName,spec,expectedGroupVersion,verificationRef}</td>
+<td>PublishProfile；首期初始化固定规格</td>
+</tr>
+<tr>
+<td>GET /admin/v1/accelerator/devices</td>
+<td>clusterId,groupId?,pageSize,pageToken</td>
+<td>ListDevices；物理bytes、位置、健康、来源时间</td>
+</tr>
+<tr>
+<td>GET /admin/v1/accelerator/bindings</td>
+<td>clusterId,physicalDeviceId?,pageSize,pageToken</td>
+<td>AdminListBindings；含未关联占用、实际父卡和可信归属</td>
+</tr>
+<tr>
+<td>GET /admin/v1/accelerator/capacity</td>
+<td>profileId,profileVersion,includeDevices</td>
+<td>AdminGetCapacity；明确AdminRead</td>
+</tr>
+<tr>
+<td>GET /api/v1/accelerator/profiles</td>
+<td>clusterId,mode?,pageSize,pageToken</td>
+<td>ListProfiles；当前租户可见规格</td>
+</tr>
+<tr>
+<td>GET /api/v1/accelerator/capacity</td>
+<td>profileId,profileVersion</td>
+<td>GetCapacity；只汇总，不返回devices</td>
+</tr>
+<tr>
+<td>POST /api/v1/accelerator/admission-preview</td>
+<td>data{gpu:GpuRequest}</td>
+<td>BFF组合Resolve、Gov账户、CheckGpuFit；不写账本或占位</td>
+</tr>
+<tr>
+<td>GET /api/v1/accelerator/usages</td>
+<td>ownerService?,state?,pageSize,pageToken</td>
+<td>ListGpuUsages；经下述公开DTO脱敏，非直接透传完整内部投影</td>
+</tr>
+<tr>
+<td>GET /api/v1/me/quota-accounts</td>
+<td>无tenant字段</td>
+<td>当前Principal对应Gov账户，复用现有QuotaAccountView，限定自身</td>
+</tr>
+</tbody>
+</table></div>
+<p>新增模块及角色授权必须在正式接口登记中确定，不默认全部TENANT角色可用。Admin初始化可先CLI，不要求首期完成所有POST页面；但其授权与业务校验相同。</p>
+<h2 id="s75">3. 租户公开使用关联DTO</h2>
+<p>内部完整投影用于可靠同步及查询关联；租户页面不需要全部计划/来源证据，建议只输出：</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>resourceId</td>
+<td>string UUID</td>
+<td>本租户业务资源</td>
+</tr>
+<tr>
+<td>ownerService</td>
+<td>string</td>
+<td>ani-inference等已开放owner</td>
+</tr>
+<tr>
+<td>profileId/profileVersion</td>
+<td>string/string整数</td>
+<td>采用的固定规格</td>
+</tr>
+<tr>
+<td>gpuMode</td>
+<td>string</td>
+<td>WHOLE_EXCLUSIVE/SHARED_FIXED</td>
+</tr>
+<tr>
+<td>replicas</td>
+<td>number</td>
+<td>冻结请求副本数</td>
+</tr>
+<tr>
+<td>devicesPerReplica</td>
+<td>number</td>
+<td>首期1</td>
+</tr>
+<tr>
+<td>logicalGpuCount / exclusiveGpuCount</td>
+<td>string整数</td>
+<td>对应产品数量，另一项0</td>
+</tr>
+<tr>
+<td>requestedSharedMemoryMib</td>
+<td>string整数</td>
+<td>仅共享申请总量，非实时指标</td>
+</tr>
+<tr>
+<td>associationState</td>
+<td>string</td>
+<td>DECLARED/ENDED；不是Ready/Failed</td>
+</tr>
+<tr>
+<td>associationSynced</td>
+<td>bool</td>
+<td>从该接口成功读取为true；Inference资源列表匹配不到时可显示false，不推断资源不存在</td>
+</tr>
+<tr>
+<td>actualBindingSummary</td>
+<td>object可空</td>
+<td>仅可信本租户关联后的数量与完整度，实际设备身份由权限决定</td>
+</tr>
+</tbody>
+</table></div>
+<p>不返回source_fact_ref、完整plan/runtime/证书配置、其他租户标签、原始UUID注解或未核验身份。业务创建时间/模型状态和Ready仍从Inference读。管理员可以通过独立接口看到更完整事实。</p>
+<h2 id="s76">4. 预检响应字段</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th>类型</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>requestedQuotaItems</td>
+<td>array{quotaCode:string,units:string}</td>
+<td>服务端对本次请求计算的MiB或整卡数量，仅提示</td>
+</tr>
+<tr>
+<td>quotaChecks</td>
+<td>array{quotaCode:string,result:string,limit:string,occupied:string,requested:string}</td>
+<td>使用已有当前租户账户；正式提交事务内再验</td>
+</tr>
+<tr>
+<td>gpuFit</td>
+<td>GpuFit脱敏</td>
+<td>当前GPU条件，不包括CPU、网络和存储自动通过</td>
+</tr>
+<tr>
+<td>additionalReplicasByQuota</td>
+<td>string整数</td>
+<td>仅额度限制下可新增副本数；不含已有预留消费</td>
+</tr>
+<tr>
+<td>capacityReferenceReplicas</td>
+<td>string整数</td>
+<td>GPU读模型参考数量，不是提交数量上限</td>
+</tr>
+<tr>
+<td>capacityReferenceKnown</td>
+<td>bool</td>
+<td>false不得将0显示为全池耗尽</td>
+</tr>
+<tr>
+<td>submissionPolicy</td>
+<td>string</td>
+<td>固定WAIT_IF_CAPACITY_UNAVAILABLE；不构成最终授权</td>
+</tr>
+<tr>
+<td>otherChecks</td>
+<td>array{code:string,status:string}</td>
+<td>例如CPU/STORAGE/NETWORK=NOT_CHECKED</td>
+</tr>
+</tbody>
+</table></div>
+<p>不需要把factor下发给前端供用户修改；后台细节面向管理员诊断即可。</p>
+<h2 id="s77">5. 正式创建与删除的接线检查</h2>
+<p>Gov保留原公开Inference业务字段，在原请求上加入gpu。容器名、副本数不能存在两份互相矛盾的来源；如果已有业务字段则服务端只派生一份GpuRequest，或明确拒绝不一致。</p>
+<p>创建的GPU附件见<code>GpuOwnerCreateAttachment</code>。同步只是旁路，不改变业务接受ACK；Gov仅记录ACKED，查询业务状态继续转真实owner。</p>
+<p>正式删除公开结果采用<code>GpuDeleteAcceptance</code>建议：deleteOperationId/resourceId/result/dispatchOperationId。result为CANCELED_BEFORE_DISPATCH时没有owner执行，不填假ACK；QUEUED_FOR_OWNER只表示接受，不能即刻显示删除完成。不同DELETE key仍指向同一实例的最终删除事实，owner不重复退额。</p>
+<p>管理员代租户清理需显式权限、明确目标tenant、审计原创建关联，仍走同一个删除受理函数。原用户过期不产生强制减账后门。</p>
+<hr/>
+<h1 id="s78">接口字段字典 v1.2</h1>
+<p>由本版Proto编译产物的SourceCodeInfo生成；这是待实施合同，不是已上线API。没有旧RegisterConsumer/MarkClosing/Finalize接口，也没有预留服务。字段注释定义业务校验，不代表protoc替代业务校验。</p>
+<p>本次编译统计：files=2；services=3；rpcs=22；messages=64；fields=295；enums=8。</p>
+<h2 id="s79">accelerator/v1/accelerator.proto</h2>
+<p>包：<code>accelerator.v1</code>。</p>
+<h3 id="s80">AcceleratorAdminService</h3>
+<p>全部方法只接受Gov可信管理员委托；初始化也可由同校验CLI完成。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>RPC</th>
+<th>输入</th>
+<th>输出</th>
+<th>约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RegisterCluster</code></td>
+<td><code>accelerator.v1.RegisterClusterRequest</code></td>
+<td><code>accelerator.v1.Cluster</code></td>
+<td>初始化登记，幂等。</td>
+</tr>
+<tr>
+<td><code>ListClusters</code></td>
+<td><code>accelerator.v1.ListClustersRequest</code></td>
+<td><code>accelerator.v1.ListClustersResponse</code></td>
+<td>平台查询。</td>
+</tr>
+<tr>
+<td><code>CreatePool</code></td>
+<td><code>accelerator.v1.CreatePoolRequest</code></td>
+<td><code>accelerator.v1.Pool</code></td>
+<td>初始化池。</td>
+</tr>
+<tr>
+<td><code>ListPools</code></td>
+<td><code>accelerator.v1.ListPoolsRequest</code></td>
+<td><code>accelerator.v1.ListPoolsResponse</code></td>
+<td>平台查询。</td>
+</tr>
+<tr>
+<td><code>AdoptSupplyGroup</code></td>
+<td><code>accelerator.v1.AdoptSupplyGroupRequest</code></td>
+<td><code>accelerator.v1.SupplyGroup</code></td>
+<td>核对既有插件配置及factor，不写provider。</td>
+</tr>
+<tr>
+<td><code>ListSupplyGroups</code></td>
+<td><code>accelerator.v1.ListSupplyGroupsRequest</code></td>
+<td><code>accelerator.v1.ListSupplyGroupsResponse</code></td>
+<td>静态供给查询。</td>
+</tr>
+<tr>
+<td><code>SetAdmission</code></td>
+<td><code>accelerator.v1.SetAdmissionRequest</code></td>
+<td><code>accelerator.v1.SupplyGroup</code></td>
+<td>只关新解析，不声称维护。</td>
+</tr>
+<tr>
+<td><code>PublishProfile</code></td>
+<td><code>accelerator.v1.PublishProfileRequest</code></td>
+<td><code>accelerator.v1.GpuProfile</code></td>
+<td>首次固定规格发布，核验F整除与真实K。</td>
+</tr>
+<tr>
+<td><code>AdminListProfiles</code></td>
+<td><code>accelerator.v1.AdminListProfilesRequest</code></td>
+<td><code>accelerator.v1.ListProfilesResponse</code></td>
+<td>平台目录，不使用虚假租户上下文。</td>
+</tr>
+<tr>
+<td><code>AdminListBindings</code></td>
+<td><code>accelerator.v1.AdminListBindingsRequest</code></td>
+<td><code>accelerator.v1.ListBindingsResponse</code></td>
+<td>平台设备消费者及未关联占用。</td>
+</tr>
+<tr>
+<td><code>ListDevices</code></td>
+<td><code>accelerator.v1.ListDevicesRequest</code></td>
+<td><code>accelerator.v1.ListDevicesResponse</code></td>
+<td>真实设备清单。</td>
+</tr>
+<tr>
+<td><code>AdminGetCapacity</code></td>
+<td><code>accelerator.v1.AdminGetCapacityRequest</code></td>
+<td><code>accelerator.v1.CapacityView</code></td>
+<td>平台独立上下文，不假造tenant。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s81">AcceleratorCatalogService</h3>
+<p>仅Gov委托租户访问，现有mTLS和权限接线。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>RPC</th>
+<th>输入</th>
+<th>输出</th>
+<th>约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ListProfiles</code></td>
+<td><code>accelerator.v1.ListProfilesRequest</code></td>
+<td><code>accelerator.v1.ListProfilesResponse</code></td>
+<td>租户授权目录。</td>
+</tr>
+<tr>
+<td><code>GetProfile</code></td>
+<td><code>accelerator.v1.GetProfileRequest</code></td>
+<td><code>accelerator.v1.GpuProfile</code></td>
+<td>固定版本目录。</td>
+</tr>
+<tr>
+<td><code>ResolveGpuRequest</code></td>
+<td><code>accelerator.v1.ResolveGpuRequestRequest</code></td>
+<td><code>accelerator.v1.ResolvedGpuPlan</code></td>
+<td>静态计划解析，无库存锁；MiB与provider块分离。</td>
+</tr>
+<tr>
+<td><code>GetCapacity</code></td>
+<td><code>accelerator.v1.GetCapacityRequest</code></td>
+<td><code>accelerator.v1.CapacityView</code></td>
+<td>租户容量汇总，无设备明细。</td>
+</tr>
+<tr>
+<td><code>CheckGpuFit</code></td>
+<td><code>accelerator.v1.CheckGpuFitRequest</code></td>
+<td><code>accelerator.v1.GpuFit</code></td>
+<td>估计不是准入锁，允许容量不足等待。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s82">AcceleratorUsageService</h3>
+<p>没有RegisterConsumer/MarkClosing/Finalize，更没有TCC三阶段。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>RPC</th>
+<th>输入</th>
+<th>输出</th>
+<th>约束</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SyncGpuUsage</code></td>
+<td><code>accelerator.v1.SyncGpuUsageRequest</code></td>
+<td><code>accelerator.v1.SyncGpuUsageResponse</code></td>
+<td>仅Gov调用；异步投影同步。</td>
+</tr>
+<tr>
+<td><code>GetGpuUsage</code></td>
+<td><code>accelerator.v1.GetGpuUsageRequest</code></td>
+<td><code>accelerator.v1.GpuUsageProjection</code></td>
+<td>当前租户读取。</td>
+</tr>
+<tr>
+<td><code>ListGpuUsages</code></td>
+<td><code>accelerator.v1.ListGpuUsagesRequest</code></td>
+<td><code>accelerator.v1.ListGpuUsagesResponse</code></td>
+<td>关联清单，不镜像运行状态。</td>
+</tr>
+<tr>
+<td><code>ListBindings</code></td>
+<td><code>accelerator.v1.ListBindingsRequest</code></td>
+<td><code>accelerator.v1.ListBindingsResponse</code></td>
+<td>读取可信绑定，不增加使用权。</td>
+</tr>
+<tr>
+<td><code>ObserveRelease</code></td>
+<td><code>accelerator.v1.ObserveReleaseRequest</code></td>
+<td><code>accelerator.v1.ReleaseObservation</code></td>
+<td>仅实际owner调用；只读物理证据，不依赖Sync先成功。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s83">枚举 SupplyMode</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SUPPLY_MODE_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>拒绝</td>
+</tr>
+<tr>
+<td><code>WHOLE_EXCLUSIVE</code></td>
+<td style="text-align:right">1</td>
+<td>固定整卡供给</td>
+</tr>
+<tr>
+<td><code>SHARED_FIXED</code></td>
+<td style="text-align:right">2</td>
+<td>固定共享规格</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s84">枚举 AdmissionState</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ADMISSION_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>拒绝</td>
+</tr>
+<tr>
+<td><code>ADMISSION_CLOSED</code></td>
+<td style="text-align:right">1</td>
+<td>拒绝新解析，不自动停止在途分配</td>
+</tr>
+<tr>
+<td><code>ADMISSION_OPEN</code></td>
+<td style="text-align:right">2</td>
+<td>配置及发布验证通过后开放</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s85">枚举 VerificationState</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>VERIFICATION_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>缺少验证</td>
+</tr>
+<tr>
+<td><code>NOT_VERIFIED</code></td>
+<td style="text-align:right">1</td>
+<td>不得发布消费能力</td>
+</tr>
+<tr>
+<td><code>VERIFIED</code></td>
+<td style="text-align:right">2</td>
+<td>有对应基线实际证据</td>
+</tr>
+<tr>
+<td><code>UNSUPPORTED</code></td>
+<td style="text-align:right">3</td>
+<td>当前能力不支持</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s86">枚举 UsageState</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>USAGE_STATE_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>拒绝</td>
+</tr>
+<tr>
+<td><code>DECLARED</code></td>
+<td style="text-align:right">1</td>
+<td>治理受理投影，不证明owner已受理</td>
+</tr>
+<tr>
+<td><code>ENDED</code></td>
+<td style="text-align:right">2</td>
+<td>申请已结束；不等于清除实际绑定</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s87">枚举 UsageEndReason</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>USAGE_END_REASON_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>DECLARED时必须此值</td>
+</tr>
+<tr>
+<td><code>GOVERNANCE_CANCELED_UNSENT</code></td>
+<td style="text-align:right">1</td>
+<td>业务创建从未尝试投递且已原子撤销</td>
+</tr>
+<tr>
+<td><code>OWNER_RESOURCE_RELEASED</code></td>
+<td style="text-align:right">2</td>
+<td>owner事实已接纳且原向量全部释放</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s88">枚举 AllocationState</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ALLOCATION_STATE_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>未知</td>
+</tr>
+<tr>
+<td><code>ACTIVE</code></td>
+<td style="text-align:right">1</td>
+<td>有可信分配事实</td>
+</tr>
+<tr>
+<td><code>RELEASE_CONFIRMED</code></td>
+<td style="text-align:right">2</td>
+<td>正向证据确认实际分配已解除</td>
+</tr>
+<tr>
+<td><code>ALLOCATION_UNKNOWN</code></td>
+<td style="text-align:right">3</td>
+<td>尚不能排除占用</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s89">枚举 FitStatus</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>FIT_STATUS_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>未检查</td>
+</tr>
+<tr>
+<td><code>FIT_ESTIMATE</code></td>
+<td style="text-align:right">1</td>
+<td>GPU条件估计可放置，不保证业务成功</td>
+</tr>
+<tr>
+<td><code>WAIT_FOR_CAPACITY</code></td>
+<td style="text-align:right">2</td>
+<td>当前资源不足；不自动禁止申请</td>
+</tr>
+<tr>
+<td><code>FIT_UNKNOWN</code></td>
+<td style="text-align:right">3</td>
+<td>缺少可信容量数据</td>
+</tr>
+<tr>
+<td><code>REQUEST_UNSUPPORTED</code></td>
+<td style="text-align:right">4</td>
+<td>不支持的静态形态，应拒绝</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s90">枚举 ReleaseFinding</h3>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>名称</th>
+<th style="text-align:right">值</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>RELEASE_FINDING_UNSPECIFIED</code></td>
+<td style="text-align:right">0</td>
+<td>缺少检查</td>
+</tr>
+<tr>
+<td><code>ALLOCATION_RELEASED</code></td>
+<td style="text-align:right">1</td>
+<td>已核对指定范围的设备解除，不证明owner已封闭</td>
+</tr>
+<tr>
+<td><code>ALLOCATION_STILL_PRESENT</code></td>
+<td style="text-align:right">2</td>
+<td>有残留分配</td>
+</tr>
+<tr>
+<td><code>RELEASE_UNKNOWN</code></td>
+<td style="text-align:right">3</td>
+<td>缺少完整可靠证据</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s91">Actor</h3>
+<p>用户主体不等于直接调用服务身份；不透传Bearer。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>type</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>必填；来自现有Principal.Actor的主体类型。</td>
+</tr>
+<tr>
+<td><code>id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填；主体ID，不强制UUID。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s92">TenantContext</h3>
+<p>租户读取/解析由Gov委托；释放观察也须验证直接owner身份。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>必填；日志关联，非幂等键。</td>
+</tr>
+<tr>
+<td><code>tenant_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填；Gov持久resource_tenant_id UUID，不是内部uint32主键。</td>
+</tr>
+<tr>
+<td><code>actor</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.Actor</code></td>
+<td>必填；来自已验证入口。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s93">AdminRead</h3>
+<p>仅精确Gov服务证书委托平台范围，无假tenant。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>actor</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.Actor</code></td>
+<td>必填；Gov已验证的管理员，GPU侧再查允许动作。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s94">AdminMutation</h3>
+<p>初始化和入口开关写入；不表示允许在线改配置。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填；平台管理员委托。</td>
+</tr>
+<tr>
+<td><code>idempotency_key</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填UUID；actor+方法内去重，同键异报文拒绝。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s95">Page</h3>
+<p>不是跨页事务快照；next_token为空终止。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>size</code></td>
+<td style="text-align:right">1</td>
+<td><code>uint32</code></td>
+<td>0默认50，最大200。</td>
+</tr>
+<tr>
+<td><code>token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>不透明游标，可空；绑定主体、筛选和排序。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s96">KeyValue</h3>
+<p>只用于服务端生成的受管渲染字段，不接受客户端任意覆盖。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>key</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>非空，键在所属集合内唯一；必须命中受管白名单。</td>
+</tr>
+<tr>
+<td><code>value</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>非空；标签/注解/资源值分别遵守对应语法。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s97">Observation</h3>
+<p>首期只读元数据，来源失败保留未知，不凭时间到期退资源。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>complete</code></td>
+<td style="text-align:right">1</td>
+<td><code>bool</code></td>
+<td>是否覆盖本次查询所需全部来源；false不能显示资源耗尽。</td>
+</tr>
+<tr>
+<td><code>observed_at</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>最后可信来源时间；无数据时空，不用收到时间冒充。</td>
+</tr>
+<tr>
+<td><code>received_at</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>GPU服务接收时间；无数据可空。</td>
+</tr>
+<tr>
+<td><code>issues</code></td>
+<td style="text-align:right">4</td>
+<td><code>repeated string</code></td>
+<td>稳定原因码，如SOURCE_UNKNOWN、BINDING_EVIDENCE_CONFLICT。</td>
+</tr>
+<tr>
+<td><code>snapshot_ref</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>本次观测摘要/水位引用，可空；不是容量锁。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s98">Verification</h3>
+<p>验收范围绑定硬件、运行时、配置组合。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>state</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.VerificationState</code></td>
+<td>只读；初始化受控核对产生，不允许任意请求置VERIFIED。</td>
+</tr>
+<tr>
+<td><code>evidence_ref</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>VERIFIED时必填；实际测试记录引用，不含凭据。</td>
+</tr>
+<tr>
+<td><code>verified_at</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>VERIFIED时必填。</td>
+</tr>
+<tr>
+<td><code>baseline_digest</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>VERIFIED时必填，SHA256小写hex64。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s99">ProviderBaseline</h3>
+<p>factor是单位换算，不是超配参数；开启后冻结。同一供给组所有节点必须一致。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>baseline_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>平台UUID，稳定身份；也可作为受管节点label值。</td>
+</tr>
+<tr>
+<td><code>adapter_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>首期固定volcano-hami-factor-v1。</td>
+</tr>
+<tr>
+<td><code>volcano_version</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>实际部署版本，禁止latest。</td>
+</tr>
+<tr>
+<td><code>volcano_image_digest</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>实际镜像sha256引用。</td>
+</tr>
+<tr>
+<td><code>device_plugin_version</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>实际版本；不默认等于文档核查v1.12.0。</td>
+</tr>
+<tr>
+<td><code>device_plugin_image_digest</code></td>
+<td style="text-align:right">6</td>
+<td><code>string</code></td>
+<td>实际镜像sha256引用。</td>
+</tr>
+<tr>
+<td><code>hami_core_revision</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>镜像可追溯的HAMi-core版本/提交。</td>
+</tr>
+<tr>
+<td><code>memory_block_mib</code></td>
+<td style="text-align:right">8</td>
+<td><code>uint32</code></td>
+<td>F，有效gpu-memory-factor；&gt;0且&lt;=2147483647。</td>
+</tr>
+<tr>
+<td><code>factor_evidence_ref</code></td>
+<td style="text-align:right">9</td>
+<td><code>string</code></td>
+<td>实际进程参数/加载配置及运行换算核对依据。</td>
+</tr>
+<tr>
+<td><code>memory_encoding</code></td>
+<td style="text-align:right">10</td>
+<td><code>string</code></td>
+<td>首期固定VOLCANO_BLOCKS_TO_MIB；只有验证过才开放。</td>
+</tr>
+<tr>
+<td><code>split_count</code></td>
+<td style="text-align:right">11</td>
+<td><code>uint32</code></td>
+<td>整卡1，共享&gt;=2；实际devicesplitcount；同组节点一致。</td>
+</tr>
+<tr>
+<td><code>memory_scale_percent</code></td>
+<td style="text-align:right">12</td>
+<td><code>uint32</code></td>
+<td>首期100，即1倍，无超配。</td>
+</tr>
+<tr>
+<td><code>core_scale_percent</code></td>
+<td style="text-align:right">13</td>
+<td><code>uint32</code></td>
+<td>首期100。</td>
+</tr>
+<tr>
+<td><code>core_budget_additive</code></td>
+<td style="text-align:right">14</td>
+<td><code>bool</code></td>
+<td>只有该后端已验证可按硬预算相加时true；不能由界面随意勾选。</td>
+</tr>
+<tr>
+<td><code>node_config_digest</code></td>
+<td style="text-align:right">15</td>
+<td><code>string</code></td>
+<td>已加载节点配置摘要。</td>
+</tr>
+<tr>
+<td><code>scheduler_config_digest</code></td>
+<td style="text-align:right">16</td>
+<td><code>string</code></td>
+<td>实际调度配置摘要。</td>
+</tr>
+<tr>
+<td><code>recipe_version</code></td>
+<td style="text-align:right">17</td>
+<td><code>string</code></td>
+<td>服务端注册的不可变渲染规则版本。</td>
+</tr>
+<tr>
+<td><code>baseline_digest</code></td>
+<td style="text-align:right">18</td>
+<td><code>string</code></td>
+<td>规范化上述静态配置及硬件验证范围的SHA256；不含观测时间。</td>
+</tr>
+<tr>
+<td><code>verification</code></td>
+<td style="text-align:right">19</td>
+<td><code>accelerator.v1.Verification</code></td>
+<td>发布前必须VERIFIED，证据与baseline_digest一致。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s100">NodeRef</h3>
+<p>Node重建不得自动继承旧供给归属。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>uid</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>K8s Node UID；必填，按不透明字符串。</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填；仅定位，不能代替UID。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s101">Cluster</h3>
+<p>GPU服务保存集群引用，不提供集群创建。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>平台UUID。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>1..64字符。</td>
+</tr>
+<tr>
+<td><code>connection_ref</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>受管凭据引用，仅管理员可见，不返回secret。</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td style="text-align:right">4</td>
+<td><code>uint64</code></td>
+<td>从1递增，防止覆盖。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s102">RegisterClusterRequest</h3>
+<p>本地登记，不写K8s。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mutation</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminMutation</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填1..64。</td>
+</tr>
+<tr>
+<td><code>connection_ref</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>必填，命中受管凭据引用范围。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s103">ListClustersRequest</h3>
+<p>平台集群列表。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>可省略默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s104">ListClustersResponse</h3>
+<p>不包含凭据正文。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td style="text-align:right">1</td>
+<td><code>repeated accelerator.v1.Cluster</code></td>
+<td>只读列表。</td>
+</tr>
+<tr>
+<td><code>next_token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>空表示结束。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s105">Pool</h3>
+<p>管理范围，首期一个默认池即可，不等于Queue。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>pool_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>平台UUID。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>平台集群UUID。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>1..64字符。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s106">CreatePoolRequest</h3>
+<p>创建池不创建设备。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mutation</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminMutation</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填；已有受管集群。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>必填1..64。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s107">ListPoolsRequest</h3>
+<p>仅平台管理范围。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s108">ListPoolsResponse</h3>
+<p>池列表。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td style="text-align:right">1</td>
+<td><code>repeated accelerator.v1.Pool</code></td>
+<td>池列表。</td>
+</tr>
+<tr>
+<td><code>next_token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>分页标记。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s109">SupplyGroup</h3>
+<p>初始化ADOPT_EXISTING；登记后先CLOSED，经固定规格验证再OPEN。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>group_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>UUID。</td>
+</tr>
+<tr>
+<td><code>pool_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>所属池UUID。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>与池一致。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>1..64。</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td style="text-align:right">5</td>
+<td><code>accelerator.v1.SupplyMode</code></td>
+<td>整卡或固定共享，不动态转换。</td>
+</tr>
+<tr>
+<td><code>nodes</code></td>
+<td style="text-align:right">6</td>
+<td><code>repeated accelerator.v1.NodeRef</code></td>
+<td>非空；节点不能同时属于两组。</td>
+</tr>
+<tr>
+<td><code>model_key</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>该组支持的已核验型号类别；全部节点匹配。</td>
+</tr>
+<tr>
+<td><code>baseline</code></td>
+<td style="text-align:right">8</td>
+<td><code>accelerator.v1.ProviderBaseline</code></td>
+<td>冻结运行基线。</td>
+</tr>
+<tr>
+<td><code>admission</code></td>
+<td style="text-align:right">9</td>
+<td><code>accelerator.v1.AdmissionState</code></td>
+<td>只影响新解析。</td>
+</tr>
+<tr>
+<td><code>queue_name</code></td>
+<td style="text-align:right">10</td>
+<td><code>string</code></td>
+<td>现有受管Queue，验证真实路由，非套餐限额。</td>
+</tr>
+<tr>
+<td><code>version</code></td>
+<td style="text-align:right">11</td>
+<td><code>uint64</code></td>
+<td>从1开始；每次允许的元数据变更递增。</td>
+</tr>
+<tr>
+<td><code>adopted_at</code></td>
+<td style="text-align:right">12</td>
+<td><code>string</code></td>
+<td>首次核对时间。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s110">AdoptSupplyGroupRequest</h3>
+<p>只核对已有安装，不改变ConfigMap、不重启。一次核对和落库后返回组；后续用查询读取。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mutation</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminMutation</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>pool_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>已有池UUID。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>1..64。</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.SupplyMode</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>nodes</code></td>
+<td style="text-align:right">5</td>
+<td><code>repeated accelerator.v1.NodeRef</code></td>
+<td>1..1024，去重，同型号且未属于其他组。</td>
+</tr>
+<tr>
+<td><code>model_key</code></td>
+<td style="text-align:right">6</td>
+<td><code>string</code></td>
+<td>必填，与实际发现一致。</td>
+</tr>
+<tr>
+<td><code>baseline</code></td>
+<td style="text-align:right">7</td>
+<td><code>accelerator.v1.ProviderBaseline</code></td>
+<td>必填；服务端从实际配置及初始化证据复核，不能相信自报验证结果。</td>
+</tr>
+<tr>
+<td><code>queue_name</code></td>
+<td style="text-align:right">8</td>
+<td><code>string</code></td>
+<td>必填受管队列。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s111">ListSupplyGroupsRequest</h3>
+<p>平台静态组查询。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>pool_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s112">ListSupplyGroupsResponse</h3>
+<p>组配置仅管理员可见。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td style="text-align:right">1</td>
+<td><code>repeated accelerator.v1.SupplyGroup</code></td>
+<td>静态组列表。</td>
+</tr>
+<tr>
+<td><code>next_token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s113">SetAdmissionRequest</h3>
+<p>不驱逐，不撤销已接受计划。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mutation</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminMutation</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>group_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填UUID。</td>
+</tr>
+<tr>
+<td><code>expected_version</code></td>
+<td style="text-align:right">3</td>
+<td><code>uint64</code></td>
+<td>必填&gt;0。</td>
+</tr>
+<tr>
+<td><code>desired</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.AdmissionState</code></td>
+<td>OPEN需验证配置和规格；CLOSED不等于设备隔离。</td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>必填1..512，审计。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s114">ProfileSpec</h3>
+<p>固定显存规格，不再按父卡临时quarter换算。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>group_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>静态组UUID。</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.SupplyMode</code></td>
+<td>与组一致。</td>
+</tr>
+<tr>
+<td><code>model_key</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>与组核对。</td>
+</tr>
+<tr>
+<td><code>shared_memory_mib</code></td>
+<td style="text-align:right">4</td>
+<td><code>int64</code></td>
+<td>共享&gt;0且整除F；整卡必须0。</td>
+</tr>
+<tr>
+<td><code>core_limit_percent</code></td>
+<td style="text-align:right">5</td>
+<td><code>uint32</code></td>
+<td>共享1..99；整卡100。</td>
+</tr>
+<tr>
+<td><code>max_devices_per_replica</code></td>
+<td style="text-align:right">6</td>
+<td><code>uint32</code></td>
+<td>首期固定1；多设备另验收。</td>
+</tr>
+<tr>
+<td><code>isolation_class</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>整卡WHOLE_DEVICE_EXCLUSIVE；软件共享SOFTWARE_COOPERATIVE。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s115">GpuProfile</h3>
+<p>版本和单位为后续扩展保留，不开启在线改规格。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>profile_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>UUID。</td>
+</tr>
+<tr>
+<td><code>profile_version</code></td>
+<td style="text-align:right">2</td>
+<td><code>uint64</code></td>
+<td>首期1，不使用latest。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>1..128，允许显示一张逻辑GPU。</td>
+</tr>
+<tr>
+<td><code>spec</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.ProfileSpec</code></td>
+<td>不可变规范参数。</td>
+</tr>
+<tr>
+<td><code>baseline_id</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>对应已验证组基线。</td>
+</tr>
+<tr>
+<td><code>spec_digest</code></td>
+<td style="text-align:right">6</td>
+<td><code>string</code></td>
+<td>规范静态内容SHA256，排除观测时间/当前状态。</td>
+</tr>
+<tr>
+<td><code>published</code></td>
+<td style="text-align:right">7</td>
+<td><code>bool</code></td>
+<td>只读；发布不等于在线切卡。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s116">PublishProfileRequest</h3>
+<p>首期首次发布，服务生成ID/version；同集群仅一共享向量。配置验证不是普通管理员布尔开关。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>mutation</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminMutation</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>display_name</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填1..128。</td>
+</tr>
+<tr>
+<td><code>spec</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.ProfileSpec</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>expected_group_version</code></td>
+<td style="text-align:right">4</td>
+<td><code>uint64</code></td>
+<td>必填&gt;0。</td>
+</tr>
+<tr>
+<td><code>verification_ref</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>固定规格+组+基线真实消费验收引用。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s117">ListProfilesRequest</h3>
+<p>Gov租户委托读取。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填；只列授权已发布项。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填UUID。</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.SupplyMode</code></td>
+<td>可UNSPECIFIED表示两种，返回仍不含未支持项。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s118">ListProfilesResponse</h3>
+<p>产品GPU目录。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td style="text-align:right">1</td>
+<td><code>repeated accelerator.v1.GpuProfile</code></td>
+<td>脱敏目录，不包括原始节点与配置证据。</td>
+</tr>
+<tr>
+<td><code>next_token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s119">AdminListProfilesRequest</h3>
+<p>平台目录查询，不伪造租户调用租户Catalog。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填平台上下文。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填UUID。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s120">GetProfileRequest</h3>
+<p>不存在或不可见均NotFound。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>profile_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>profile_version</code></td>
+<td style="text-align:right">3</td>
+<td><code>uint64</code></td>
+<td>必填&gt;0。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s121">GpuRequest</h3>
+<p>不含tenant/charge/factor/raw GPU资源；普通用户不能指定设备UUID。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>必填UUID。</td>
+</tr>
+<tr>
+<td><code>pool_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填UUID；与集群一致。</td>
+</tr>
+<tr>
+<td><code>profile_id</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>必填UUID。</td>
+</tr>
+<tr>
+<td><code>profile_version</code></td>
+<td style="text-align:right">4</td>
+<td><code>uint64</code></td>
+<td>必填具体版本。</td>
+</tr>
+<tr>
+<td><code>replicas</code></td>
+<td style="text-align:right">5</td>
+<td><code>uint32</code></td>
+<td>1..256且不超过owner实测上限。</td>
+</tr>
+<tr>
+<td><code>devices_per_replica</code></td>
+<td style="text-align:right">6</td>
+<td><code>uint32</code></td>
+<td>首期必须1；&gt;1返回SHAPE_UNSUPPORTED。</td>
+</tr>
+<tr>
+<td><code>container_name</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>必填合法K8s容器名；每Pod只有这一GPU容器。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s122">MemoryEncoding</h3>
+<p>仅适配器转换一次。provider的int32换算界限也必须校验。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>memory_block_mib</code></td>
+<td style="text-align:right">1</td>
+<td><code>uint32</code></td>
+<td>F必填&gt;0，来自冻结组基线。</td>
+</tr>
+<tr>
+<td><code>memory_blocks_per_device</code></td>
+<td style="text-align:right">2</td>
+<td><code>int64</code></td>
+<td>共享q=m/F&gt;0；整卡0，改用百分比。</td>
+</tr>
+<tr>
+<td><code>shared_memory_mib</code></td>
+<td style="text-align:right">3</td>
+<td><code>int64</code></td>
+<td>共享m=q*F；整卡0，不计共享额度。</td>
+</tr>
+<tr>
+<td><code>memory_percentage</code></td>
+<td style="text-align:right">4</td>
+<td><code>uint32</code></td>
+<td>共享0；整卡100。</td>
+</tr>
+<tr>
+<td><code>policy</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>首期EXACT；不隐式向上/向下取整。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s123">ResourceTotals</h3>
+<p>给Gov业务适配器使用的请求向量；不是运行指标。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>logical_device_count</code></td>
+<td style="text-align:right">1</td>
+<td><code>int64</code></td>
+<td>共享replicas*devices；整卡0。</td>
+</tr>
+<tr>
+<td><code>exclusive_device_count</code></td>
+<td style="text-align:right">2</td>
+<td><code>int64</code></td>
+<td>整卡replicas*devices；共享0。</td>
+</tr>
+<tr>
+<td><code>shared_memory_mib</code></td>
+<td style="text-align:right">3</td>
+<td><code>int64</code></td>
+<td>共享全部副本m总量；不含整卡显存。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s124">RuntimeFragment</h3>
+<p>不含资源ID/PodUID或强制ordinal；保持Inference自身控制器与重启策略。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>scheduler_name</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>首期volcano。</td>
+</tr>
+<tr>
+<td><code>queue_name</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>冻结设施路由；owner映射现有PodGroup。</td>
+</tr>
+<tr>
+<td><code>node_labels</code></td>
+<td style="text-align:right">3</td>
+<td><code>repeated accelerator.v1.KeyValue</code></td>
+<td>必需静态组/型号/基线选择；只能收紧，不能删改范围。</td>
+</tr>
+<tr>
+<td><code>pod_annotations</code></td>
+<td style="text-align:right">4</td>
+<td><code>repeated accelerator.v1.KeyValue</code></td>
+<td>受管静态模式注解，运行身份随后注入。</td>
+</tr>
+<tr>
+<td><code>limits_per_container</code></td>
+<td style="text-align:right">5</td>
+<td><code>repeated accelerator.v1.KeyValue</code></td>
+<td>每个副本的GPU限制；共享memory为块数。</td>
+</tr>
+<tr>
+<td><code>runtime_class_name</code></td>
+<td style="text-align:right">6</td>
+<td><code>string</code></td>
+<td>如基线不需要可空。</td>
+</tr>
+<tr>
+<td><code>recipe_version</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>冻结渲染版本。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s125">ResolvedGpuPlan</h3>
+<p>历史重试直接使用，不按最新factor重算。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>schema_version</code></td>
+<td style="text-align:right">1</td>
+<td><code>uint32</code></td>
+<td>固定1。</td>
+</tr>
+<tr>
+<td><code>request</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuRequest</code></td>
+<td>已规范化的GPU原请求。</td>
+</tr>
+<tr>
+<td><code>profile</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.GpuProfile</code></td>
+<td>不可变规格快照；哈希只取静态字段。</td>
+</tr>
+<tr>
+<td><code>encoding</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.MemoryEncoding</code></td>
+<td>冻结F/q/m。</td>
+</tr>
+<tr>
+<td><code>totals</code></td>
+<td style="text-align:right">5</td>
+<td><code>accelerator.v1.ResourceTotals</code></td>
+<td>按安全整数计算。</td>
+</tr>
+<tr>
+<td><code>runtime</code></td>
+<td style="text-align:right">6</td>
+<td><code>accelerator.v1.RuntimeFragment</code></td>
+<td>已冻结受管字段。</td>
+</tr>
+<tr>
+<td><code>baseline_digest</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>真实运行基线SHA256。</td>
+</tr>
+<tr>
+<td><code>resolution_digest</code></td>
+<td style="text-align:right">8</td>
+<td><code>string</code></td>
+<td>规范不可变计划SHA256；不含时间、临时身份、当前容量或published状态；不是鉴权令牌。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s126">ResolveGpuRequestRequest</h3>
+<p>事务外解析，不占额、不锁设备；配置未知/漂移拒绝。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填可信租户。</td>
+</tr>
+<tr>
+<td><code>gpu</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuRequest</code></td>
+<td>必填。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s127">DeviceCapacity</h3>
+<p>单设备异常不能污染其他设备容量查询。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>device_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>内部物理设备ID，仅Admin明细。</td>
+</tr>
+<tr>
+<td><code>nominal_units</code></td>
+<td style="text-align:right">2</td>
+<td><code>int64</code></td>
+<td>指定规格当前固定配置份数。</td>
+</tr>
+<tr>
+<td><code>known_committed_units</code></td>
+<td style="text-align:right">3</td>
+<td><code>int64</code></td>
+<td>去重真实分配数，不包含未放置申请。</td>
+</tr>
+<tr>
+<td><code>known_free_units</code></td>
+<td style="text-align:right">4</td>
+<td><code>int64</code></td>
+<td>仅合格设备的估计值，不是锁。</td>
+</tr>
+<tr>
+<td><code>safe_memory_budget_mib</code></td>
+<td style="text-align:right">5</td>
+<td><code>int64</code></td>
+<td>经验证的预算&lt;=量化可表达容量。</td>
+</tr>
+<tr>
+<td><code>committed_memory_mib</code></td>
+<td style="text-align:right">6</td>
+<td><code>int64</code></td>
+<td>已归一化一次的设备承诺。</td>
+</tr>
+<tr>
+<td><code>provider_memory_blocks</code></td>
+<td style="text-align:right">7</td>
+<td><code>int64</code></td>
+<td>原始上报，非MiB。</td>
+</tr>
+<tr>
+<td><code>memory_block_mib</code></td>
+<td style="text-align:right">8</td>
+<td><code>uint32</code></td>
+<td>该样本的冻结F。</td>
+</tr>
+<tr>
+<td><code>reported_memory_mib</code></td>
+<td style="text-align:right">9</td>
+<td><code>int64</code></td>
+<td>blocks*F，不反推精确物理容量。</td>
+</tr>
+<tr>
+<td><code>complete</code></td>
+<td style="text-align:right">10</td>
+<td><code>bool</code></td>
+<td>该设备数据完整可信；false不贡献可用估计。</td>
+</tr>
+<tr>
+<td><code>issues</code></td>
+<td style="text-align:right">11</td>
+<td><code>repeated string</code></td>
+<td>异常/排除原因，不使用空闲0掩盖。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s128">CapacityView</h3>
+<p>租户额度不包含在本响应；没有authoritative lock。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>profile_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>UUID。</td>
+</tr>
+<tr>
+<td><code>profile_version</code></td>
+<td style="text-align:right">2</td>
+<td><code>uint64</code></td>
+<td>指定版本。</td>
+</tr>
+<tr>
+<td><code>mode</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.SupplyMode</code></td>
+<td>返回的供给类别。</td>
+</tr>
+<tr>
+<td><code>physical_device_count</code></td>
+<td style="text-align:right">4</td>
+<td><code>int64</code></td>
+<td>去重真实设备数，故障设备仍在清单。</td>
+</tr>
+<tr>
+<td><code>nominal_units</code></td>
+<td style="text-align:right">5</td>
+<td><code>int64</code></td>
+<td>名义指定规格供给数。</td>
+</tr>
+<tr>
+<td><code>known_committed_units</code></td>
+<td style="text-align:right">6</td>
+<td><code>int64</code></td>
+<td>已知真实承诺数。</td>
+</tr>
+<tr>
+<td><code>known_free_units</code></td>
+<td style="text-align:right">7</td>
+<td><code>int64</code></td>
+<td>估计值；complete=false时只是已知范围。</td>
+</tr>
+<tr>
+<td><code>unplaced_requested_units</code></td>
+<td style="text-align:right">8</td>
+<td><code>int64</code></td>
+<td>已观察但未放置的请求，不分摊到父卡。</td>
+</tr>
+<tr>
+<td><code>observation</code></td>
+<td style="text-align:right">9</td>
+<td><code>accelerator.v1.Observation</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>devices</code></td>
+<td style="text-align:right">10</td>
+<td><code>repeated accelerator.v1.DeviceCapacity</code></td>
+<td>仅独立AdminGetCapacity可包含；租户恒空。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s129">GetCapacityRequest</h3>
+<p>租户只看授权汇总，不用bool开放设备明细。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>profile_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填且可见。</td>
+</tr>
+<tr>
+<td><code>profile_version</code></td>
+<td style="text-align:right">3</td>
+<td><code>uint64</code></td>
+<td>必填。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s130">AdminGetCapacityRequest</h3>
+<p>修复v1.1管理员无合法上下文问题。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填，无tenant字段。</td>
+</tr>
+<tr>
+<td><code>profile_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>profile_version</code></td>
+<td style="text-align:right">3</td>
+<td><code>uint64</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>include_devices</code></td>
+<td style="text-align:right">4</td>
+<td><code>bool</code></td>
+<td>平台权限已验证后才允许逐设备详情。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s131">GpuFit</h3>
+<p>静态形态受支持且额度通过，WAIT_FOR_CAPACITY可以提交。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>status</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.FitStatus</code></td>
+<td>当前GPU形态估计；不能替代Quota或实际调度。</td>
+</tr>
+<tr>
+<td><code>estimated_replicas</code></td>
+<td style="text-align:right">2</td>
+<td><code>int64</code></td>
+<td>当前条件参考；未知时0不表示全池耗尽。</td>
+</tr>
+<tr>
+<td><code>estimate_known</code></td>
+<td style="text-align:right">3</td>
+<td><code>bool</code></td>
+<td>false显示未知。</td>
+</tr>
+<tr>
+<td><code>reasons</code></td>
+<td style="text-align:right">4</td>
+<td><code>repeated string</code></td>
+<td>稳定原因；CPU/网络/存储未检查须说明。</td>
+</tr>
+<tr>
+<td><code>observation</code></td>
+<td style="text-align:right">5</td>
+<td><code>accelerator.v1.Observation</code></td>
+<td>观测新鲜度。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s132">CheckGpuFitRequest</h3>
+<p>只读，不能修改状态或先扣额。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>gpu</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuRequest</code></td>
+<td>必填。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s133">PhysicalDevice</h3>
+<p>仅平台设备明细接口，不直接返回到租户API。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>device_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>平台UUID，稳定物理身份。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>集群UUID。</td>
+</tr>
+<tr>
+<td><code>group_id</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>已核验静态组UUID；未纳管设备可空。</td>
+</tr>
+<tr>
+<td><code>node</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.NodeRef</code></td>
+<td>实际位置。</td>
+</tr>
+<tr>
+<td><code>vendor_device_id</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>供应商UUID，不能用node/index猜。</td>
+</tr>
+<tr>
+<td><code>model_key</code></td>
+<td style="text-align:right">6</td>
+<td><code>string</code></td>
+<td>归一化型号类别。</td>
+</tr>
+<tr>
+<td><code>physical_memory_bytes</code></td>
+<td style="text-align:right">7</td>
+<td><code>uint64</code></td>
+<td>NVML等真实来源，&lt;=2^63-1；不由blocks反推。</td>
+</tr>
+<tr>
+<td><code>health</code></td>
+<td style="text-align:right">8</td>
+<td><code>string</code></td>
+<td>HEALTHY/UNHEALTHY/UNKNOWN；不清除既有占用。</td>
+</tr>
+<tr>
+<td><code>observation</code></td>
+<td style="text-align:right">9</td>
+<td><code>accelerator.v1.Observation</code></td>
+<td>物理信息来源状态。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s134">ListDevicesRequest</h3>
+<p>平台设备列表。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>group_id</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>可空，空为集群内受权范围。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s135">ListDevicesResponse</h3>
+<p>设备列表。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td style="text-align:right">1</td>
+<td><code>repeated accelerator.v1.PhysicalDevice</code></td>
+<td>设备列表。</td>
+</tr>
+<tr>
+<td><code>next_token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s136">GpuUsageRef</h3>
+<p>使用关联键，不是一个需要预注册才能获得的设备权利。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>tenant_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>资源租户UUID，必填。</td>
+</tr>
+<tr>
+<td><code>owner_service</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>首期ani-inference；投影直接调用者仍是ani-governance。</td>
+</tr>
+<tr>
+<td><code>resource_id</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>Gov生成UUID，稳定业务实例身份。</td>
+</tr>
+<tr>
+<td><code>create_operation_id</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>原创建UUID，不能用DELETE操作ID。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s137">GpuUsageProjection</h3>
+<p>只是申请关联读模型；ENDED不清除实际绑定，不触发退款。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>必填；同资源不得换原创建复活。</td>
+</tr>
+<tr>
+<td><code>revision</code></td>
+<td style="text-align:right">2</td>
+<td><code>uint64</code></td>
+<td>只能1或2；不是worker generation。</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.UsageState</code></td>
+<td>1=DECLARED，2=ENDED。</td>
+</tr>
+<tr>
+<td><code>plan</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.ResolvedGpuPlan</code></td>
+<td>两种revision都携带同一静态计划，允许结束先到。</td>
+</tr>
+<tr>
+<td><code>end_reason</code></td>
+<td style="text-align:right">5</td>
+<td><code>accelerator.v1.UsageEndReason</code></td>
+<td>DECLARED必须UNSPECIFIED；ENDED必须有明确依据。</td>
+</tr>
+<tr>
+<td><code>source_fact_ref</code></td>
+<td style="text-align:right">6</td>
+<td><code>string</code></td>
+<td>必填；原受理/未发撤销/最终释放账本事实引用。</td>
+</tr>
+<tr>
+<td><code>source_operation_created_at</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>原CREATE操作持久创建时间；两个revision固定相同，不冒充资源结束时间。</td>
+</tr>
+<tr>
+<td><code>payload_digest</code></td>
+<td style="text-align:right">8</td>
+<td><code>string</code></td>
+<td>全部规范语义字段摘要；同revision必须一致；传输request-id不计。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s138">SyncGpuUsageRequest</h3>
+<p>不检查空闲，不调用owner，不参与创建前置。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>日志关联，可随重试变化。</td>
+</tr>
+<tr>
+<td><code>projection</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuUsageProjection</code></td>
+<td>必填；仅Gov精确mTLS身份可以写。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s139">SyncGpuUsageResponse</h3>
+<p>响应仅确认投影持久接纳，不代表工作负载运行/释放。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>原引用。</td>
+</tr>
+<tr>
+<td><code>applied_revision</code></td>
+<td style="text-align:right">2</td>
+<td><code>uint64</code></td>
+<td>GPU端当前最大已接纳revision。</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.UsageState</code></td>
+<td>当前投影状态。</td>
+</tr>
+<tr>
+<td><code>replayed</code></td>
+<td style="text-align:right">4</td>
+<td><code>bool</code></td>
+<td>同内容/旧版本幂等返回。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s140">GetGpuUsageRequest</h3>
+<p>尚未同步返回投影未就绪，不代表业务资源不存在。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填；与ref租户一致。</td>
+</tr>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>必填。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s141">ListGpuUsagesRequest</h3>
+<p>仅当前租户投影；业务实例列表仍由Inference提供。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>owner_service</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>可空或允许owner，不能扩大tenant。</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.UsageState</code></td>
+<td>UNSPECIFIED表示全部状态。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s142">ListGpuUsagesResponse</h3>
+<p>不是申请额度账本。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td style="text-align:right">1</td>
+<td><code>repeated accelerator.v1.GpuUsageProjection</code></td>
+<td>投影列表。</td>
+</tr>
+<tr>
+<td><code>next_token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s143">PodRef</h3>
+<p>删除范围覆盖所有相关Pod，包括曾经替换的Pod。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>UUID。</td>
+</tr>
+<tr>
+<td><code>namespace</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>非空合法namespace。</td>
+</tr>
+<tr>
+<td><code>name</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>非空，仅定位。</td>
+</tr>
+<tr>
+<td><code>uid</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>实际Pod UID，必填。</td>
+</tr>
+<tr>
+<td><code>container_name</code></td>
+<td style="text-align:right">5</td>
+<td><code>string</code></td>
+<td>实际GPU容器名。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s144">GpuBinding</h3>
+<p>真实绑定可先于投影落库；一个使用多来源必须先去重。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>binding_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>平台实际使用记录UUID。</td>
+</tr>
+<tr>
+<td><code>verified_usage_ref</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>可缺省：投影/归属尚未核验；缺省不影响容量计数。</td>
+</tr>
+<tr>
+<td><code>pod</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.PodRef</code></td>
+<td>真实Pod引用。</td>
+</tr>
+<tr>
+<td><code>physical_device_id</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>管理员及内部可见；租户BFF移除。</td>
+</tr>
+<tr>
+<td><code>state</code></td>
+<td style="text-align:right">5</td>
+<td><code>accelerator.v1.AllocationState</code></td>
+<td>实际分配状态，不是业务Ready。</td>
+</tr>
+<tr>
+<td><code>memory_mib</code></td>
+<td style="text-align:right">6</td>
+<td><code>int64</code></td>
+<td>归一化的该设备承诺；仅runtime利用率不作依据。</td>
+</tr>
+<tr>
+<td><code>core_limit_percent</code></td>
+<td style="text-align:right">7</td>
+<td><code>uint32</code></td>
+<td>该分配计算参数，范围0..100，不承诺吞吐。</td>
+</tr>
+<tr>
+<td><code>source_baseline_digest</code></td>
+<td style="text-align:right">8</td>
+<td><code>string</code></td>
+<td>解释来源单位时使用的冻结基线。</td>
+</tr>
+<tr>
+<td><code>source_memory_block_mib</code></td>
+<td style="text-align:right">9</td>
+<td><code>uint32</code></td>
+<td>原始blocks来源所用F；已归一化值不能再乘。</td>
+</tr>
+<tr>
+<td><code>evidence_ref</code></td>
+<td style="text-align:right">10</td>
+<td><code>string</code></td>
+<td>实际adapter原始证据引用。</td>
+</tr>
+<tr>
+<td><code>observation</code></td>
+<td style="text-align:right">11</td>
+<td><code>accelerator.v1.Observation</code></td>
+<td>可信完整度。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s145">ListBindingsRequest</h3>
+<p>不能通过未验证Pod标签猜租户；原始未关联记录仅内部/Admin可看。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.TenantContext</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>必填；只能返回可信关联到该租户的事实。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s146">AdminListBindingsRequest</h3>
+<p>允许平台读取未关联真实占用；不能自动推导未知租户。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>context</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.AdminRead</code></td>
+<td>必填平台上下文。</td>
+</tr>
+<tr>
+<td><code>cluster_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>必填UUID。</td>
+</tr>
+<tr>
+<td><code>physical_device_id</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>可空；指定时必须属于集群。</td>
+</tr>
+<tr>
+<td><code>page</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.Page</code></td>
+<td>默认分页。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s147">ListBindingsResponse</h3>
+<p>只读关联绑定。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>items</code></td>
+<td style="text-align:right">1</td>
+<td><code>repeated accelerator.v1.GpuBinding</code></td>
+<td>BFF必须移除内部物理身份/拓扑。</td>
+</tr>
+<tr>
+<td><code>next_token</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>分页。</td>
+</tr>
+<tr>
+<td><code>observation</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.Observation</code></td>
+<td>缺失投影不等于零实际占用。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s148">ObserveReleaseRequest</h3>
+<p>无需已存在使用关联；范围完整性和无未知在途写由owner证明。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>必填；直接mTLS调用方必须是该owner。</td>
+</tr>
+<tr>
+<td><code>delete_operation_id</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>必填UUID，明确关闭操作。</td>
+</tr>
+<tr>
+<td><code>pods</code></td>
+<td style="text-align:right">4</td>
+<td><code>repeated accelerator.v1.PodRef</code></td>
+<td>owner掌握的完整实际范围；非空。没有外部创建则使用owner内部未执行证明，不调用空列表假释放。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s149">ReleaseObservation</h3>
+<p>ALLOCATION_RELEASED只证明检查范围解除，不决定退款或证明owner未来不会创建。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>evidence_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>结果证据UUID。</td>
+</tr>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>对应资源引用。</td>
+</tr>
+<tr>
+<td><code>finding</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.ReleaseFinding</code></td>
+<td>正常解除、仍存在或未知。</td>
+</tr>
+<tr>
+<td><code>active_pod_uids</code></td>
+<td style="text-align:right">4</td>
+<td><code>repeated string</code></td>
+<td>已确认残留设备分配的Pod，不只查当前GPU进程。</td>
+</tr>
+<tr>
+<td><code>uncertain_node_uids</code></td>
+<td style="text-align:right">5</td>
+<td><code>repeated string</code></td>
+<td>缺少可信证据的节点。</td>
+</tr>
+<tr>
+<td><code>observation</code></td>
+<td style="text-align:right">6</td>
+<td><code>accelerator.v1.Observation</code></td>
+<td>必填。</td>
+</tr>
+<tr>
+<td><code>evidence_digest</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>稳定证据摘要，绑定检查范围。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s150">integration/v1/owner_gpu_attachment.proto</h2>
+<p>包：<code>accelerator.integration.v1</code>。</p>
+<h3 id="s151">GpuChargeRef</h3>
+<p>引用Gov真实账本，按code匹配，不按数组顺序。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>charge_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>Gov原charge UUID。</td>
+</tr>
+<tr>
+<td><code>quota_code</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>正式代码，必须与计划计量相符。</td>
+</tr>
+<tr>
+<td><code>original_units</code></td>
+<td style="text-align:right">3</td>
+<td><code>int64</code></td>
+<td>原始占额整数；共享MiB、整卡张数；&gt;0。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s152">GpuOwnerCreateAttachment</h3>
+<p>嵌入真实Inference持久AcceptCreate，不新建虚构通用业务服务。完整模型/镜像/网络合同需读取Inference源码后对齐。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">1</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>可信原tenant/owner/resource/create_operation。</td>
+</tr>
+<tr>
+<td><code>actor</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.Actor</code></td>
+<td>原可信操作主体。</td>
+</tr>
+<tr>
+<td><code>request_hash</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>Gov原始规范用户请求哈希，不含动态解析时间。</td>
+</tr>
+<tr>
+<td><code>gpu_plan</code></td>
+<td style="text-align:right">4</td>
+<td><code>accelerator.v1.ResolvedGpuPlan</code></td>
+<td>必填不可变计划。</td>
+</tr>
+<tr>
+<td><code>gpu_charges</code></td>
+<td style="text-align:right">5</td>
+<td><code>repeated accelerator.integration.v1.GpuChargeRef</code></td>
+<td>1..16，唯一code/id，完整原GPU配额向量。</td>
+</tr>
+<tr>
+<td><code>business_payload_digest</code></td>
+<td style="text-align:right">6</td>
+<td><code>string</code></td>
+<td>实际owner全部业务请求的规范摘要；不能只校验GPU参数。</td>
+</tr>
+<tr>
+<td><code>metering_version</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>本版gpu-metering-v1。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s153">GpuOwnerDeleteAttachment</h3>
+<p>不占新额度，不能依靠consumer存在与否判断资源释放。未知在途写必须查明/清理。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>delete_operation_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>本次明确DELETE UUID。</td>
+</tr>
+<tr>
+<td><code>ref</code></td>
+<td style="text-align:right">2</td>
+<td><code>accelerator.v1.GpuUsageRef</code></td>
+<td>原创建引用。</td>
+</tr>
+<tr>
+<td><code>actor</code></td>
+<td style="text-align:right">3</td>
+<td><code>accelerator.v1.Actor</code></td>
+<td>当前发起删除的可信主体。</td>
+</tr>
+<tr>
+<td><code>request_hash</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>本次DELETE规范摘要。</td>
+</tr>
+<tr>
+<td><code>original_gpu_charges</code></td>
+<td style="text-align:right">5</td>
+<td><code>repeated accelerator.integration.v1.GpuChargeRef</code></td>
+<td>完整原GPU charge快照；支持DELETE先到，不能只给第一笔ID。</td>
+</tr>
+<tr>
+<td><code>original_gpu_plan</code></td>
+<td style="text-align:right">6</td>
+<td><code>accelerator.v1.ResolvedGpuPlan</code></td>
+<td>原冻结计划，用于核验charge与关闭范围；未收到CREATE也能保存关闭墓碑。</td>
+</tr>
+<tr>
+<td><code>metering_version</code></td>
+<td style="text-align:right">7</td>
+<td><code>string</code></td>
+<td>与原创建一致。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s154">DurableOwnerAck</h3>
+<p>正式适配器必须验证全部字段后让worker记录ACKED。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>operation_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>收到的创建或删除命令UUID。</td>
+</tr>
+<tr>
+<td><code>resource_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>同原业务resource UUID。</td>
+</tr>
+<tr>
+<td><code>accepted</code></td>
+<td style="text-align:right">3</td>
+<td><code>bool</code></td>
+<td>true仅代表命令持久接受，非GPU Ready或删除完成。</td>
+</tr>
+</tbody>
+</table></div>
+<h3 id="s155">GpuDeleteAcceptance</h3>
+<p>建议BFF受理结果；按现有JSON风格映射，不改原lab返回。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>字段</th>
+<th style="text-align:right">Tag</th>
+<th>类型</th>
+<th>约束/语义</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>delete_operation_id</code></td>
+<td style="text-align:right">1</td>
+<td><code>string</code></td>
+<td>本次公开删除意图稳定UUID，重试不变。</td>
+</tr>
+<tr>
+<td><code>resource_id</code></td>
+<td style="text-align:right">2</td>
+<td><code>string</code></td>
+<td>原资源UUID。</td>
+</tr>
+<tr>
+<td><code>result</code></td>
+<td style="text-align:right">3</td>
+<td><code>string</code></td>
+<td>QUEUED_FOR_OWNER 或 CANCELED_BEFORE_DISPATCH；后者不是假owner ACK。</td>
+</tr>
+<tr>
+<td><code>dispatch_operation_id</code></td>
+<td style="text-align:right">4</td>
+<td><code>string</code></td>
+<td>前者对应真实Gov DELETE operation；后者为空。</td>
+</tr>
+</tbody>
+</table></div>
+<hr/>
+<h1 id="s156">Governance 源码核对与改动地图</h1>
+<p>日期：2026-09-23。基于用户上传 <code>ani-governance.zip</code> 解压内容进行静态核对。ZIP SHA256见本目录input-sha256.json；未将历史文档的HEAD当成本次包的Git提交。本轮没有业务代码修改，没有重新执行包内历史验收，没有读取真实Inference仓库。</p>
+<h2 id="s157">1. 实际定位</h2>
+<p>路径均相对上传包的ani-governance根。行号是本次解压文件的位置，不是未来修改后行号。没有把新建议冒充已有方法。源码包可能含本地配置，本交付不重打包源码、env、私钥或凭据。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>引用</th>
+<th>路径</th>
+<th>位置</th>
+<th>源码事实及限度</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>G1</td>
+<td><code>app/admin/service/internal/data/quota_ledger_repo.go</code></td>
+<td>114–335;375–567;602–710</td>
+<td>已有Occupy、Release、CancelUnsent。真实PG/进程行为本次未运行。</td>
+</tr>
+<tr>
+<td>G2</td>
+<td><code>app/admin/service/internal/service/quota_adapter.go</code></td>
+<td>18–43;60–100</td>
+<td>显式owner/action注册；一owner一个adapter；command目前Actor为拼接字符串。</td>
+</tr>
+<tr>
+<td>G3</td>
+<td><code>app/admin/service/internal/service/quota_dispatch_worker.go</code></td>
+<td>155–211</td>
+<td>删除原charge回补只取第一笔；失败只记日志仍继续构造命令。正式增量应取全向量、失败不发送。</td>
+</tr>
+<tr>
+<td>G4</td>
+<td><code>app/admin/service/cmd/server/wiring_quota_default.go</code></td>
+<td>1–32</td>
+<td>正式构建返回空registry和nil owner map，不能说真实Inference已接入。</td>
+</tr>
+<tr>
+<td>G5</td>
+<td><code>app/admin/service/cmd/server/wiring_quota_lab.go</code></td>
+<td>1–56</td>
+<td>实验注册与owner身份独立，保留build tag隔离。</td>
+</tr>
+<tr>
+<td>G6</td>
+<td><code>app/admin/service/internal/server/quota_internal_server.go</code></td>
+<td>45–66;83–163;173起</td>
+<td>内部TLS与owner映射、累计释放接线已经存在。运行验证未执行。</td>
+</tr>
+<tr>
+<td>G7</td>
+<td><code>api/protos/quota/service/v1/quota_release.proto</code></td>
+<td>1–59</td>
+<td>真实释放服务/字段/tag；int64累计值，现有协议不重新声明。</td>
+</tr>
+<tr>
+<td>G8</td>
+<td><code>app/admin/service/internal/data/quota_admin_repo.go</code></td>
+<td>178–184</td>
+<td>非legacy代码一律LAB_ONLY；正式GPU执行能力需要定向增量。</td>
+</tr>
+<tr>
+<td>G9</td>
+<td><code>api/protos/quota/service/v1/quota_catalog.proto</code></td>
+<td>1–51</td>
+<td>当前Enforcement只有UNSPECIFIED、LEGACY_CONFIG_ONLY、LAB_ONLY。账户量是string字段。</td>
+</tr>
+<tr>
+<td>G10</td>
+<td><code>app/admin/service/internal/service/quota_admin_service.go</code></td>
+<td>1–65</td>
+<td>现有管理查询requirePlatformUser；新租户自助接口不能开放任意tenant路径。</td>
+</tr>
+<tr>
+<td>G11</td>
+<td><code>api/protos/identity/service/v1/module.proto</code></td>
+<td>完整枚举</td>
+<td>没有GPU/Inference模块；正式权限模块编号必须明确登记。</td>
+</tr>
+<tr>
+<td>G12</td>
+<td><code>docs/evidence/quota-gpu-local-01/README.md</code></td>
+<td>历史报告</td>
+<td>包内历史结果，不是本轮复跑；真实GPU仍不据此宣称通过。</td>
+</tr>
+<tr>
+<td>G13</td>
+<td><code>app/admin/service/internal/data/ent/schema/quota_operation.go</code></td>
+<td>1–175</td>
+<td>operation_id等为string，tenant为uint32映射；dispatch_state既有有限集合。</td>
+</tr>
+<tr>
+<td>G14</td>
+<td><code>app/admin/service/internal/data/ent/schema/quota_charge.go</code></td>
+<td>完整字段</td>
+<td>原始/累计量与账户关系，复用通用账本。</td>
+</tr>
+<tr>
+<td>G15</td>
+<td><code>app/admin/service/schema.sql</code></td>
+<td>3310起，及quota定义/账户段</td>
+<td>现有DB operation_id为varchar，tenant_id为bigint；增量表FK不能想当然写uuid列。</td>
+</tr>
+<tr>
+<td>G16</td>
+<td><code>AGENTS.md</code></td>
+<td>全文</td>
+<td>核对仓库工程约束；本轮仅源码读取及方案生成。</td>
+</tr>
+<tr>
+<td>G17</td>
+<td><code>go.mod</code></td>
+<td>前部module/go及相关依赖</td>
+<td>真实module为go-wind-admin，所需Go版本1.26.7；本轮未拉依赖、未编译。</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s158">2. 相对旧计划应纠正的说法</h2>
+<p>通用配额功能不能再统称“仅有计划”：上传代码中已有账本、持久命令worker、mTLS释放及实验实现。另一方面，正式registry仍为空，存在源码也不等于真实GPU接入已完成。旧计划文件自述“未实现”与后续代码同包并存时，以实际源码解释当前实现面，历史文档保留其当时范围。</p>
+<p>当前返回LAB_ONLY并不意味着添加一个正式quota_code就启用强制资源适配。正式目录数据、adapter注册、启用配置、mTLS owner白名单、公开路由和权限要一起接线。</p>
+<h2 id="s159">3. 需要实施的定向改动</h2>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>项目</th>
+<th>现有位置</th>
+<th>新计划要求</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>GPU输入和冻结规格</td>
+<td>尚未定位正式入口</td>
+<td>新业务service解析具体版本、使用原始输入hash幂等，首次受理保存plan，不让用户自报charge</td>
+</tr>
+<tr>
+<td>注册正式Inference</td>
+<td>G2/G4/G5</td>
+<td>一个ani-inference adapter承接正式CREATE/DELETE；不将simulator改名上线</td>
+</tr>
+<tr>
+<td>原charge列表</td>
+<td>G1中GetChargeForOperation、CreateDeleteOperation、FindCreateOperationByResource；G3</td>
+<td>新ListChargesForOperation返回完整类型列表按code排序；不以ChargeIDs下标对应配额项</td>
+</tr>
+<tr>
+<td>删除错误处理</td>
+<td>G3</td>
+<td>原charge读取失败不继续Dispatch；原operation/资源/租户匹配再发</td>
+</tr>
+<tr>
+<td>结构化actor</td>
+<td>G2/G3</td>
+<td>command增ActorType/ActorID，实验Actor兼容保留</td>
+</tr>
+<tr>
+<td>Enforcement</td>
+<td>G8/G9</td>
+<td>新ENFORCED/NOT_ENABLED为增量建议；以编译注册与启用能力派生，业务不可自报</td>
+</tr>
+<tr>
+<td>GPU使用关联</td>
+<td>新专用同步repo/worker</td>
+<td>从原持久op+charges派生目标状态；独立进度，不改变业务dispatch attempts</td>
+</tr>
+<tr>
+<td>未发撤销DELETE</td>
+<td>G1两个现有独立入口</td>
+<td>提取同事务helper，保存本DELETE幂等结果，取消与领取共享原op锁；不写假ACK</td>
+</tr>
+<tr>
+<td>当前租户额度</td>
+<td>G10</td>
+<td>新自助入口从Principal读租户，不带任意tenant ID</td>
+</tr>
+<tr>
+<td>模块/权限</td>
+<td>G11及既有API同步/角色装配</td>
+<td>正式模块统一登记后固定；不擅借TENANT或新增GPU配额枚举</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s160">4. 正常链之外但要记录的已有代码差异</h2>
+<ul>
+<li>Occupy中的租户/到期检查在幂等查询之前；入口重试、权限读取和新占额需要区分，不能直接称现有方法已满足“先命中重放再做新受理”。</li>
+<li>源码到期判断使用time.Now，旧计划写数据库时间。需要严格兑现旧时间合同则做定向修复与测试；本轮不默默改动。</li>
+<li>返回ChargeIDs的顺序注释与创建时排序、重放无排序不完全一致，正式调用不要依赖位置。</li>
+<li>worker当前批量领取后串行RPC；本轮未执行租约/多worker时间行为测试。新增接入时复测批尾租约、领取时next_attempt_at复核、旧代次回写，不能把纯计算测试替代实际worker测试。</li>
+<li>存在构造函数内net.Listen等与工程文档的生命周期措辞差异。本任务不借GPU接入重构整个服务器，按受影响范围登记即可。</li>
+</ul>
+<h2 id="s161">5. 尚未获得的依据</h2>
+<p>真实Inference的API源Proto、持久接受与删除实现、工作负载控制器、镜像/模型参数、重试策略和资源清理证据来源均未随本ZIP提供。新GPU附件不能替代这些业务合同。真实集群的插件镜像digest、有效factor、Node上报和运行显存限制也未提供。</p>
+<h2 id="s162">6. 允许说明的验证结论</h2>
+<p>本次“已核对”指源文件、结构和定向实现逻辑；实际Go/Ent生成、PG事务、mTLS调用及业务执行仍未验证。输入和选读文件摘要用于复查版本，不证明业务正确。</p>
+<hr/>
+<h1 id="s163">gpu-memory-factor 与上游能力核对</h1>
+<p>核对日期：2026-09-23。本节是外部官方资料与代码事实，不是用户集群实测。源码固定到以下发布tag；实际插件、Volcano及HAMi-core镜像仍须核验。不能仅看同名参数推定所有版本完全一致。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>引用</th>
+<th>官方来源</th>
+<th>定位与支持的结论</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>W1</td>
+<td><a href="https://raw.githubusercontent.com/Project-HAMi/volcano-vgpu-device-plugin/v1.12.0/pkg/plugin/server.go">插件 v1.12.0 server.go</a></td>
+<td>ListAndWatch约283起、apiDevices约579起、Allocate约387–390：显存上报条目数量除F；实际HAMi限制将分配Usedmem乘F</td>
+</tr>
+<tr>
+<td>W2</td>
+<td><a href="https://raw.githubusercontent.com/Project-HAMi/volcano-vgpu-device-plugin/v1.12.0/pkg/plugin/register.go">插件 v1.12.0 register.go</a></td>
+<td>ConvertDeviceInfo约53–83：设备注册注解Devmem也按F归一为块，不只是Node页面上的数字</td>
+</tr>
+<tr>
+<td>W3</td>
+<td><a href="https://raw.githubusercontent.com/volcano-sh/volcano/v1.12.0/pkg/scheduler/api/devices/nvidia/vgpu/utils.go">Volcano v1.12.0 vgpu/utils.go</a></td>
+<td>Decode节点、Pod设备及resourcereqs：请求memory值沿用provider单位，平台不能假定调度器自动把MiB换成块</td>
+</tr>
+<tr>
+<td>W4</td>
+<td><a href="https://raw.githubusercontent.com/Project-HAMi/volcano-vgpu-device-plugin/v1.12.0/doc/config.md">插件 v1.12.0 配置文档</a></td>
+<td>splitcount是最大共享任务数量，memory/core scaling与资源名独立；有节点配置；配置改变需按版本重启生效</td>
+</tr>
+<tr>
+<td>W5</td>
+<td><a href="https://github.com/Project-HAMi/volcano-vgpu-device-plugin/issues/85">上游问题 #85</a></td>
+<td>问题报告描述8卡场景ListAndWatch消息过大、上报为0，建议提高F。报告不是任意版本通用上限，更不是本次真实故障复现</td>
+</tr>
+<tr>
+<td>W6</td>
+<td><a href="https://raw.githubusercontent.com/Project-HAMi/volcano-vgpu-device-plugin/v1.12.0/pkg/util/util.go">插件 v1.12.0 util.go</a> / <a href="https://raw.githubusercontent.com/Project-HAMi/volcano-vgpu-device-plugin/v1.12.0/cmd/vgpu/main.go">启动参数</a></td>
+<td>LoadNvidiaConfig约536–579用IsSet区分显式CLI和CM并回写全局；main约186定义factor默认1。应读最终有效值，不只读期望CM</td>
+</tr>
+<tr>
+<td>W7</td>
+<td><a href="https://kubernetes.io/docs/concepts/extend-kubernetes/compute-storage-net/device-plugins/">Kubernetes Device Plugins</a></td>
+<td>Kubelet设备扩展和PodResources观测接口；设备ID由插件决定，不自动等于平台物理UUID；不提供本平台owner执行封闭协议</td>
+</tr>
+<tr>
+<td>W8</td>
+<td><a href="https://kubernetes.io/docs/concepts/workloads/pods/pod-lifecycle/">Kubernetes Pod Lifecycle</a></td>
+<td>强制API删除不能替代节点确认终止；实际清理未知时不能仅凭NotFound退款</td>
+</tr>
+<tr>
+<td>W9</td>
+<td><a href="https://raw.githubusercontent.com/Project-HAMi/HAMi-core/master/SECURITY.md">HAMi-core安全政策</a></td>
+<td>软件协作式资源控制不是面对任意恶意程序的硬安全隔离；该来源为master文档，需与实际部署核对</td>
+</tr>
+</tbody>
+</table></div>
+<h2 id="s164">关键结论</h2>
+<p>factor把上报条目聚合为较大的显存单位，并在容器限制设置时换回MiB尺度。因此必须同时适配供给读取、请求渲染和绑定解释。只乘回Node显示、Pod仍填MiB，是不完整的修复。</p>
+<p>本版采用三条设计规则（不是上游强制的产品规则）：规格必须精确整除F；同一静态供给组固定同一F；Governance永远按平台MiB记共享额度。它们让单位差异限制在provider适配，不传播成套餐计量改变。</p>
+<p>在核查路径上，6GiB=6144MiB，F=1024时Pod memory填6；节点报24块表示量化后的24576MiB预算，不能当24张卡或24MiB。原始bytes指标不再乘factor。安全预算及slot上限另验，F不是超配。</p>
+<h2 id="s165">不作的推定</h2>
+<p>本报告不推定用户目前F为1、10或1024；不推定ConfigMap值必然已生效；不引用某个FAQ数字作为所有Kubernetes扩展资源的上限；不保证提高F就解决任何上报为0问题；不宣称当前tag与用户部署相同。实际错误日志可能还涉及配置未加载、插件异常或其他集成问题。</p>
+<p>本包未复制上游完整源文件；以上链接可用于复核来源，关键公式来自上述版本代码，运行可用性仍需真实环境验收。</p>
+<hr/>
+<h1 id="s166">前序评审与讨论处置</h1>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>前序事项</th>
+<th>v1.2处理</th>
+<th>仍需实施验证</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>R1 创建中删除依赖Register阶段</td>
+<td>删除Register前置；按Gov未发/已尝试、owner未外部写/已写划分；DELETE信封带完整原charge和计划；未发撤销单事务</td>
+<td>普通CREATE/DELETE交错、领取竞争、DELETE先到；投影状态不参与退款</td>
+</tr>
+<tr>
+<td>R2 老分配证据不失效</td>
+<td>binding适配器显式确认并退休覆盖范围旧事实；投影ENDED不触发物理释放</td>
+<td>真实证据源未提供；脚本只验证输入正确时的归并</td>
+</tr>
+<tr>
+<td>R3 stable ordinal与控制器不兼容</td>
+<td>不强制ordinal，稳定业务引用+实际Pod UID/container/device；冻结副本数</td>
+<td>真实Inference渲染及重建、额外rollout入口限制</td>
+</tr>
+<tr>
+<td>R4 BOSS需要无租户容量上下文</td>
+<td>新独立AdminGetCapacity、AdminRead，无tenant=0资源身份</td>
+<td>mTLS+当前角色/平台权限</td>
+</tr>
+<tr>
+<td>R5 无关设备冲突导致全部查询失败</td>
+<td>参考代码先按cluster/device过滤再合并，异常局部返回</td>
+<td>真实观测全量接线回归</td>
+</tr>
+<tr>
+<td>容量预检阻挡等待</td>
+<td>静态合法/额度通过可提交，当前容量0或未知只提示</td>
+<td>前端表单与Gov适配不以reference数量做准入上限</td>
+</tr>
+<tr>
+<td>过期资源无法删除</td>
+<td>受控管理员/系统删除入口走相同owner清理</td>
+<td>对应现有权限与审计路径确认</td>
+</tr>
+<tr>
+<td>Consumer由Gov发起</td>
+<td>异步SyncGpuUsage，不在创建/删除关键路径；ID直接用Gov资源引用</td>
+<td>同步故障、绑定先到、终态先到、同版本冲突</td>
+</tr>
+<tr>
+<td>其他配额是否也需Consumer</td>
+<td>不需要；GPU使用投影为本领域资源查询，不是配额内核概念</td>
+<td>未来各业务类型保持独立事实权威</td>
+</tr>
+<tr>
+<td>gpu-memory-factor</td>
+<td>新MemoryEncoding和ProviderBaseline；q=m/F精确换算、计额MiB不变</td>
+<td>有效factor及容器实际限制、Node注解/资源上报</td>
+</tr>
+<tr>
+<td>真实预留与动态切换</td>
+<td>不提供相关RPC/SQL，只保留未来边界</td>
+<td>未来独立评审，不反向阻塞本次</td>
+</tr>
+</tbody>
+</table></div>
+<p>本版对GPU源Proto进行了结构性收敛，不保证与v1.1尚未实施草案声明完全兼容。如果已经有人基于v1.1发布了正式SDK/服务，需要在实施前另定API版本或兼容处理，不能直接热替换。本次不依据设计文件存在而推定线上调用者存在。</p>
+<hr/>
+<h1 id="s167">本次实际验证说明</h1>
+<p>日期：2026-09-23。仅生成与验证设计附件，未修改用户业务源码。</p>
+<div class="table-wrap"><table>
+<thead>
+<tr>
+<th>检查</th>
+<th>结果</th>
+<th>边界</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>两份新Proto编译</td>
+<td>pass</td>
+<td>libprotoc 3.13.0，生成descriptor与SourceCodeInfo；未生成或编译Go SDK</td>
+</tr>
+<tr>
+<td>字段字典</td>
+<td>pass</td>
+<td>从当前编译结果生成，3服务/22RPC/64消息/295字段</td>
+</tr>
+<tr>
+<td>Python设计模型</td>
+<td>pass</td>
+<td>48测试；不证明PG并发、真实设备限制或owner执行封闭</td>
+</tr>
+<tr>
+<td>protobuf JSON</td>
+<td>pass</td>
+<td>7份，包含对用户现有QuotaRelease源Proto生成descriptor进行消息解析</td>
+</tr>
+<tr>
+<td>JSON/YAML</td>
+<td>pass</td>
+<td>语法与消息结构；YAML是字段片段，未做Kubernetes准入</td>
+</tr>
+<tr>
+<td>输入源码摘要</td>
+<td>pass</td>
+<td>选读的17文件字节未改变</td>
+</tr>
+<tr>
+<td>SQL</td>
+<td>静态提案</td>
+<td>未运行SQL语义编译、PostgreSQL迁移、约束或事务测试</td>
+</tr>
+<tr>
+<td>真实GPU/Inference</td>
+<td>not_verified</td>
+<td>未取得部署factor、真实owner代码或集群访问</td>
+</tr>
+<tr>
+<td>mTLS/Go构建/PG</td>
+<td>not_verified</td>
+<td>仅源码检查，不冒充已运行</td>
+</tr>
+</tbody>
+</table></div>
+<p>复现：在本包运行<code>python3 -m unittest discover -s tests -v</code>及<code>python3 examples/design_reference.py</code>。重新编译/字典/HTML可运行<code>PROTOC=/path/to/protoc python3 tools/validate_and_render.py</code>；需要python protobuf、markdown-it-py、bs4、PyYAML。异地复核上传源码时设置<code>GOVERNANCE_SOURCE_DIR</code>指向自己的只读解压目录；不提供源目录时相应检查为not_verified，不应假称再次核对。源代码核对辅助脚本另读<code>INPUT_DIR</code>下的原ZIP；不能误扫业务环境。</p>
+<p><code>contracts.pb</code>是本包草案编译产物；<code>existing-gov-release.pb</code>仅来自用户当前已有协议，用于确认示例字段没有改写现有退额合同。</p>
+<p>版本范围：没有把旧v1.1的静态通过或ZIP历史69项模拟通过，当作本版真实运行通过。本次修复R5在纯模型中验证；实际供给绑定与释放证据适配仍须实施验收。</p>
+<p>HTML浏览器检查结果单列于<code>html-checks.json</code>；仅在实际执行后写入，不由本脚本默认声称通过。</p>
+</main></body></html>

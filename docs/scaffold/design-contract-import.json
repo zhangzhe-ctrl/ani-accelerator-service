@@ -1,0 +1,18 @@
+[
+  {
+    "source": "api/accelerator/v1/accelerator.proto",
+    "target": "api/protos/accelerator/v1/accelerator.proto",
+    "source_sha256": "79b33adfd65400fb47b126a1ec6735e5ad30cdc9f43ee6405559f2a21759d4e0",
+    "target_sha256": "f742be356703d66e9765ff43396adbe9309df4d8e2566e82f641c54273bc27ce",
+    "declarations_and_tags": "unchanged",
+    "changes": "go_package and related comment; integration source path matches package"
+  },
+  {
+    "source": "api/integration/v1/owner_gpu_attachment.proto",
+    "target": "api/protos/accelerator/integration/v1/owner_gpu_attachment.proto",
+    "source_sha256": "43e3b422f66af22af924939f4220136eb6b24c804f3b9fffa77b5c76d6aed356",
+    "target_sha256": "07ea2ca6825e8428fea7f4bc6b9c2612ae06c49435c23bb80ed020b0145f56eb",
+    "declarations_and_tags": "unchanged",
+    "changes": "go_package and related comment; integration source path matches package"
+  }
+]

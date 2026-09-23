@@ -1,0 +1,14 @@
+* text=auto eol=lf
+
+*.go    text eol=lf
+*.proto text eol=lf
+*.yaml  text eol=lf
+*.yml   text eol=lf
+*.md    text eol=lf
+*.sh    text eol=lf
+
+*.pb.go linguist-generated=true
+
+*.png binary
+*.jpg binary
+*.ico binary

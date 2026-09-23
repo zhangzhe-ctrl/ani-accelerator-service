@@ -1,0 +1,81 @@
+syntax = "proto3";
+
+package accelerator.integration.v1;
+
+option go_package = "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/integration/v1;integrationv1";
+
+// v1.2 待实施合同；与旧未上线设计不做声明级兼容承诺。若已有调用者，先核对版本迁移。
+// 不包含HTTP注解；公网由Governance现有BFF映射。go_package已按本仓模块设置；正式跨服务接入仍须登记合同。
+// int64数量使用0..2^63-1安全范围，protobuf JSON用十进制字符串；时间UTC RFC3339Nano。
+// UUID仅用于平台自有ID。Kubernetes UID、供应商设备ID、主体ID保留来源格式。
+// required由业务校验实现，不因proto3默认值存在而允许缺省；所有零值枚举默认拒绝。
+
+import "accelerator/v1/accelerator.proto";
+
+// 引用Gov真实账本，按code匹配，不按数组顺序。
+message GpuChargeRef {
+  // Gov原charge UUID。
+  string charge_id = 1;
+  // 正式代码，必须与计划计量相符。
+  string quota_code = 2;
+  // 原始占额整数；共享MiB、整卡张数；>0。
+  int64 original_units = 3;
+}
+
+// 嵌入真实Inference持久AcceptCreate，不新建虚构通用业务服务。完整模型/镜像/网络合同需读取Inference源码后对齐。
+message GpuOwnerCreateAttachment {
+  // 可信原tenant/owner/resource/create_operation。
+  accelerator.v1.GpuUsageRef ref = 1;
+  // 原可信操作主体。
+  accelerator.v1.Actor actor = 2;
+  // Gov原始规范用户请求哈希，不含动态解析时间。
+  string request_hash = 3;
+  // 必填不可变计划。
+  accelerator.v1.ResolvedGpuPlan gpu_plan = 4;
+  // 1..16，唯一code/id，完整原GPU配额向量。
+  repeated GpuChargeRef gpu_charges = 5;
+  // 实际owner全部业务请求的规范摘要；不能只校验GPU参数。
+  string business_payload_digest = 6;
+  // 本版gpu-metering-v1。
+  string metering_version = 7;
+}
+
+// 不占新额度，不能依靠consumer存在与否判断资源释放。未知在途写必须查明/清理。
+message GpuOwnerDeleteAttachment {
+  // 本次明确DELETE UUID。
+  string delete_operation_id = 1;
+  // 原创建引用。
+  accelerator.v1.GpuUsageRef ref = 2;
+  // 当前发起删除的可信主体。
+  accelerator.v1.Actor actor = 3;
+  // 本次DELETE规范摘要。
+  string request_hash = 4;
+  // 完整原GPU charge快照；支持DELETE先到，不能只给第一笔ID。
+  repeated GpuChargeRef original_gpu_charges = 5;
+  // 原冻结计划，用于核验charge与关闭范围；未收到CREATE也能保存关闭墓碑。
+  accelerator.v1.ResolvedGpuPlan original_gpu_plan = 6;
+  // 与原创建一致。
+  string metering_version = 7;
+}
+
+// 正式适配器必须验证全部字段后让worker记录ACKED。
+message DurableOwnerAck {
+  // 收到的创建或删除命令UUID。
+  string operation_id = 1;
+  // 同原业务resource UUID。
+  string resource_id = 2;
+  // true仅代表命令持久接受，非GPU Ready或删除完成。
+  bool accepted = 3;
+}
+
+// 建议BFF受理结果；按现有JSON风格映射，不改原lab返回。
+message GpuDeleteAcceptance {
+  // 本次公开删除意图稳定UUID，重试不变。
+  string delete_operation_id = 1;
+  // 原资源UUID。
+  string resource_id = 2;
+  // QUEUED_FOR_OWNER 或 CANCELED_BEFORE_DISPATCH；后者不是假owner ACK。
+  string result = 3;
+  // 前者对应真实Gov DELETE operation；后者为空。
+  string dispatch_operation_id = 4;
+}

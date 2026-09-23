@@ -1,0 +1,18 @@
+[
+  {
+    "viewport": "desktop",
+    "scrollWidth": 1440,
+    "clientWidth": 1440,
+    "headingCount": 167,
+    "brokenInternalLinks": [],
+    "externalAssets": []
+  },
+  {
+    "viewport": "mobile",
+    "scrollWidth": 430,
+    "clientWidth": 430,
+    "headingCount": 167,
+    "brokenInternalLinks": [],
+    "externalAssets": []
+  }
+]

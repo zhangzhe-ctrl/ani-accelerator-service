@@ -1,0 +1,99 @@
+{
+  "requestId": "log-example-1",
+  "projection": {
+    "ref": {
+      "tenantId": "00000006-1111-4111-8111-000000000006",
+      "ownerService": "ani-inference",
+      "resourceId": "00000007-1111-4111-8111-000000000007",
+      "createOperationId": "00000008-1111-4111-8111-000000000008"
+    },
+    "revision": "1",
+    "state": "DECLARED",
+    "plan": {
+      "schemaVersion": 1,
+      "request": {
+        "clusterId": "00000001-1111-4111-8111-000000000001",
+        "poolId": "00000002-1111-4111-8111-000000000002",
+        "profileId": "00000004-1111-4111-8111-000000000004",
+        "profileVersion": "1",
+        "replicas": 2,
+        "devicesPerReplica": 1,
+        "containerName": "inference"
+      },
+      "profile": {
+        "profileId": "00000004-1111-4111-8111-000000000004",
+        "profileVersion": "1",
+        "displayName": "共享 GPU · 6 GiB",
+        "spec": {
+          "groupId": "00000003-1111-4111-8111-000000000003",
+          "mode": "SHARED_FIXED",
+          "modelKey": "example-24g-verified",
+          "sharedMemoryMib": "6144",
+          "coreLimitPercent": 25,
+          "maxDevicesPerReplica": 1,
+          "isolationClass": "SOFTWARE_COOPERATIVE"
+        },
+        "baselineId": "00000005-1111-4111-8111-000000000005",
+        "specDigest": "e88fc0c2d2117c6a80c0f20069bb09b706bc2879ae8eed65fb2e5362882c1168",
+        "published": true
+      },
+      "encoding": {
+        "memoryBlockMib": 1024,
+        "memoryBlocksPerDevice": "6",
+        "sharedMemoryMib": "6144",
+        "memoryPercentage": 0,
+        "policy": "EXACT"
+      },
+      "totals": {
+        "logicalDeviceCount": "2",
+        "exclusiveDeviceCount": "0",
+        "sharedMemoryMib": "12288"
+      },
+      "runtime": {
+        "schedulerName": "volcano",
+        "queueName": "ani-gpu-shared",
+        "nodeLabels": [
+          {
+            "key": "accelerator.ani.io/supply-group",
+            "value": "00000003-1111-4111-8111-000000000003"
+          },
+          {
+            "key": "accelerator.ani.io/model-key",
+            "value": "example-24g-verified"
+          },
+          {
+            "key": "accelerator.ani.io/baseline-id",
+            "value": "00000005-1111-4111-8111-000000000005"
+          }
+        ],
+        "podAnnotations": [
+          {
+            "key": "volcano.sh/vgpu-mode",
+            "value": "hami-core"
+          }
+        ],
+        "limitsPerContainer": [
+          {
+            "key": "volcano.sh/vgpu-number",
+            "value": "1"
+          },
+          {
+            "key": "volcano.sh/vgpu-memory",
+            "value": "6"
+          },
+          {
+            "key": "volcano.sh/vgpu-cores",
+            "value": "25"
+          }
+        ],
+        "recipeVersion": "volcano-hami-factor-v1"
+      },
+      "baselineDigest": "9728f25077c3b6d65fcfc96af9f2820da71112c484bd2bb2d5c13dfbe4540935",
+      "resolutionDigest": "82d8318e3fbb0fce1b9a70d839df132475d65cefb2515008de68e8dfa72cf7bf"
+    },
+    "endReason": "USAGE_END_REASON_UNSPECIFIED",
+    "sourceFactRef": "quota-operation:00000008-1111-4111-8111-000000000008:accepted",
+    "sourceOperationCreatedAt": "2026-09-23T00:00:00Z",
+    "payloadDigest": "87e0f3b7845069fb79f6429782a605fa8a975012a344f98456c30304a44a8f54"
+  }
+}

@@ -1,0 +1,5 @@
+libprotoc 3.13.0
+
+/opt/pyvenv/lib/python3.13/site-packages/torch/bin/protoc -I /mnt/data/ani-gpu-design-v1.2/api --include_imports --include_source_info --descriptor_set_out=/mnt/data/ani-gpu-design-v1.2/validation/contracts.pb /mnt/data/ani-gpu-design-v1.2/api/accelerator/v1/accelerator.proto /mnt/data/ani-gpu-design-v1.2/api/integration/v1/owner_gpu_attachment.proto
+
+exit_code=0

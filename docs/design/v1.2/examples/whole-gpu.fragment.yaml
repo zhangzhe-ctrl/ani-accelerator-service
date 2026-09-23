@@ -1,0 +1,24 @@
+# GPU字段片段；不是完整Pod/Deployment，不可直接kubectl apply。
+# 需owner补齐真实业务镜像、模型、卷、CPU、重启策略以及已验证Queue/PodGroup映射。
+# 示例F=1024已冻结；共享每Pod写6块，不是6144。不要用于未核验基线。
+metadata:
+  labels:
+    accelerator.ani.io/resource-id: 00000007-1111-4111-8111-000000000007
+    accelerator.ani.io/create-operation-id: 00000008-1111-4111-8111-000000000008
+    accelerator.ani.io/resource-tenant-id: 00000006-1111-4111-8111-000000000006
+    accelerator.ani.io/owner-service: ani-inference
+  annotations:
+    volcano.sh/vgpu-mode: hami-core
+spec:
+  schedulerName: volcano
+  nodeSelector:
+    accelerator.ani.io/supply-group: 00000012-1111-4111-8111-000000000012
+    accelerator.ani.io/model-key: example-24g-verified
+    accelerator.ani.io/baseline-id: 00000005-1111-4111-8111-000000000005
+  containers:
+  - name: inference
+    resources:
+      limits:
+        volcano.sh/vgpu-number: '1'
+        volcano.sh/vgpu-cores: '100'
+        volcano.sh/vgpu-memory-percentage: '100'

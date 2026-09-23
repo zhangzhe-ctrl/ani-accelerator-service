@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+
+readonly EXPECTED_NOTICE_SHA256="3b44929bdd575a570c42165d4fd4eac57a5055745d2ecf3f121aa6a084cf9230"
+
+die() {
+  printf 'verify-supply-chain: %s\n' "$*" >&2
+  exit 1
+}
+
+sha256_file() {
+  if command -v sha256sum >/dev/null 2>&1; then
+    sha256sum "$1" | awk '{print $1}'
+    return
+  fi
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+    return
+  fi
+  die "sha256sum or shasum is required"
+}
+
+[[ $# -eq 0 ]] || die "usage: scripts/verify-supply-chain"
+command -v jq >/dev/null 2>&1 || die "jq is required"
+command -v rg >/dev/null 2>&1 || die "rg is required"
+
+script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
+repository_root=$(cd "$script_dir/.." && pwd -P)
+bom=$repository_root/docs/scaffold/bom.cdx.json
+notice=$repository_root/THIRD_PARTY_NOTICES.go-kratos-layout.txt
+license_review=$repository_root/docs/scaffold/license-review.md
+
+[[ -f $bom && ! -L $bom ]] || die "regular CycloneDX BOM is required: $bom"
+[[ -f $notice && ! -L $notice ]] || die "regular upstream notice is required: $notice"
+[[ $(sha256_file "$notice") == "$EXPECTED_NOTICE_SHA256" ]] || \
+  die "upstream layout notice differs from the frozen source"
+
+jq -e '
+  .bomFormat == "CycloneDX" and
+  .specVersion == "1.6" and
+  (.serialNumber == null) and
+  (.metadata.timestamp == null) and
+  ((.metadata.tools | type) == "array") and
+  ((.metadata.tools | length) > 0) and
+  ([.metadata.tools[] | select(has("hashes"))] | length == 0) and
+  ((.components | type) == "array") and
+  ((.components | length) > 0) and
+  ((.dependencies | type) == "array") and
+  ((.dependencies | length) == ((.components | length) + 1)) and
+  ([.components[] | select(((.evidence.licenses // []) | length) == 0)] | length == 0) and
+  ([.components[] | (.evidence.licenses // [])[]? | select((.license.id // "") == "")] | length == 0)
+' "$bom" >/dev/null || die "BOM structure or license evidence is incomplete"
+
+component_count=$(jq -r '.components | length' "$bom")
+missing_license_count=$(jq -r \
+  '[.components[] | select(((.evidence.licenses // []) | length) == 0)] | length' "$bom")
+
+if [[ -f $license_review ]]; then
+  actual_counts=$(
+    {
+      jq -r '
+        [.components[] | (.evidence.licenses // [])[]? | .license.id]
+        | sort
+        | group_by(.)[]
+        | "\(.[0])\t\(length)"
+      ' "$bom"
+      printf 'no detected evidence\t%s\n' "$missing_license_count"
+    } | LC_ALL=C sort
+  )
+  documented_counts=$(
+    awk -F '|' '
+      /^\| Detected SPDX license \| Components \|$/ { in_table = 1; next }
+      in_table && /^\| ---/ { next }
+      in_table && /^\|/ {
+        license = $2
+        count = $3
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", license)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", count)
+        print license "\t" count
+        next
+      }
+      in_table { exit }
+    ' "$license_review" | LC_ALL=C sort
+  )
+  [[ $actual_counts == "$documented_counts" ]] || {
+    diff -u <(printf '%s\n' "$documented_counts") \
+      <(printf '%s\n' "$actual_counts") >&2 || true
+    die "license review counts differ from the BOM"
+  }
+  rg --quiet --fixed-strings \
+    "examined the $component_count non-main runtime components" "$license_review" || \
+    die "license review component total differs from the BOM"
+  review_status=synchronized
+else
+  review_status=not-present
+fi
+
+printf 'supply-chain evidence verified: components=%s notice_sha256=%s license_review=%s\n' \
+  "$component_count" "$EXPECTED_NOTICE_SHA256" "$review_status"

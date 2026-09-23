@@ -1,0 +1,33 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version-file: go.mod
+          cache: true
+      - name: Install CI prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends ripgrep
+      - name: Install pinned tools
+        run: make tools supply-chain-tools
+      - name: Verify
+        run: make verify
+      - name: Supply-chain verification
+        run: |
+          make audit
+          git diff --exit-code -- docs/scaffold/bom.cdx.json
+          test -z "$(git status --porcelain --untracked-files=all -- docs/scaffold/bom.cdx.json)"

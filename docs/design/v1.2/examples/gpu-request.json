@@ -1,0 +1,9 @@
+{
+  "clusterId": "00000001-1111-4111-8111-000000000001",
+  "poolId": "00000002-1111-4111-8111-000000000002",
+  "profileId": "00000004-1111-4111-8111-000000000004",
+  "profileVersion": "1",
+  "replicas": 2,
+  "devicesPerReplica": 1,
+  "containerName": "inference"
+}

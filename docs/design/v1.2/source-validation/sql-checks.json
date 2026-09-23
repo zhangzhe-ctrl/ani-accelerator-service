@@ -1,0 +1,23 @@
+[
+  {
+    "file": "003_quota_catalog_increment.proposed.sql",
+    "utf8": "pass",
+    "read_and_reviewed": "yes",
+    "postgres_execution": "not_verified",
+    "statements_are_proposals": true
+  },
+  {
+    "file": "001_accelerator.proposed.sql",
+    "utf8": "pass",
+    "read_and_reviewed": "yes",
+    "postgres_execution": "not_verified",
+    "statements_are_proposals": true
+  },
+  {
+    "file": "002_governance_gpu_increment.proposed.sql",
+    "utf8": "pass",
+    "read_and_reviewed": "yes",
+    "postgres_execution": "not_verified",
+    "statements_are_proposals": true
+  }
+]
