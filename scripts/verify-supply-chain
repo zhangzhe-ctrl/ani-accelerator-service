@@ -22,13 +22,13 @@ sha256_file() {
 
 [[ $# -eq 0 ]] || die "usage: scripts/verify-supply-chain"
 command -v jq >/dev/null 2>&1 || die "jq is required"
-command -v rg >/dev/null 2>&1 || die "rg is required"
+command -v grep >/dev/null 2>&1 || die "grep is required"
 
 script_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd -P)
 repository_root=$(cd "$script_dir/.." && pwd -P)
 bom=$repository_root/docs/scaffold/bom.cdx.json
 notice=$repository_root/THIRD_PARTY_NOTICES.go-kratos-layout.txt
-license_review=$repository_root/docs/scaffold/license-review.md
+license_review=$repository_root/docs/execution/license-review.md
 
 [[ -f $bom && ! -L $bom ]] || die "regular CycloneDX BOM is required: $bom"
 [[ -f $notice && ! -L $notice ]] || die "regular upstream notice is required: $notice"
@@ -87,7 +87,7 @@ if [[ -f $license_review ]]; then
       <(printf '%s\n' "$actual_counts") >&2 || true
     die "license review counts differ from the BOM"
   }
-  rg --quiet --fixed-strings \
+  grep --quiet --fixed-strings \
     "examined the $component_count non-main runtime components" "$license_review" || \
     die "license review component total differs from the BOM"
   review_status=synchronized

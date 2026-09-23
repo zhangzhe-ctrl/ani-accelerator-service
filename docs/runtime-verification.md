@@ -1,5 +1,11 @@
 # Runtime verification
 
+ACC-V12-01 supersedes the scaffold-only evidence described below. Current
+acceptance includes PostgreSQL, all 22 RPCs over mTLS, process interruption,
+provider replay and populated restore; see [execution status](execution/status.md)
+and [the runtime runbook](runbooks/accelerator-runtime.md). All task execution is
+on Fedora. Real GPU and external integration remain `not_verified`.
+
 The generated service keeps executable runtime checks beside the source. From a
 clean checkout, run:
 
@@ -39,10 +45,9 @@ checking cleanliness, and builds an isolated synthetic Git snapshot from all
 tracked files except the prior SBOM. This prevents both a self-reference and
 accidental discovery of a parent Git repository through `TMPDIR`.
 
-The committed SBOM targets the Linux/amd64 runtime graph and excludes test-only
-dependencies. Byte reproducibility is claimed only for the same source snapshot
-and recorded CycloneDX binary; its own binary hashes intentionally make output
-from a separately built scanner distinguishable.
+The committed SBOM targets the Linux/amd64 runtime graph. Source identity excludes
+the BOM itself. The generator removes the tool binary hashes from portable BOM
+identity and records the actual tool hash separately in its command output.
 
 For a newly generated repository, first commit the generated source, then run
 `make supply-chain-tools` and `make audit`, review the result, and commit

@@ -8,6 +8,45 @@ import "google/protobuf/duration.proto";
 
 message Bootstrap {
   Server server = 1;
+  Database database = 2;
+  Security security = 3;
+  Accelerator accelerator = 4;
+}
+
+message Database {
+  // Secret file containing one PostgreSQL DSN; never logged or accepted by RPC.
+  string dsn_file = 1;
+}
+
+message Security {
+  string ca_file = 1;
+  string cert_file = 2;
+  string key_file = 3;
+  string governance_uri = 4;
+  string inference_uri = 5;
+  string cursor_key_file = 6;
+  repeated DelegationGrant grants = 7;
+}
+
+message DelegationGrant {
+  string actor_type = 1;
+  string actor_id = 2;
+  repeated string actions = 3;
+  bool platform = 4;
+  repeated string tenant_ids = 5;
+  repeated string cluster_ids = 6;
+}
+
+message Accelerator {
+  uint32 max_replicas = 1;
+  google.protobuf.Duration freshness = 2;
+  google.protobuf.Duration collect_interval = 3;
+  // Managed provider connection definitions, not sample/replay data.
+  string provider_config_file = 4;
+  // Directory of signed hardware attestations, no private signing keys.
+  string attestations_dir = 5;
+  string attestation_public_key_file = 6;
+  string owner_public_key_file = 7;
 }
 
 message Server {

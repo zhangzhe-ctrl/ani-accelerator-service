@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+: "${ACC_TEST_DSN_FILE:?isolated PostgreSQL required}"
+: "${ACC_TEST_EVIDENCE_DIR:?evidence directory required}"
+: "${ACC_TEST_PG_CONTAINER:?task container required for populated restore}"
+[[ $ACC_TEST_EVIDENCE_DIR == /* && ! -e $ACC_TEST_EVIDENCE_DIR/source.sha256 ]]
+mkdir -p "$ACC_TEST_EVIDENCE_DIR"
+repository=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+cd "$repository"
+find . -type f -not -path './.git/*' -not -path './.tools/*' -not -path './bin/*' -not -path './.tmp/*' -not -path './.work/*' -print0 |
+  LC_ALL=C sort -z | xargs -0 sha256sum >"$ACC_TEST_EVIDENCE_DIR/source.sha256"
+hostname >"$ACC_TEST_EVIDENCE_DIR/host.txt"
+pwd >"$ACC_TEST_EVIDENCE_DIR/source-directory.txt"
+git rev-parse HEAD >"$ACC_TEST_EVIDENCE_DIR/base-commit.txt" 2>/dev/null || true
+git status --porcelain --untracked-files=all >"$ACC_TEST_EVIDENCE_DIR/git-state.txt"
+for target in verify test-domain test-pg test-contract test-provider test-recovery test-race; do
+  date -u +%FT%TZ >"$ACC_TEST_EVIDENCE_DIR/$target.started"
+  printf 'make %s\n' "$target" >"$ACC_TEST_EVIDENCE_DIR/$target.command"
+  set +e
+  make "$target" >"$ACC_TEST_EVIDENCE_DIR/$target.log" 2>&1
+  result=$?
+  set -e
+  printf '%s\n' "$result" >"$ACC_TEST_EVIDENCE_DIR/$target.exit"
+  printf '%s: exit=%s\n' "$target" "$result"
+  if [[ $result != 0 ]]; then tail -80 "$ACC_TEST_EVIDENCE_DIR/$target.log"; exit "$result"; fi
+done
+sha256sum -c --quiet "$ACC_TEST_EVIDENCE_DIR/source.sha256"
+printf 'All software gates passed without source changes. GPU-LIVE and EXT remain not_verified.\n'

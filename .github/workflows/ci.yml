@@ -10,6 +10,22 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres@sha256:f4c66b820c6f974249089d3d16d86a3698eae11e8746eb6644b2271031e91232
+        env:
+          POSTGRES_DB: accelerator
+          # Ephemeral CI service only, never used by runtime configuration.
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432/tcp
+        options: >-
+          --health-cmd "pg_isready -U postgres -d accelerator"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+      PGDATABASE: accelerator
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
@@ -21,11 +37,23 @@ jobs:
       - name: Install CI prerequisites
         run: |
           sudo apt-get update
-          sudo apt-get install --yes --no-install-recommends ripgrep
+          sudo apt-get install --yes --no-install-recommends postgresql-client jq
+      - name: Explicit migration and DML-only test role
+        env:
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: |
+          bash scripts/migrate 0001
+          psql -X -v ON_ERROR_STOP=1 -f scripts/test-pg-role.sql
+          dsn_file="$RUNNER_TEMP/acc-test-dsn"
+          umask 077
+          printf 'host=%s port=%s dbname=accelerator user=acc_runtime sslmode=disable\n' "$PGHOST" "$PGPORT" > "$dsn_file"
+          echo "ACC_TEST_DSN_FILE=$dsn_file" >> "$GITHUB_ENV"
       - name: Install pinned tools
         run: make tools supply-chain-tools
       - name: Verify
         run: make verify
+      - name: Concurrency and process recovery
+        run: make test-race
       - name: Supply-chain verification
         run: |
           make audit

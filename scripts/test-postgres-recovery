@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+# Operates exclusively on an explicitly identified task-owned test container.
+: "${ACC_TEST_PG_CONTAINER:?task PostgreSQL container required}"
+: "${ACC_TEST_EVIDENCE_DIR:?absolute evidence directory required}"
+[[ $ACC_TEST_PG_CONTAINER == acc-v12-01-* && $ACC_TEST_EVIDENCE_DIR == /* ]]
+label=$(docker inspect --format '{{ index .Config.Labels "ani.task" }}' "$ACC_TEST_PG_CONTAINER")
+[[ $label == ACC-V12-01-* ]]
+mkdir -p "$ACC_TEST_EVIDENCE_DIR"
+container=$ACC_TEST_PG_CONTAINER
+owner=$(docker exec "$container" sh -c 'printf "%s" "$POSTGRES_USER"')
+owner=${owner:-postgres}
+database=$(docker exec "$container" sh -c 'printf "%s" "$POSTGRES_DB"')
+database=${database:-accelerator}
+psql_source() { docker exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U "$owner" -d "$database" "$@"; }
+snapshot=$ACC_TEST_EVIDENCE_DIR/populated-recovery.dump
+docker exec "$container" pg_dump -U "$owner" -d "$database" -Fc >"$snapshot"
+[[ -s $snapshot ]]
+# Failed migration creates a probe inside a transaction, then fails. The
+# original populated source must retain all facts and no probe relation.
+set +e
+psql_source >"$ACC_TEST_EVIDENCE_DIR/injected-migration-failure.log" 2>&1 <<'SQL'
+BEGIN;
+CREATE TABLE accelerator.acc_v12_recovery_probe(id integer);
+SELECT 1 / 0;
+COMMIT;
+SQL
+failure=$?
+set -e
+[[ $failure != 0 ]]
+[[ $(psql_source -Atc "SELECT to_regclass('accelerator.acc_v12_recovery_probe') IS NULL") == t ]]
+# Restore into a separate database in the same task container; never clear the
+# source or claim that rerunning migrations is a restore.
+restore=acc_v12_restore_$(date +%s)_$RANDOM
+docker exec "$container" createdb -U "$owner" "$restore"
+trap 'docker exec "$container" dropdb -U "$owner" "$restore"' EXIT
+docker exec -i "$container" pg_restore -U "$owner" -d "$restore" --exit-on-error <"$snapshot"
+for table in clusters pools supply_groups group_nodes profiles admin_idempotency usages usage_revisions devices claims release_proofs bindings source_watermarks; do
+  query="COPY (SELECT row_to_json(t)::text FROM accelerator.$table t ORDER BY row_to_json(t)::text) TO STDOUT"
+  psql_source -c "$query" >"$ACC_TEST_EVIDENCE_DIR/source-$table.rows"
+  docker exec "$container" psql -X -v ON_ERROR_STOP=1 -U "$owner" -d "$restore" -c "$query" >"$ACC_TEST_EVIDENCE_DIR/restore-$table.rows"
+  cmp "$ACC_TEST_EVIDENCE_DIR/source-$table.rows" "$ACC_TEST_EVIDENCE_DIR/restore-$table.rows"
+  sha256sum "$ACC_TEST_EVIDENCE_DIR/source-$table.rows"
+done
+[[ $(psql_source -Atc 'SELECT count(*)>0 FROM accelerator.usages') == t ]]
+[[ $(psql_source -Atc 'SELECT count(*)>0 FROM accelerator.bindings') == t ]]
+printf 'DB-06 PASS: populated dump restored; all 13 data relations byte-identical; failed transactional migration rolled back (exit=%s).\n' "$failure"

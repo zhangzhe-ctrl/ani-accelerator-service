@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+# Uses libpq's PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSFILE. No DSN or password is
+# passed in argv or printed. Operators must create a recovery point first.
+[[ $# == 1 && $1 == 0001 ]] || { echo 'usage: scripts/migrate 0001' >&2; exit 2; }
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+exec psql -X --set ON_ERROR_STOP=1 --file "$root/migrations/0001_accelerator.sql"

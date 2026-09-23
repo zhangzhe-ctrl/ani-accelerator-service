@@ -12,11 +12,11 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health/grpc_health_v1"
-	"google.golang.org/protobuf/types/known/durationpb"
 
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 )
 
 func TestBuildAppRunsProductionComposition(t *testing.T) {
@@ -25,11 +25,8 @@ func TestBuildAppRunsProductionComposition(t *testing.T) {
 	for adminAddress == grpcAddress {
 		adminAddress = reserveAddress(t)
 	}
-	bc := &conf.Bootstrap{Server: &conf.Server{
-		Grpc:            &conf.Server_GRPC{Network: "tcp", Addr: grpcAddress, Timeout: durationpb.New(time.Second)},
-		Admin:           &conf.Server_Admin{Network: "tcp", Addr: adminAddress, Timeout: durationpb.New(time.Second)},
-		ShutdownTimeout: durationpb.New(3 * time.Second),
-	}}
+	fixture := testkit.NewRuntime(t, grpcAddress, adminAddress)
+	bc := fixture.Config
 	var logs bytes.Buffer
 	app, err := buildApp(bc, newRuntimeLogger(&logs))
 	if err != nil {
@@ -40,7 +37,7 @@ func TestBuildAppRunsProductionComposition(t *testing.T) {
 	go func() { runResult <- app.Run() }()
 	waitForHTTP(t, "http://"+adminAddress+"/readyz")
 	assertProductionAdmin(t, adminAddress)
-	assertProductionGRPCHealth(t, grpcAddress)
+	assertProductionGRPCHealth(t, grpcAddress, fixture)
 
 	if err := app.Stop(); err != nil {
 		t.Fatalf("Stop() error = %v", err)
@@ -120,11 +117,11 @@ func assertProductionAdmin(t *testing.T, address string) {
 	}
 }
 
-func assertProductionGRPCHealth(t *testing.T, address string) {
+func assertProductionGRPCHealth(t *testing.T, address string, fixture *testkit.Runtime) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	connection, err := grpc.NewClient(address, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	connection, err := grpc.NewClient(address, grpc.WithTransportCredentials(credentials.NewTLS(testkit.ClientTLS(t, fixture.PKI.CAFile, fixture.GovCert, fixture.GovKey))))
 	if err != nil {
 		t.Fatalf("dial production gRPC: %v", err)
 	}

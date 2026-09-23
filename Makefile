@@ -83,6 +83,30 @@ build:
 test:
 	$(GO) test -count=1 ./...
 
+.PHONY: test-pg test-domain test-race test-contract test-provider
+test-domain:
+	$(GO) test -count=1 -v ./internal/biz
+
+test-pg:
+	test -n "$${ACC_TEST_DSN_FILE:-}"
+	$(GO) test -count=1 -v ./internal/data -run '^TestPostgres'
+
+test-contract:
+	test -n "$${ACC_TEST_DSN_FILE:-}"
+	$(GO) test -count=1 -v ./tests/contract ./cmd/ani-accelerator-service
+
+test-provider:
+	test -n "$${ACC_TEST_DSN_FILE:-}"
+	$(GO) test -count=1 -v ./internal/data/provider
+
+.PHONY: test-recovery
+test-recovery:
+	bash scripts/test-postgres-recovery
+
+test-race:
+	test -n "$${ACC_TEST_DSN_FILE:-}"
+	$(GO) test -race -count=1 ./internal/biz ./internal/data/... ./internal/server ./internal/service ./tests/contract
+
 verify: check-buf
 	./scripts/verify-source $(BUF)
 	$(GO) mod tidy -diff

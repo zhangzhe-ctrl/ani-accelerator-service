@@ -8,3 +8,21 @@ server:
     addr: "${SERVER_ADMIN_ADDR:127.0.0.1:19091}"
     timeout: "${SERVER_ADMIN_TIMEOUT:1s}"
   shutdown_timeout: "${SERVER_SHUTDOWN_TIMEOUT:5s}"
+database:
+  dsn_file: "${DATABASE_DSN_FILE:/run/secrets/accelerator/database-dsn}"
+security:
+  ca_file: "${MTLS_CA_FILE:/run/secrets/accelerator/client-ca.pem}"
+  cert_file: "${MTLS_CERT_FILE:/run/secrets/accelerator/server.pem}"
+  key_file: "${MTLS_KEY_FILE:/run/secrets/accelerator/server.key}"
+  governance_uri: "spiffe://ani.internal/service/ani-governance"
+  inference_uri: "spiffe://ani.internal/service/ani-inference"
+  cursor_key_file: "${CURSOR_KEY_FILE:/run/secrets/accelerator/cursor-key}"
+  grants: []
+accelerator:
+  max_replicas: 16
+  freshness: 120s
+  collect_interval: 10s
+  provider_config_file: "${PROVIDER_CONFIG_FILE:/etc/accelerator/provider.json}"
+  attestations_dir: "${ATTESTATIONS_DIR:/etc/accelerator/attestations}"
+  attestation_public_key_file: "${ATTESTATION_PUBLIC_KEY_FILE:/etc/accelerator/hardware.pub}"
+  owner_public_key_file: "${OWNER_PUBLIC_KEY_FILE:/etc/accelerator/inference.pub}"

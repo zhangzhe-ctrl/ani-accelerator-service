@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 	"net/http"
 	"os"
 	"os/exec"
@@ -79,8 +80,10 @@ func TestMainProcessHandlesSignalAndClosesListeners(t *testing.T) {
 	for adminAddress == grpcAddress {
 		adminAddress = reserveAddress(t)
 	}
+	fixture := testkit.NewRuntime(t, grpcAddress, adminAddress)
+	configPath := fixture.WriteConfig(t)
 	var stdout, stderr bytes.Buffer
-	process := exec.Command(binaryPath, "-conf", filepath.Join(repositoryRoot, "configs"))
+	process := exec.Command(binaryPath, "-conf", configPath)
 	process.Dir = repositoryRoot
 	process.Stdout = &stdout
 	process.Stderr = &stderr
@@ -102,7 +105,7 @@ func TestMainProcessHandlesSignalAndClosesListeners(t *testing.T) {
 	})
 
 	waitForHTTP(t, "http://"+adminAddress+"/readyz")
-	assertProductionGRPCHealth(t, grpcAddress)
+	assertProductionGRPCHealth(t, grpcAddress, fixture)
 	if err := process.Process.Signal(os.Interrupt); err != nil {
 		t.Fatalf("send interrupt: %v", err)
 	}
