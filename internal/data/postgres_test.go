@@ -441,6 +441,9 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 	if _, err = f.u.GetProfile(biz.WithCaller(context.Background(), caller), tenant, f.profile.ProfileID, 2); !biz.IsNotFound(err) {
 		t.Fatal("nonexistent version visible", err)
 	}
+	if _, err = f.u.GetProfile(biz.WithCaller(context.Background(), caller), tenant, f.profile.ProfileID, ^uint64(0)); !biz.IsNotFound(err) {
+		t.Fatal("version overflow reached database", err)
+	}
 	caller.ClusterIDs = []string{biz.NewID()}
 	if _, err = f.u.GetProfile(biz.WithCaller(context.Background(), caller), tenant, f.profile.ProfileID, 1); !biz.IsNotFound(err) {
 		t.Fatal("out-of-scope profile visible", err)

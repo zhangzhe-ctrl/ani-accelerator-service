@@ -22,6 +22,9 @@ func (u *Usecase) SyncUsage(ctx context.Context, requestID string, p *UsageProje
 		if p.Plan == nil || p.Plan.Request == nil {
 			return Invalid("INVALID_PLAN")
 		}
+		if err := ValidateRequest(p.Plan.Request, u.maxReplicas); err != nil {
+			return err
+		}
 		profile, err := tx.Profile(ctx, p.Plan.Request.ProfileID, p.Plan.Request.ProfileVersion)
 		if err != nil {
 			return err

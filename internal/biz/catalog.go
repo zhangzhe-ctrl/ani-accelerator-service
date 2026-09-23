@@ -408,6 +408,9 @@ func (u *Usecase) GetProfile(ctx context.Context, a *TenantContext, id string, v
 	if !UUID(id) || version == 0 {
 		return nil, Invalid("INVALID_PROFILE")
 	}
+	if version != 1 {
+		return nil, NotFound()
+	}
 	var p *Profile
 	err := u.repo.View(ctx, func(r Reader) error {
 		var err error

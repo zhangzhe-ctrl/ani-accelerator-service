@@ -1,6 +1,6 @@
 # ACC-V12-01 验收矩阵
 
-状态：`planned`。执行位置：`fedora`。当前无 GPU 环境。
+状态：本批软件验收已执行，实际结果见 [ACC-V12-01 验收记录](../execution/acc-v12-01-acceptance.md)；本文件保留验收标准。执行位置：`fedora`。当前无 GPU 环境。
 
 本文件配合 [实施计划](accelerator-v1.2-implementation.md) 使用。除明确列为发布条件项、GPU 后续项或外部后续项外，以下均为本批必须通过的验收。不执行本地验证，不把本文件的预期结果当作已运行结果。
 

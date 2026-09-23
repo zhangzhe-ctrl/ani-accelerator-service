@@ -21,6 +21,9 @@ func (u *Usecase) getCapacity(ctx context.Context, id string, version uint64, de
 	if !UUID(id) || version == 0 {
 		return nil, Invalid("INVALID_PROFILE")
 	}
+	if version != 1 {
+		return nil, NotFound()
+	}
 	var v *CapacityView
 	err := u.repo.View(ctx, func(r Reader) error {
 		p, err := r.Profile(ctx, id, version)

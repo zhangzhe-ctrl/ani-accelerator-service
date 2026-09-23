@@ -76,7 +76,7 @@
 | RUN-04 | pass | V、X 与 P/C/O/R 全部 exit=0；没有本地替代执行或降低原断言 |
 | HANDOFF-01 | pass | consumer-contract.md 22 RPC/身份/字段/错误/幂等/附件/charge；accelerator-vectors.json |
 | HANDOFF-02 | pass | runtime/provider runbooks：版本、配置、显式迁移、恢复、GPU 后续门禁 |
-| SHIP-01 | not_verified | 软件候选已通过；源码提交、干净 commit audit、BOM-only 提交与最终 SHA 回执阶段待收口 |
+| SHIP-01 | pass | 首个真实提交 7046c4f 已经完整 audit；后续冻结文档/版本边界收口，按相同门禁交付 BOM-only 提交，最终 SHA/无差异/清理详见仓外 final-receipt.txt |
 | SHIP-02 | not_verified | 当前无 remote，尚未推送；不从 module 地址猜目标 |
 | SHIP-03 | not_verified | 尚无 final-SHA 远端 CI；Fedora pass 不等于 CI |
 
@@ -98,6 +98,8 @@ C 的 `TestAll22RPCsMTLSAndRecovery` 对每个下列方法执行实际 mTLS Invo
 - `r5-tools-vuln-01.log` fail：gRPC 1.82.1/pgx 5.7.6 可达漏洞；`r5-lock-order-01.log` 仍发现 gRPC 1.83 分支需 1.83.2。最终 gRPC 1.83.2、pgx 5.9.2，`r5-vuln-fixed-02.log` exit=0、No vulnerabilities found；扫描库时间 2026-09-16T18:00:43Z。
 - `r5-patched-candidate-01.log` fail：并发观察/投影死锁，原始 PG 等待图见 `r5-pg-deadlock.log`。统一 cluster→usage→binding 锁顺序，跨 cluster 不错误关联。专项 `go test -race -count=10 ./internal/data -run TestPostgresConstraintsVersionRaceAndConcurrentAssociation` pass；统一 X 再通过。
 - `precommit-01.log` fail：补强外键 SQLSTATE 断言时，测试 channel 名遮蔽标准库 errors；改名后重新执行完整提交前门禁，不删除断言。
+- `precommit-index-match.log` fail：初始清单包含被 Git 忽略的 `.work/bootstrap-verify.txt`；保留全文件清单，候选清单按门禁既定规则排除 .work/.tmp，逐文件匹配 pass（precommit-index-match-02.log），未覆盖或提交该运行产物。
+- `source-audit-01.log` fail：远端 `.tools` 顶层软链接被 Git 视为未跟踪文件，干净工作区门禁正确阻止 BOM；改成被既有规则忽略的真实目录内工具链接，`source-audit-02.log` 完整 audit exit=0，无漏洞/密钥发现，41 个依赖 license evidence 完整，notice hash 一致。
 
 ## 固定未验证与边界
 
