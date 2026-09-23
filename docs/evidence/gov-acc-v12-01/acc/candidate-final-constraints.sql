@@ -1,0 +1,10 @@
+BEGIN;
+ALTER TABLE accelerator.usages DROP CONSTRAINT usage_identity_json;
+ALTER TABLE accelerator.usages ADD CONSTRAINT usage_identity_json CHECK ((tenant_id<>'00000000-0000-0000-0000-000000000000'::uuid AND payload->'ref'->>'tenant_id'=tenant_id::text AND payload->'ref'->>'owner_service'=owner_service AND payload->'ref'->>'resource_id'=resource_id::text AND payload->'ref'->>'create_operation_id'=create_operation_id::text AND payload->'plan'->'request'->>'profile_id'=profile_id::text AND (payload->'plan'->'request'->>'profile_version')::bigint=profile_version AND payload->'plan'->>'resolution_digest'=plan_digest AND (payload->>'revision')::integer=revision AND (payload->>'state')::integer=revision AND (payload->>'source_operation_created_at')::timestamptz=source_created_at) IS TRUE);
+ALTER TABLE accelerator.devices DROP CONSTRAINT device_identity_json;
+ALTER TABLE accelerator.devices ADD CONSTRAINT device_identity_json CHECK ((payload->'device'->>'device_id'=device_id::text AND payload->'device'->>'cluster_id'=cluster_id::text AND (NULLIF(payload->'device'->>'group_id','') IS NOT DISTINCT FROM group_id::text) AND payload->'device'->'node'->>'uid'=node_uid AND payload->'device'->>'vendor_device_id'=vendor_device_id) IS TRUE);
+ALTER TABLE accelerator.claims DROP CONSTRAINT claim_owner_json;
+ALTER TABLE accelerator.claims ADD CONSTRAINT claim_owner_json CHECK ((payload->'owner_ref' IS NULL OR payload->'owner_ref'='null'::jsonb) OR (tenant_id IS NOT NULL AND tenant_id<>'00000000-0000-0000-0000-000000000000'::uuid AND owner_service='ani-inference' AND resource_id IS NOT NULL AND create_operation_id IS NOT NULL AND payload->>'plan_digest' ~ '^[0-9a-f]{64}$') IS TRUE);
+ALTER TABLE accelerator.release_proofs DROP CONSTRAINT release_owner_json;
+ALTER TABLE accelerator.release_proofs ADD CONSTRAINT release_owner_json CHECK ((payload->'owner_ref' IS NULL OR payload->'owner_ref'='null'::jsonb) OR (tenant_id IS NOT NULL AND tenant_id<>'00000000-0000-0000-0000-000000000000'::uuid AND owner_service='ani-inference' AND resource_id IS NOT NULL AND create_operation_id IS NOT NULL AND payload->>'plan_digest' ~ '^[0-9a-f]{64}$') IS TRUE);
+COMMIT;

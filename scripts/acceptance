@@ -13,7 +13,8 @@ hostname >"$ACC_TEST_EVIDENCE_DIR/host.txt"
 pwd >"$ACC_TEST_EVIDENCE_DIR/source-directory.txt"
 git rev-parse HEAD >"$ACC_TEST_EVIDENCE_DIR/base-commit.txt" 2>/dev/null || true
 git status --porcelain --untracked-files=all >"$ACC_TEST_EVIDENCE_DIR/git-state.txt"
-for target in verify test-domain test-pg test-contract test-provider test-recovery test-race; do
+# verify now includes real PG, all tests, race, tenant mutations and restore.
+for target in verify; do
   date -u +%FT%TZ >"$ACC_TEST_EVIDENCE_DIR/$target.started"
   printf 'make %s\n' "$target" >"$ACC_TEST_EVIDENCE_DIR/$target.command"
   set +e

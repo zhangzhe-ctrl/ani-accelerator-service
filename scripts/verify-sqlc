@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+cd "$root"
+sqlc=${1:?usage: scripts/verify-sqlc PATH}
+[[ $("$sqlc" version) == v1.30.0 ]]
+[[ $(go version -m "$sqlc" | awk '$1=="mod" {print $2 "@" $3;exit}') == github.com/sqlc-dev/sqlc@v1.30.0 ]]
+go version -m "$sqlc" | awk '$1=="mod" {print $4}' | grep -Fx 'h1:H4HrNwPc0hntxGWzAbhlfplPRN4bQpXFx+CaEMcKz6c='
+"$sqlc" compile
+before=$(mktemp -d)
+trap 'rm -rf "$before"' EXIT
+cp -a internal/data/accdb "$before/accdb"
+"$sqlc" generate
+diff -ru "$before/accdb" internal/data/accdb
+python3 scripts/verify-no-inline-sql.py
+sha256sum sqlc.yaml migrations/*.sql internal/data/queries/*.sql internal/data/accdb/*.go

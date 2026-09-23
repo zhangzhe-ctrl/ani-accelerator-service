@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"embed"
 	"errors"
 	"github.com/jackc/pgx/v5/pgconn"
 	"os"
@@ -122,10 +123,10 @@ func (f *pgFixture) projection(revision uint64) *biz.UsageProjection {
 }
 func TestPostgresRuntimeRoleAndAtomicIdempotency(t *testing.T) {
 	f := pgSetup(t)
-	if _, err := f.db.pool.Exec(context.Background(), `CREATE TABLE accelerator.forbidden_runtime_ddl(id integer)`); err == nil {
+	if _, err := f.db.pool.Exec(context.Background(), testSQL(t, "legacy_check_5.sql")); err == nil {
 		t.Fatal("runtime role can DDL")
 	}
-	if _, err := f.db.pool.Exec(context.Background(), `CREATE TEMP TABLE forbidden_runtime_temp(id integer)`); err == nil {
+	if _, err := f.db.pool.Exec(context.Background(), testSQL(t, "legacy_check_4.sql")); err == nil {
 		t.Fatal("runtime role can temporary DDL")
 	}
 	m := adminMutation()
@@ -169,7 +170,7 @@ func TestPostgresRuntimeRoleAndAtomicIdempotency(t *testing.T) {
 		t.Fatal("failure injection accepted")
 	}
 	var n int
-	if err = f.db.pool.QueryRow(context.Background(), `SELECT count(*) FROM accelerator.pools WHERE cluster_id=$1 AND payload->>'display_name'='must-rollback'`, f.cluster.ClusterID).Scan(&n); err != nil || n != 0 {
+	if err = f.db.pool.QueryRow(context.Background(), testSQL(t, "legacy_check_3.sql"), f.cluster.ClusterID).Scan(&n); err != nil || n != 0 {
 		t.Fatal(n, err)
 	}
 	t.Log("DB-01/03/05: runtime DDL denied; 12 concurrent writes converge; failed transaction leaves no pool")
@@ -333,7 +334,7 @@ func TestPostgresConstraintsVersionRaceAndConcurrentAssociation(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.db.pool.Exec(ctx, `UPDATE accelerator.profiles SET payload=payload WHERE profile_id=$1`, f.profile.ProfileID); err == nil {
+	if _, err = f.db.pool.Exec(ctx, testSQL(t, "legacy_check_2.sql"), f.profile.ProfileID); err == nil {
 		t.Fatal("runtime mutated immutable profile")
 	}
 	var wg sync.WaitGroup
@@ -397,7 +398,7 @@ func TestPostgresConstraintsVersionRaceAndConcurrentAssociation(t *testing.T) {
 		t.Fatal(err)
 	}
 	// A binding may never reference another tenant's otherwise valid resource.
-	_, err = f.db.pool.Exec(ctx, `UPDATE accelerator.bindings SET tenant_id=$1::uuid,payload=jsonb_set(payload,'{verified_usage_ref,tenant_id}',to_jsonb($1::text)) WHERE device_id=$2`, biz.NewID(), device)
+	_, err = f.db.pool.Exec(ctx, testSQL(t, "legacy_check_1.sql"), biz.NewID(), device)
 	var constraint *pgconn.PgError
 	if !errors.As(err, &constraint) || constraint.Code != "23503" {
 		t.Fatal("tenant-preserving foreign key absent", err)
@@ -471,4 +472,16 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 		t.Fatal("admin forged verification", err)
 	}
 	t.Log("CAT-05/06 AUTH-05/06: PG keyset pages, missing version/scope, unknown capacity, CLOSED/frozen plan and current-scope idempotency checks")
+}
+
+//go:embed testdata/*.sql
+var testQueries embed.FS
+
+func testSQL(t *testing.T, name string) string {
+	t.Helper()
+	b, e := testQueries.ReadFile("testdata/" + name)
+	if e != nil {
+		t.Fatal(e)
+	}
+	return string(b)
 }

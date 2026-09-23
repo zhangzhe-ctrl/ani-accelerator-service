@@ -1,0 +1,20 @@
+{
+  "admission": "CLOSED",
+  "attestation_file_count": 0,
+  "binary_sha256": "a941fca1fca3a84a86f876024a96451d677ac7bfc9829f07835e7bc82b5ebba7",
+  "cluster_id": "b44128b8-dbb1-490c-828d-0e9aa6657402",
+  "group_id": "32e41c90-480c-4ac3-9110-725719d7edd7",
+  "group_version": 1,
+  "hardware": "not_verified",
+  "layer": "A formal production executable",
+  "open": "rpc error: code = FailedPrecondition desc = PROFILE_NOT_ACTIVE",
+  "open_reason": "PROFILE_NOT_ACTIVE",
+  "profile_count": 0,
+  "publish": "rpc error: code = FailedPrecondition desc = CONSUMPTION_NOT_VERIFIED",
+  "publish_reason": "CONSUMPTION_NOT_VERIFIED",
+  "resolve": "rpc error: code = NotFound desc = NOT_FOUND",
+  "resolve_reason": "NOT_FOUND",
+  "source": "constructed TLS provider source; production reader and verifier unchanged",
+  "status": "pass",
+  "verification": "NOT_VERIFIED"
+}

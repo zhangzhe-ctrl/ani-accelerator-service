@@ -1,0 +1,31 @@
+version: "2"
+sql:
+  - engine: postgresql
+    schema: migrations
+    queries: internal/data/queries
+    gen:
+      go:
+        package: accdb
+        out: internal/data/accdb
+        sql_package: pgx/v5
+        query_parameter_limit: 100
+        emit_empty_slices: true
+        overrides:
+          - db_type: uuid
+            go_type: string
+          - db_type: uuid
+            nullable: true
+            go_type:
+              type: string
+              pointer: true
+          - db_type: pg_catalog.int8
+            go_type: uint64
+          - db_type: timestamptz
+            go_type:
+              import: time
+              type: Time
+          - db_type: text
+            nullable: true
+            go_type:
+              type: string
+              pointer: true

@@ -1,0 +1,33 @@
+ M .github/workflows/ci.yml
+ M Makefile
+ M internal/data/README.md
+ M internal/data/observations.go
+ M internal/data/postgres.go
+ M internal/data/postgres_test.go
+ M internal/data/usage.go
+ M scripts/acceptance
+ M scripts/migrate
+ M scripts/test-pg-role.sql
+ M scripts/test-postgres-recovery
+?? docs/operations/governance-accelerator-v1.2.md
+?? docs/plans/governance-accelerator-v1.2-acceptance.md
+?? docs/plans/governance-accelerator-v1.2-plan.md
+?? internal/data/accdb/accelerator.sql.go
+?? internal/data/accdb/db.go
+?? internal/data/accdb/models.go
+?? internal/data/isolation_test.go
+?? internal/data/queries/accelerator.sql
+?? internal/data/testdata/corrupt_usage_json.sql
+?? internal/data/testdata/legacy_check_1.sql
+?? internal/data/testdata/legacy_check_2.sql
+?? internal/data/testdata/legacy_check_3.sql
+?? internal/data/testdata/legacy_check_4.sql
+?? internal/data/testdata/legacy_check_5.sql
+?? internal/data/testdata/relink_revision.sql
+?? internal/data/testdata/security_catalog.sql
+?? migrations/0002_explicit_isolation.sql
+?? scripts/test-pg-grants.sql
+?? scripts/test-tenant-mutations
+?? scripts/verify-no-inline-sql.py
+?? scripts/verify-sqlc
+?? sqlc.yaml

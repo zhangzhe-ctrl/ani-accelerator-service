@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+set -Eeuo pipefail
+: "${ACC_TEST_DSN_FILE:?isolated restricted PostgreSQL role required}"
+: "${ACC_TEST_EVIDENCE_DIR:?evidence directory required}"
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
+mutation_root=$(mktemp -d)
+trap 'rm -rf "$mutation_root"' EXIT
+mkdir -p "$ACC_TEST_EVIDENCE_DIR"
+for target in UsageData1 UsagesData1 SaveUsageData1 SaveUsageWrite3; do
+  copy=$mutation_root/$target
+  mkdir -p "$copy"
+  tar -C "$root" --exclude=.git --exclude=.tools --exclude=.tmp --exclude=bin --exclude=docs/evidence -cf - . | tar -C "$copy" -xf -
+  python3 - "$copy/internal/data/queries/accelerator.sql" "$target" <<'PY'
+import pathlib, re, sys
+path=pathlib.Path(sys.argv[1]); text=path.read_text(); target=sys.argv[2]
+pattern=r'(-- name: '+target+r' :[^\n]+\n)([^;]+);'
+def mutate(m):
+    statement,n=re.subn(r'tenant_id=\$(\d+)',r'(\$\1::uuid IS NOT NULL)',m[2],count=1)
+    if n!=1: raise SystemExit('expected exactly one tenant predicate')
+    return m[1]+statement.replace('\\$','$')+';'
+text,n=re.subn(pattern,mutate,text)
+if n!=1: raise SystemExit('query not found exactly once')
+path.write_text(text)
+PY
+  (cd "$copy" && "$root/.tools/bin/sqlc" generate)
+  set +e
+  (cd "$copy" && go test -count=1 -run '^TestPostgresExplicitTenantSQLCIsolation$' ./internal/data) >"$ACC_TEST_EVIDENCE_DIR/mutation-$target.log" 2>&1
+  code=$?
+  set -e
+  [[ $code != 0 ]] || { echo "mutation survived: $target"; exit 1; }
+  grep -q -- '--- FAIL: TestPostgresExplicitTenantSQLCIsolation' "$ACC_TEST_EVIDENCE_DIR/mutation-$target.log"
+  if grep -q '\[build failed\]' "$ACC_TEST_EVIDENCE_DIR/mutation-$target.log"; then exit 1; fi
+  printf 'PASS: %s tenant removal killed by PostgreSQL behavioral test (exit=%s)\n' "$target" "$code"
+done

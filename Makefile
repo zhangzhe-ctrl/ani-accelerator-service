@@ -8,6 +8,8 @@ BUF := $(TOOLS_DIR)/buf
 GOVULNCHECK := $(TOOLS_DIR)/govulncheck
 CYCLONEDX_GOMOD := $(TOOLS_DIR)/cyclonedx-gomod
 GITLEAKS := $(TOOLS_DIR)/gitleaks
+SQLC := $(TOOLS_DIR)/sqlc
+SQLC_VERSION := v1.30.0
 
 BUF_VERSION := v1.60.0
 GOVULNCHECK_VERSION := v1.7.0
@@ -24,7 +26,21 @@ LDFLAGS := -X main.Name=$(SERVICE_NAME) -X main.Version=$(VERSION)
 
 .PHONY: tools check-buf supply-chain-tools check-govulncheck check-cyclonedx check-gitleaks config api design-test generate build test verify vuln secrets sbom supply-chain-verify audit clean help
 
-tools: check-buf
+tools: check-buf check-sqlc
+
+$(SQLC):
+	mkdir -p $(TOOLS_DIR)
+	GOBIN=$(TOOLS_DIR) $(GO) install github.com/sqlc-dev/sqlc/cmd/sqlc@$(SQLC_VERSION)
+
+.PHONY: check-sqlc sqlc verify-sqlc
+check-sqlc: $(SQLC)
+	test "$$($(SQLC) version)" = "$(SQLC_VERSION)"
+
+sqlc: check-sqlc
+	$(SQLC) generate
+
+verify-sqlc: check-sqlc
+	bash scripts/verify-sqlc $(SQLC)
 
 $(BUF):
 	mkdir -p $(TOOLS_DIR)
@@ -107,14 +123,20 @@ test-race:
 	test -n "$${ACC_TEST_DSN_FILE:-}"
 	$(GO) test -race -count=1 ./internal/biz ./internal/data/... ./internal/server ./internal/service ./tests/contract
 
-verify: check-buf
+verify: check-buf verify-sqlc
+	test -n "$${ACC_TEST_DSN_FILE:-}"
+	test -n "$${ACC_FORMAL_DSN_FILE:-}"
 	./scripts/verify-source $(BUF)
 	$(GO) mod tidy -diff
-	$(GO) test -count=1 ./...
+	$(GO) test -count=1 -v ./...
 	$(GO) vet ./...
 	$(GO) build -trimpath ./...
 	$(GO) mod verify
 	$(MAKE) design-test
+	$(MAKE) test-race
+	ACC_TEST_EVIDENCE_DIR="$${ACC_TEST_EVIDENCE_DIR:-$(CURDIR)/.tmp/tenant-mutations}" bash scripts/test-tenant-mutations
+	$(MAKE) test-recovery
+	$(MAKE) vuln secrets
 	git diff --check
 
 vuln: check-govulncheck
@@ -122,6 +144,7 @@ vuln: check-govulncheck
 
 secrets: check-gitleaks
 	$(GITLEAKS) git --no-banner --no-color --redact --log-opts="--all" .
+	$(GITLEAKS) dir --no-banner --no-color --redact .
 
 sbom: check-cyclonedx
 	./scripts/generate-sbom $(CYCLONEDX_GOMOD)

@@ -3,9 +3,9 @@ set -Eeuo pipefail
 # Operates exclusively on an explicitly identified task-owned test container.
 : "${ACC_TEST_PG_CONTAINER:?task PostgreSQL container required}"
 : "${ACC_TEST_EVIDENCE_DIR:?absolute evidence directory required}"
-[[ $ACC_TEST_PG_CONTAINER == acc-v12-01-* && $ACC_TEST_EVIDENCE_DIR == /* ]]
+[[ $ACC_TEST_EVIDENCE_DIR == /* ]]
 label=$(docker inspect --format '{{ index .Config.Labels "ani.task" }}' "$ACC_TEST_PG_CONTAINER")
-[[ $label == ACC-V12-01-* ]]
+[[ $label == ACC-V12-01-* || $label == gov-acc-v12-01-acc || $label == GOV-ACC-V12-01-CI ]]
 mkdir -p "$ACC_TEST_EVIDENCE_DIR"
 container=$ACC_TEST_PG_CONTAINER
 owner=$(docker exec "$container" sh -c 'printf "%s" "$POSTGRES_USER"')
@@ -35,6 +35,7 @@ restore=acc_v12_restore_$(date +%s)_$RANDOM
 docker exec "$container" createdb -U "$owner" "$restore"
 trap 'docker exec "$container" dropdb -U "$owner" "$restore"' EXIT
 docker exec -i "$container" pg_restore -U "$owner" -d "$restore" --exit-on-error <"$snapshot"
+docker exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U "$owner" -d "$restore" <scripts/test-pg-grants.sql
 for table in clusters pools supply_groups group_nodes profiles admin_idempotency usages usage_revisions devices claims release_proofs bindings source_watermarks; do
   query="COPY (SELECT row_to_json(t)::text FROM accelerator.$table t ORDER BY row_to_json(t)::text) TO STDOUT"
   psql_source -c "$query" >"$ACC_TEST_EVIDENCE_DIR/source-$table.rows"
@@ -44,4 +45,10 @@ for table in clusters pools supply_groups group_nodes profiles admin_idempotency
 done
 [[ $(psql_source -Atc 'SELECT count(*)>0 FROM accelerator.usages') == t ]]
 [[ $(psql_source -Atc 'SELECT count(*)>0 FROM accelerator.bindings') == t ]]
+if [[ -n ${ACC_TEST_DSN_FILE:-} ]]; then
+  restored_dsn=$(mktemp)
+  trap 'rm -f "$restored_dsn"; docker exec "$container" dropdb -U "$owner" "$restore"' EXIT
+  sed "s/dbname=$database /dbname=$restore /" "$ACC_TEST_DSN_FILE" >"$restored_dsn"
+  ACC_TEST_DSN_FILE=$restored_dsn go test -count=1 ./internal/data ./tests/contract
+fi
 printf 'DB-06 PASS: populated dump restored; all 13 data relations byte-identical; failed transactional migration rolled back (exit=%s).\n' "$failure"

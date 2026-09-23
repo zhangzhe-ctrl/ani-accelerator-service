@@ -20,6 +20,7 @@ jobs:
         ports:
           - 5432/tcp
         options: >-
+          --label ani.task=GOV-ACC-V12-01-CI
           --health-cmd "pg_isready -U postgres -d accelerator"
           --health-interval 5s --health-timeout 5s --health-retries 10
     env:
@@ -43,17 +44,26 @@ jobs:
           PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: |
           bash scripts/migrate 0001
+          bash scripts/migrate 0002
           psql -X -v ON_ERROR_STOP=1 -f scripts/test-pg-role.sql
           dsn_file="$RUNNER_TEMP/acc-test-dsn"
           umask 077
           printf 'host=%s port=%s dbname=accelerator user=acc_runtime sslmode=disable\n' "$PGHOST" "$PGPORT" > "$dsn_file"
           echo "ACC_TEST_DSN_FILE=$dsn_file" >> "$GITHUB_ENV"
+          createdb accelerator_formal
+          PGDATABASE=accelerator_formal bash scripts/migrate 0001
+          PGDATABASE=accelerator_formal bash scripts/migrate 0002
+          PGDATABASE=accelerator_formal psql -X -v ON_ERROR_STOP=1 -f scripts/test-pg-formal-role.sql
+          formal_dsn_file="$RUNNER_TEMP/acc-formal-dsn"
+          printf 'host=%s port=%s dbname=accelerator_formal user=acc_formal_runtime sslmode=disable\n' "$PGHOST" "$PGPORT" > "$formal_dsn_file"
+          echo "ACC_FORMAL_DSN_FILE=$formal_dsn_file" >> "$GITHUB_ENV"
       - name: Install pinned tools
         run: make tools supply-chain-tools
       - name: Verify
+        env:
+          ACC_TEST_PG_CONTAINER: ${{ job.services.postgres.id }}
+          ACC_TEST_EVIDENCE_DIR: ${{ runner.temp }}/acc-evidence
         run: make verify
-      - name: Concurrency and process recovery
-        run: make test-race
       - name: Supply-chain verification
         run: |
           make audit
