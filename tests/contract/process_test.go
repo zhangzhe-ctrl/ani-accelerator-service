@@ -30,6 +30,7 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 // Only this test binary can inject a verified source. Production main always
@@ -254,6 +255,19 @@ func copyAs[T any](t *testing.T, v any) *T {
 	return &out
 }
 
+func replaceDelegatedActor(message protoreflect.Message, actor string) {
+	if message.Descriptor().FullName() == "accelerator.v1.Actor" {
+		message.Set(message.Descriptor().Fields().ByName("id"), protoreflect.ValueOfString(actor))
+		return
+	}
+	message.Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if field.Message() != nil && !field.IsList() && !field.IsMap() {
+			replaceDelegatedActor(value.Message(), actor)
+		}
+		return true
+	})
+}
+
 func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	r := testkit.NewRuntime(t, address(t), address(t))
 	connection := "contract:" + biz.NewID()
@@ -287,6 +301,23 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		badOut := proto.Clone(out)
 		if err := wrong.Invoke(ctx, methodPath(method), in, badOut); status.Code(err) != codes.PermissionDenied {
 			t.Fatalf("%s wrong service accepted: %v", method, err)
+		}
+		if server.AdminActions[method] || server.TenantActions[method] {
+			// The certificate remains the real authorized Gov URI. Both typed actor
+			// and metadata change together, so the failure is missing delegation,
+			// not a business-layer actor mismatch or wrong service identity.
+			denied := proto.Clone(in)
+			replaceDelegatedActor(denied.ProtoReflect(), "ungranted-actor")
+			pairs := []string{"x-ani-action", method, "x-ani-actor-type", "user", "x-ani-actor-id", "ungranted-actor"}
+			if tenantID != "" {
+				pairs = append(pairs, "x-ani-tenant-id", tenantID)
+			}
+			deniedCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs(pairs...))
+			err := gov.Invoke(deniedCtx, methodPath(method), denied, proto.Clone(out))
+			if status.Code(err) != codes.PermissionDenied || status.Convert(err).Message() != "DELEGATION_DENIED" {
+				t.Fatalf("%s missing grant not rejected at delegation boundary: %v", method, err)
+			}
+			t.Logf("AUTH-03 %s: valid Gov mTLS URI, matching typed/metadata actor without grant rejected DELEGATION_DENIED", method)
 		}
 		covered[method] = true
 	}

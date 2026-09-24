@@ -1,0 +1,5 @@
+--- FAIL: TestPostgresExplicitTenantSQLCIsolation (0.05s)
+    isolation_test.go:40: known cross-tenant resource selected
+FAIL
+FAIL	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data	0.055s
+FAIL

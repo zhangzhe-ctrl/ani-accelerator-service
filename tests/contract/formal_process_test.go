@@ -80,6 +80,10 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 	}
 	readJointJSON(t, manifest, &input)
 	fixture := testkit.NewRuntime(t, address(t), address(t))
+	// The optional long-lived A integration uses the same independent CA and
+	// ordinary executable; certificate aliases are transport fixture plumbing.
+	fixture.GovCert, fixture.GovKey = jointCertificate(t, fixture.PKI, "formal-gov", "spiffe://ani.internal/service/ani-governance", []string{"ani-governance"})
+	fixture.Config.Security.CertFile, fixture.Config.Security.KeyFile = jointCertificate(t, fixture.PKI, "formal-acc", "", []string{"ani-accelerator", "accelerator.test"})
 	fixture.Config.Database.DsnFile = dsn
 	fixture.Config.Accelerator.ProviderConfigFile = input.ProviderConfig
 	adminActions := []string{}
@@ -88,7 +92,9 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 	}
 	sort.Strings(adminActions)
 	fixture.Config.Security.Grants = []*conf.DelegationGrant{{ActorType: "user", ActorId: "contract-user", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}}}
+	fixture.Config.Security.Grants = append(fixture.Config.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: "1", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}})
 	productionLog := filepath.Join(work, "production.log")
+	productionPID := 0
 	start := func() func() {
 		t.Helper()
 		cfg := fixture.WriteConfig(t)
@@ -96,6 +102,7 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 		cmd.Dir = root
 		cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
 		stop := startFormalCommand(t, cmd, productionLog)
+		productionPID = cmd.Process.Pid
 		deadline := time.Now().Add(10 * time.Second)
 		for time.Now().Before(deadline) {
 			response, e := (&http.Client{Timeout: 250 * time.Millisecond}).Get("http://" + fixture.Config.Server.Admin.Addr + "/readyz")
@@ -186,6 +193,24 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 		}
 	}
 	t.Logf("A formal process: Publish=%s, OPEN=%s, Resolve=%s; zero profiles; CLOSED/NOT_VERIFIED/version1 retained across restart; hardware=not_verified", formalReason(publishErr), formalReason(openErr), formalReason(resolveErr))
+	if hold := os.Getenv("ACC_FORMAL_HOLD_DIR"); hold != "" {
+		if !filepath.IsAbs(hold) {
+			t.Fatal("absolute task-owned hold directory required")
+		}
+		if _, e := os.Stat(filepath.Join(hold, "ready.json")); e == nil {
+			t.Fatal("existing A helper must be reviewed before reuse")
+		}
+		if e := os.MkdirAll(hold, 0700); e != nil {
+			t.Fatal(e)
+		}
+		writeJointJSON(t, filepath.Join(hold, "ready.json"), map[string]any{"address": fixture.Config.Server.Grpc.Addr, "server_name": "ani-accelerator", "ca_file": fixture.PKI.CAFile, "gov_cert_file": fixture.GovCert, "gov_key_file": fixture.GovKey, "config_file": fixture.WriteConfig(t), "binary": binary, "binary_sha256": formalFileHash(t, binary), "production_pid": productionPID, "cluster_id": cluster.ClusterId, "pool_id": pool.PoolId, "group_id": group.GroupId, "actor_type": "user", "actor_id": "1", "source_manifest": manifest, "record": record, "scope": "A formal ordinary executable; constructed read-only provider; no consumption proof"})
+		for {
+			if _, e := os.Stat(filepath.Join(hold, "stop")); e == nil {
+				break
+			}
+			time.Sleep(250 * time.Millisecond)
+		}
+	}
 }
 func startFormalCommand(t *testing.T, command *exec.Cmd, logPath string) func() {
 	t.Helper()

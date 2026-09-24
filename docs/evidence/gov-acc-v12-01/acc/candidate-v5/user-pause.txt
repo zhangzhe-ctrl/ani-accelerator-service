@@ -1,0 +1,3 @@
+User-requested safe pause at 2026-09-23T13:57:08.475413+00:00
+SIGTERM task-owned acceptance subtree: [1036469, 1036468, 1036467, 1036439, 1036407, 1036340, 1035950, 1035946, 1033220, 1033208]
+Incomplete make verify is not a pass. Targeted SQLC-02, formal A, 22RPC and full normal tests passed before pause.

@@ -1,0 +1,278 @@
+test "$(/home/chabking/gov-acc-v12-01-20260923/acc/.tools/bin/buf --version)" = "1.60.0"
+test "$(go version -m /home/chabking/gov-acc-v12-01-20260923/acc/.tools/bin/buf | awk '$1 == "mod" {print $2 "@" $3; exit}')" = "github.com/bufbuild/buf@v1.60.0"
+test "$(/home/chabking/gov-acc-v12-01-20260923/acc/.tools/bin/sqlc version)" = "v1.30.0"
+bash scripts/verify-sqlc /home/chabking/gov-acc-v12-01-20260923/acc/.tools/bin/sqlc
+h1:H4HrNwPc0hntxGWzAbhlfplPRN4bQpXFx+CaEMcKz6c=
+PASS: no inline SQL or arbitrary production SQL execution
+ade622528134ff7520f8a42075ce6f63a62c08a391addd4a90d77b746f24ef60  sqlc.yaml
+616fd4772297e27f10e269f405249db31ec038ef61f8cd6bd8c51524a2c3a19f  migrations/0001_accelerator.sql
+124bff832f717babae7fcd69452e8ace7bdb52f83b8a2062c3b0cc58241987e3  migrations/0002_explicit_isolation.sql
+cee72ff08fd29dac4850bf49a9ecfdfc3bf788a435598df2540883076c91d3b8  internal/data/queries/accelerator.sql
+047714552d89298c22ec247dfdce6a204ce1b1b7d49ebaec7b1ded34a966f8a7  internal/data/accdb/accelerator.sql.go
+3d1a5c32d8850e8203aa65e571b94e8af824c88de127981d1104705c17b643e4  internal/data/accdb/db.go
+971d770d77b7743b9afd74e82f2365753aa984c3d507d84202eb32aa208906b3  internal/data/accdb/models.go
+test -n "${ACC_TEST_DSN_FILE:-}"
+test -n "${ACC_FORMAL_DSN_FILE:-}"
+./scripts/verify-source /home/chabking/gov-acc-v12-01-20260923/acc/.tools/bin/buf
+go mod tidy -diff
+go test -count=1 -v ./...
+?   	github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/integration/v1	[no test files]
+?   	github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1	[no test files]
+=== RUN   TestBuildAppRunsProductionComposition
+--- PASS: TestBuildAppRunsProductionComposition (0.04s)
+=== RUN   TestBuildAppRejectsInvalidConfig
+--- PASS: TestBuildAppRejectsInvalidConfig (0.00s)
+=== RUN   TestRuntimeLoggerUsesKratosRedaction
+--- PASS: TestRuntimeLoggerUsesKratosRedaction (0.00s)
+=== RUN   TestRuntimeLoggerIncludesProcessIdentityAndSource
+--- PASS: TestRuntimeLoggerIncludesProcessIdentityAndSource (0.00s)
+=== RUN   TestMainProcessHandlesSignalAndClosesListeners
+--- PASS: TestMainProcessHandlesSignalAndClosesListeners (3.39s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/cmd/ani-accelerator-service	3.439s
+=== RUN   TestUNIT01ExactMiBAndPerContainerEncoding
+--- PASS: TestUNIT01ExactMiBAndPerContainerEncoding (0.00s)
+=== RUN   TestUNIT02GranularityRejectsPublicationAndResolution
+--- PASS: TestUNIT02GranularityRejectsPublicationAndResolution (0.00s)
+=== RUN   TestUNIT03PerDeviceQuantization
+--- PASS: TestUNIT03PerDeviceQuantization (0.00s)
+=== RUN   TestUNIT04NormalizeOnce
+--- PASS: TestUNIT04NormalizeOnce (0.00s)
+=== RUN   TestUNIT05UnknownFactorAndBaseline
+--- PASS: TestUNIT05UnknownFactorAndBaseline (0.00s)
+=== RUN   TestUNIT06HistoricalFactorFrozen
+--- PASS: TestUNIT06HistoricalFactorFrozen (0.00s)
+=== RUN   TestUNIT07RejectsOverflowShapeAndDuplicates
+--- PASS: TestUNIT07RejectsOverflowShapeAndDuplicates (0.00s)
+=== RUN   TestUNIT08CanonicalSemanticContent
+--- PASS: TestUNIT08CanonicalSemanticContent (0.00s)
+=== RUN   TestSyncProjectionFactsAndTerminalShape
+--- PASS: TestSyncProjectionFactsAndTerminalShape (0.00s)
+=== RUN   TestCapacityLocalUnknownAndBudgetInvariant
+--- PASS: TestCapacityLocalUnknownAndBudgetInvariant (0.00s)
+=== RUN   TestContractVectors
+--- PASS: TestContractVectors (0.00s)
+=== RUN   TestCursorBoundToPrincipalAndFilter
+--- PASS: TestCursorBoundToPrincipalAndFilter (0.00s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz	0.008s
+=== RUN   TestBootstrapValidate
+=== RUN   TestBootstrapValidate/loopback_listeners
+=== RUN   TestBootstrapValidate/unspecified_pod_listeners
+=== RUN   TestBootstrapValidate/IPv6_loopback_listeners
+=== RUN   TestBootstrapValidate/invalid_grpc_network
+=== RUN   TestBootstrapValidate/invalid_admin_network
+=== RUN   TestBootstrapValidate/hostname_is_not_a_literal_boundary
+=== RUN   TestBootstrapValidate/specific_external_address
+=== RUN   TestBootstrapValidate/malformed_address
+=== RUN   TestBootstrapValidate/invalid_port
+=== RUN   TestBootstrapValidate/zero_port
+=== RUN   TestBootstrapValidate/duplicate_fixed_address
+=== RUN   TestBootstrapValidate/wildcard_conflicts_with_loopback_port
+=== RUN   TestBootstrapValidate/equivalent_numeric_ports
+=== RUN   TestBootstrapValidate/missing_grpc_timeout
+=== RUN   TestBootstrapValidate/zero_grpc_timeout
+=== RUN   TestBootstrapValidate/negative_admin_timeout
+=== RUN   TestBootstrapValidate/grpc_timeout_above_maximum
+=== RUN   TestBootstrapValidate/invalid_protobuf_timeout
+=== RUN   TestBootstrapValidate/missing_shutdown_timeout
+=== RUN   TestBootstrapValidate/zero_shutdown_timeout
+=== RUN   TestBootstrapValidate/shutdown_timeout_above_maximum
+--- PASS: TestBootstrapValidate (0.00s)
+    --- PASS: TestBootstrapValidate/loopback_listeners (0.00s)
+    --- PASS: TestBootstrapValidate/unspecified_pod_listeners (0.00s)
+    --- PASS: TestBootstrapValidate/IPv6_loopback_listeners (0.00s)
+    --- PASS: TestBootstrapValidate/invalid_grpc_network (0.00s)
+    --- PASS: TestBootstrapValidate/invalid_admin_network (0.00s)
+    --- PASS: TestBootstrapValidate/hostname_is_not_a_literal_boundary (0.00s)
+    --- PASS: TestBootstrapValidate/specific_external_address (0.00s)
+    --- PASS: TestBootstrapValidate/malformed_address (0.00s)
+    --- PASS: TestBootstrapValidate/invalid_port (0.00s)
+    --- PASS: TestBootstrapValidate/zero_port (0.00s)
+    --- PASS: TestBootstrapValidate/duplicate_fixed_address (0.00s)
+    --- PASS: TestBootstrapValidate/wildcard_conflicts_with_loopback_port (0.00s)
+    --- PASS: TestBootstrapValidate/equivalent_numeric_ports (0.00s)
+    --- PASS: TestBootstrapValidate/missing_grpc_timeout (0.00s)
+    --- PASS: TestBootstrapValidate/zero_grpc_timeout (0.00s)
+    --- PASS: TestBootstrapValidate/negative_admin_timeout (0.00s)
+    --- PASS: TestBootstrapValidate/grpc_timeout_above_maximum (0.00s)
+    --- PASS: TestBootstrapValidate/invalid_protobuf_timeout (0.00s)
+    --- PASS: TestBootstrapValidate/missing_shutdown_timeout (0.00s)
+    --- PASS: TestBootstrapValidate/zero_shutdown_timeout (0.00s)
+    --- PASS: TestBootstrapValidate/shutdown_timeout_above_maximum (0.00s)
+=== RUN   TestBootstrapValidateRequiresCompleteServerConfig
+=== RUN   TestBootstrapValidateRequiresCompleteServerConfig/nil_bootstrap
+=== RUN   TestBootstrapValidateRequiresCompleteServerConfig/missing_server
+=== RUN   TestBootstrapValidateRequiresCompleteServerConfig/missing_grpc
+=== RUN   TestBootstrapValidateRequiresCompleteServerConfig/missing_admin
+--- PASS: TestBootstrapValidateRequiresCompleteServerConfig (0.00s)
+    --- PASS: TestBootstrapValidateRequiresCompleteServerConfig/nil_bootstrap (0.00s)
+    --- PASS: TestBootstrapValidateRequiresCompleteServerConfig/missing_server (0.00s)
+    --- PASS: TestBootstrapValidateRequiresCompleteServerConfig/missing_grpc (0.00s)
+    --- PASS: TestBootstrapValidateRequiresCompleteServerConfig/missing_admin (0.00s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1	0.004s
+=== RUN   TestPostgresCatalogProviderOutsideTransactions
+=== RUN   TestPostgresCatalogProviderOutsideTransactions/adopt_same_key_winner
+=== RUN   TestPostgresCatalogProviderOutsideTransactions/publish_inspect_change
+=== RUN   TestPostgresCatalogProviderOutsideTransactions/publish_verify_change
+=== RUN   TestPostgresCatalogProviderOutsideTransactions/publish_same_key
+=== RUN   TestPostgresCatalogProviderOutsideTransactions/open_change
+=== RUN   TestPostgresCatalogProviderOutsideTransactions/resolve_change
+=== NAME  TestPostgresCatalogProviderOutsideTransactions
+    catalog_concurrency_test.go:215: SQLC-02 PASS: actual restricted PG, delayed Inspect/Verify with zero acquired connections; same-key winners replayed and changed snapshots rejected across Adopt/Publish/OPEN/Resolve
+--- PASS: TestPostgresCatalogProviderOutsideTransactions (0.27s)
+    --- PASS: TestPostgresCatalogProviderOutsideTransactions/adopt_same_key_winner (0.04s)
+    --- PASS: TestPostgresCatalogProviderOutsideTransactions/publish_inspect_change (0.03s)
+    --- PASS: TestPostgresCatalogProviderOutsideTransactions/publish_verify_change (0.07s)
+    --- PASS: TestPostgresCatalogProviderOutsideTransactions/publish_same_key (0.05s)
+    --- PASS: TestPostgresCatalogProviderOutsideTransactions/open_change (0.04s)
+    --- PASS: TestPostgresCatalogProviderOutsideTransactions/resolve_change (0.04s)
+=== RUN   TestPostgresExplicitTenantSQLCIsolation
+    isolation_test.go:94: RLS/SQLC/TENANT: restricted role, no policy/RLS, identical tenant business keys, read/list/update/restart separation, JSON NULL and composite FK negatives
+--- PASS: TestPostgresExplicitTenantSQLCIsolation (0.09s)
+=== RUN   TestPostgresRuntimeRoleAndAtomicIdempotency
+    postgres_test.go:176: DB-01/03/05: runtime DDL denied; 12 concurrent writes converge; failed transaction leaves no pool
+--- PASS: TestPostgresRuntimeRoleAndAtomicIdempotency (0.07s)
+=== RUN   TestPostgresProjectionOrderConflictAndRestart
+    postgres_test.go:239: SYNC-RX-01/02/03: parallel terminal-first delivery, stale revision and create-operation resurrection; DB persistence across connections
+--- PASS: TestPostgresProjectionOrderConflictAndRestart (0.14s)
+=== RUN   TestPostgresBindingsBeforeProjectionAndScopedRelease
+    postgres_test.go:316: CAP-01/03/04, REL-01/02: three sources count once; ENDED and missing poll preserve allocation; positive exact-scope proof retires older evidence
+--- PASS: TestPostgresBindingsBeforeProjectionAndScopedRelease (0.09s)
+=== RUN   TestPostgresConstraintsVersionRaceAndConcurrentAssociation
+    postgres_test.go:406: DB-04/05 RUN-03: unique node and immutable profile, atomic failed group, CAS race, concurrent sync/binding and cross-tenant FK
+--- PASS: TestPostgresConstraintsVersionRaceAndConcurrentAssociation (0.16s)
+=== RUN   TestPostgresCatalogDenialsAndStablePaging
+    postgres_test.go:474: CAT-05/06 AUTH-05/06: PG keyset pages, missing version/scope, unknown capacity, CLOSED/frozen plan and current-scope idempotency checks
+--- PASS: TestPostgresCatalogDenialsAndStablePaging (0.05s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data	0.873s
+?   	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data/accdb	[no test files]
+=== RUN   TestJointFormalProviderSource
+    joint_formal_source_test.go:25: explicit A-layer source process
+--- SKIP: TestJointFormalProviderSource (0.00s)
+=== RUN   TestPinnedUpstreamFormats
+--- PASS: TestPinnedUpstreamFormats (0.00s)
+=== RUN   TestRuntimeLimitsAreMiBNotBlocks
+--- PASS: TestRuntimeLimitsAreMiBNotBlocks (0.00s)
+=== RUN   TestProviderControlledSourcesPersistRecoverAndRelease
+    replay_test.go:368: OBS-01..06 CAP-01..04 REL-01..04: production HTTP/TLS + Unix gRPC readers, controlled source replay + real PG; no actual GPU sample
+--- PASS: TestProviderControlledSourcesPersistRecoverAndRelease (0.29s)
+=== RUN   TestAttestationAndOwnerTrustBoundaries
+--- PASS: TestAttestationAndOwnerTrustBoundaries (0.01s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data/provider	0.303s
+=== RUN   TestAdminServerRunsKratosMiddlewareChain
+--- PASS: TestAdminServerRunsKratosMiddlewareChain (0.00s)
+=== RUN   TestWorkerDependencyReadinessRetryAndStop
+--- PASS: TestWorkerDependencyReadinessRetryAndStop (0.01s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/server	0.020s
+?   	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/service	[no test files]
+=== RUN   TestFormalProductionConsumptionGate
+    formal_process_test.go:195: A formal process: Publish=CONSUMPTION_NOT_VERIFIED, OPEN=PROFILE_NOT_ACTIVE, Resolve=NOT_FOUND; zero profiles; CLOSED/NOT_VERIFIED/version1 retained across restart; hardware=not_verified
+--- PASS: TestFormalProductionConsumptionGate (6.64s)
+=== RUN   TestJointObservationFixture
+    joint_helper_test.go:29: one-shot isolated software observation fixture
+--- SKIP: TestJointObservationFixture (0.00s)
+=== RUN   TestJointCatalogSeed
+    joint_helper_test.go:117: explicit isolated B-layer catalog seed
+--- SKIP: TestJointCatalogSeed (0.00s)
+=== RUN   TestJointPersistentRuntime
+    joint_runtime_test.go:30: persistent isolated B helper
+--- SKIP: TestJointPersistentRuntime (0.00s)
+=== RUN   TestContractServerProcess
+    process_test.go:83: subprocess helper
+--- SKIP: TestContractServerProcess (0.00s)
+=== RUN   TestAll22RPCsMTLSAndRecovery
+    process_test.go:588: RUN-03: killed real process at before commit; recovery/replay matched durable PG state
+    process_test.go:588: RUN-03: killed real process at after commit; recovery/replay matched durable PG state
+    process_test.go:591: RUN-01: all 22 RPCs positive + wrong-service negative via real mTLS processes; PG multiprocess replay and kill/restart passed
+--- PASS: TestAll22RPCsMTLSAndRecovery (1.62s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/tests/contract	8.278s
+=== RUN   TestRuntimeLifecycle
+--- PASS: TestRuntimeLifecycle (0.03s)
+=== RUN   TestAdminReadinessUsesKratosErrorEncoding
+--- PASS: TestAdminReadinessUsesKratosErrorEncoding (0.00s)
+=== RUN   TestCommittedConfigLoadsAsGeneratedType
+--- PASS: TestCommittedConfigLoadsAsGeneratedType (0.00s)
+=== RUN   TestBizLayerHasNoFrameworkOrAdapterImports
+--- PASS: TestBizLayerHasNoFrameworkOrAdapterImports (0.00s)
+PASS
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/tests/runtime	0.045s
+?   	github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit	[no test files]
+go vet ./...
+go build -trimpath ./...
+go mod verify
+all modules verified
+make design-test
+make[1]: 进入目录“/home/chabking/gov-acc-v12-01-20260923/acc”
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s docs/design/v1.2/tests -v
+test_double_factor_is_conflict (test_design.CapacityTests.test_double_factor_is_conflict) ... ok
+test_duplicate_physical_not_summed (test_design.CapacityTests.test_duplicate_physical_not_summed) ... ok
+test_ineligible_is_unknown (test_design.CapacityTests.test_ineligible_is_unknown) ... ok
+test_other_device_conflict_isolated (test_design.CapacityTests.test_other_device_conflict_isolated) ... ok
+test_over_budget_not_clamped (test_design.CapacityTests.test_over_budget_not_clamped) ... ok
+test_physical_safe_three (test_design.CapacityTests.test_physical_safe_three) ... ok
+test_raw_bytes_not_mib (test_design.CapacityTests.test_raw_bytes_not_mib) ... ok
+test_retirement_required_for_old_selection (test_design.CapacityTests.test_retirement_required_for_old_selection) ... ok
+test_slot_full (test_design.CapacityTests.test_slot_full) ... ok
+test_sources_normalize_once (test_design.CapacityTests.test_sources_normalize_once) ... ok
+test_unknown_still_counts (test_design.CapacityTests.test_unknown_still_counts) ... ok
+test_unlinked_still_counts (test_design.CapacityTests.test_unlinked_still_counts) ... ok
+test_whole_and_shared_not_summed (test_design.CapacityTests.test_whole_and_shared_not_summed) ... ok
+test_whole_occupied (test_design.CapacityTests.test_whole_occupied) ... ok
+test_whole_separate (test_design.CapacityTests.test_whole_separate) ... ok
+test_bool_rejected (test_design.FactorTests.test_bool_rejected) ... ok
+test_empty_factor_unknown (test_design.FactorTests.test_empty_factor_unknown) ... ok
+test_factor_1024 (test_design.FactorTests.test_factor_1024) ... ok
+test_factor_256 (test_design.FactorTests.test_factor_256) ... ok
+test_factor_one (test_design.FactorTests.test_factor_one) ... ok
+test_float_rejected (test_design.FactorTests.test_float_rejected) ... ok
+test_group_factor_mismatch (test_design.FactorTests.test_group_factor_mismatch) ... ok
+test_group_factors_match (test_design.FactorTests.test_group_factors_match) ... ok
+test_not_divisible (test_design.FactorTests.test_not_divisible) ... ok
+test_per_device_floor (test_design.FactorTests.test_per_device_floor) ... ok
+test_physical_tail (test_design.FactorTests.test_physical_tail) ... ok
+test_provider_integer_range (test_design.FactorTests.test_provider_integer_range) ... ok
+test_runtime_limit_roundtrip (test_design.FactorTests.test_runtime_limit_roundtrip) ... ok
+test_zero_factor (test_design.FactorTests.test_zero_factor) ... ok
+test_deterministic_payload (test_design.ProjectionTests.test_deterministic_payload) ... ok
+test_new_create_cannot_revive (test_design.ProjectionTests.test_new_create_cannot_revive) ... ok
+test_normal (test_design.ProjectionTests.test_normal) ... ok
+test_plan_conflict (test_design.ProjectionTests.test_plan_conflict) ... ok
+test_repeated (test_design.ProjectionTests.test_repeated) ... ok
+test_same_revision_conflict (test_design.ProjectionTests.test_same_revision_conflict) ... ok
+test_terminal_first (test_design.ProjectionTests.test_terminal_first) ... ok
+test_canceled_requires_refund (test_design.QuotaTests.test_canceled_requires_refund) ... ok
+test_empty_charges_not_ended (test_design.QuotaTests.test_empty_charges_not_ended) ... ok
+test_full_ended (test_design.QuotaTests.test_full_ended) ... ok
+test_multiple_devices_later (test_design.QuotaTests.test_multiple_devices_later) ... ok
+test_overflow (test_design.QuotaTests.test_overflow) ... ok
+test_partial_not_ended (test_design.QuotaTests.test_partial_not_ended) ... ok
+test_release_duplicate (test_design.QuotaTests.test_release_duplicate) ... ok
+test_release_out_of_order (test_design.QuotaTests.test_release_out_of_order) ... ok
+test_release_over_original (test_design.QuotaTests.test_release_over_original) ... ok
+test_shared_total_is_mib (test_design.QuotaTests.test_shared_total_is_mib) ... ok
+test_unsent_ignores_projection (test_design.QuotaTests.test_unsent_ignores_projection) ... ok
+test_whole_not_double_charged (test_design.QuotaTests.test_whole_not_double_charged) ... ok
+
+----------------------------------------------------------------------
+Ran 48 tests in 0.003s
+
+OK
+make[1]: 离开目录“/home/chabking/gov-acc-v12-01-20260923/acc”
+make test-race
+make[1]: 进入目录“/home/chabking/gov-acc-v12-01-20260923/acc”
+test -n "${ACC_TEST_DSN_FILE:-}"
+go test -race -count=1 ./internal/biz ./internal/data/... ./internal/server ./internal/service ./tests/contract
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz	1.051s
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data	2.336s
+?   	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data/accdb	[no test files]
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data/provider	1.607s
+ok  	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/server	1.049s
+?   	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/service	[no test files]
+make[1]: *** [Makefile:124: test-race] 已终止
+make: *** [Makefile:136: verify] 已终止

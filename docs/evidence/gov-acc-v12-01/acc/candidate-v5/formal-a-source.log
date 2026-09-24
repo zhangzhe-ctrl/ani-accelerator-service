@@ -1,0 +1,2 @@
+=== RUN   TestJointFormalProviderSource
+    joint_formal_source_test.go:92: formal source ready; production Publish must reach CONSUMPTION_NOT_VERIFIED after writing adopted group ID to group-id

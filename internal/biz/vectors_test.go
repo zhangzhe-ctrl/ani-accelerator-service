@@ -58,7 +58,7 @@ func TestCursorBoundToPrincipalAndFilter(t *testing.T) {
 	if after, _, err := codec.Decode(&Page{Size: 1, Token: token}, scope); err != nil || after != testID {
 		t.Fatal(after, err)
 	}
-	for _, mutate := range []func(*Caller){func(c *Caller) { c.TenantID = NewID() }, func(c *Caller) { c.Actor.ID = "two" }, func(c *Caller) { c.ClusterIDs = []string{NewID()} }} {
+	for _, mutate := range []func(*Caller){func(c *Caller) { c.TenantID = NewID() }, func(c *Caller) { c.Actor.ID = "two" }, func(c *Caller) { c.ClusterIDs = []string{NewID()} }, func(c *Caller) { c.Action = "ListGpuUsages" }} {
 		other := c
 		mutate(&other)
 		different, err := PageScope(WithCaller(context.Background(), other), "ListBindings", testID)
@@ -72,6 +72,10 @@ func TestCursorBoundToPrincipalAndFilter(t *testing.T) {
 	other, _ := PageScope(WithCaller(context.Background(), c), "ListBindings", NewID())
 	if _, _, err = codec.Decode(&Page{Token: token}, other); err == nil {
 		t.Fatal("cursor replay across filter")
+	}
+	other, _ = PageScope(WithCaller(context.Background(), c), "AdminListBindings", testID)
+	if _, _, err = codec.Decode(&Page{Token: token}, other); err == nil {
+		t.Fatal("cursor replay across method")
 	}
 	if _, _, err = codec.Decode(&Page{Token: token + "x"}, scope); err == nil {
 		t.Fatal("tampered cursor")

@@ -78,6 +78,101 @@ func mutate[T any](ctx context.Context, u *Usecase, m *AdminMutation, method str
 	})
 	return result, err
 }
+
+// prepareMutation releases the short idempotency/read transaction before any
+// provider work. mutate repeats arbitration after that work, so a same-key winner
+// is returned before checking a possibly stale prepared catalog snapshot.
+func prepareMutation[T any](ctx context.Context, u *Usecase, m *AdminMutation, method string, input any, read func(Reader) error) (*T, error) {
+	if err := AuthorizeMutation(ctx, m, method); err != nil {
+		return nil, err
+	}
+	d, err := Hash(input)
+	if err != nil {
+		return nil, err
+	}
+	actor, err := Hash(m.Context.Actor)
+	if err != nil {
+		return nil, err
+	}
+	var result *T
+	err = u.repo.Transact(ctx, func(tx Transaction) error {
+		if err := tx.Lock(ctx, "mutation:"+actor+":"+method+":"+m.IdempotencyKey); err != nil {
+			return err
+		}
+		prior, err := tx.Replay(ctx, actor, method, m.IdempotencyKey)
+		if err != nil {
+			return err
+		}
+		if prior == nil {
+			return read(tx)
+		}
+		if prior.Digest != d {
+			return Conflict("IDEMPOTENCY_CONFLICT")
+		}
+		result = new(T)
+		if json.Unmarshal(prior.Result, result) != nil {
+			return Precondition("STORED_RESULT_INVALID")
+		}
+		return authorizeMutationResult(ctx, tx, any(result))
+	})
+	return result, err
+}
+
+// Catalog entities are immutable or versioned. Compare their complete persisted
+// snapshots after external verification; never apply evidence to a newer group.
+func checkCatalogSnapshot(ctx context.Context, r Reader, c *Cluster, p *Pool, g *SupplyGroup, profile *Profile) error {
+	compare := func(before, after any) error {
+		a, err := Hash(before)
+		if err != nil {
+			return err
+		}
+		b, err := Hash(after)
+		if err != nil {
+			return err
+		}
+		if a != b {
+			return Conflict("VERSION_CONFLICT")
+		}
+		return nil
+	}
+	if c != nil {
+		v, err := r.Cluster(ctx, c.ClusterID)
+		if err != nil {
+			return err
+		}
+		if err = compare(c, v); err != nil {
+			return err
+		}
+	}
+	if p != nil {
+		v, err := r.Pool(ctx, p.PoolID)
+		if err != nil {
+			return err
+		}
+		if err = compare(p, v); err != nil {
+			return err
+		}
+	}
+	if g != nil {
+		v, err := r.Group(ctx, g.GroupID)
+		if err != nil {
+			return err
+		}
+		if err = compare(g, v); err != nil {
+			return err
+		}
+	}
+	if profile != nil {
+		v, err := r.Profile(ctx, profile.ProfileID, profile.ProfileVersion)
+		if err != nil {
+			return err
+		}
+		if err = compare(profile, v); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 func authorizeMutationResult(ctx context.Context, r Reader, value any) error {
 	switch v := value.(type) {
 	case *Cluster:
@@ -150,32 +245,48 @@ func (u *Usecase) AdoptSupplyGroup(ctx context.Context, m *AdminMutation, a Adop
 		}
 		names[n.Name] = true
 	}
-	return mutate(ctx, u, m, "AdoptSupplyGroup", a, func(tx Transaction) (*SupplyGroup, error) {
-		p, err := tx.Pool(ctx, a.PoolID)
+	var p *Pool
+	var c *Cluster
+	prior, err := prepareMutation[SupplyGroup](ctx, u, m, "AdoptSupplyGroup", a, func(r Reader) error {
+		var err error
+		p, err = r.Pool(ctx, a.PoolID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if err = AuthorizeCluster(ctx, p.ClusterID); err != nil {
+			return err
+		}
+		c, err = r.Cluster(ctx, p.ClusterID)
+		return err
+	})
+	if err != nil || prior != nil {
+		return prior, err
+	}
+	b := *a.Baseline
+	b.Verification = &Verification{State: NotVerified}
+	g := &SupplyGroup{GroupID: NewID(), PoolID: p.PoolID, ClusterID: p.ClusterID, DisplayName: a.DisplayName, Mode: a.Mode, Nodes: a.Nodes, ModelKey: a.ModelKey, Baseline: &b, Admission: Closed, QueueName: a.QueueName, Version: 1, AdoptedAt: u.now().UTC().Format(time.RFC3339Nano)}
+	inspection, err := u.inspect(ctx, *c, *g, false)
+	if err != nil {
+		return nil, err
+	}
+	return mutate(ctx, u, m, "AdoptSupplyGroup", a, func(tx Transaction) (*SupplyGroup, error) {
+		if err := checkCatalogSnapshot(ctx, tx, c, p, nil, nil); err != nil {
 			return nil, err
 		}
-		c, err := tx.Cluster(ctx, p.ClusterID)
-		if err != nil {
-			return nil, err
-		}
-		b := *a.Baseline
-		b.Verification = &Verification{State: NotVerified}
-		g := &SupplyGroup{GroupID: NewID(), PoolID: p.PoolID, ClusterID: p.ClusterID, DisplayName: a.DisplayName, Mode: a.Mode, Nodes: a.Nodes, ModelKey: a.ModelKey, Baseline: &b, Admission: Closed, QueueName: a.QueueName, Version: 1, AdoptedAt: u.now().UTC().Format(time.RFC3339Nano)}
-		if err = u.inspect(ctx, *c, *g, false); err != nil {
+		if err := u.checkInspection(*g, false, inspection); err != nil {
 			return nil, err
 		}
 		return g, tx.InsertGroup(ctx, *g)
 	})
 }
-func (u *Usecase) inspect(ctx context.Context, c Cluster, g SupplyGroup, labels bool) error {
+func (u *Usecase) inspect(ctx context.Context, c Cluster, g SupplyGroup, labels bool) (GroupInspection, error) {
 	i, err := u.provider.Inspect(ctx, c, g)
 	if err != nil {
-		return err
+		return i, err
 	}
+	return i, u.checkInspection(g, labels, i)
+}
+func (u *Usecase) checkInspection(g SupplyGroup, labels bool, i GroupInspection) error {
 	if i.ObservedAt.IsZero() || u.now().Sub(i.ObservedAt) > u.freshness || i.ObservedAt.After(u.now().Add(5*time.Second)) {
 		return Precondition("SOURCE_STALE")
 	}
@@ -210,42 +321,60 @@ func (u *Usecase) PublishProfile(ctx context.Context, m *AdminMutation, a Publis
 	if a.Spec == nil || !UUID(a.Spec.GroupID) || !Text(a.DisplayName, 128) || a.ExpectedGroupVersion == 0 || !Ref(a.VerificationRef) {
 		return nil, Invalid("INVALID_PROFILE")
 	}
-	return mutate(ctx, u, m, "PublishProfile", a, func(tx Transaction) (*Profile, error) {
-		if err := tx.Lock(ctx, "group:"+a.Spec.GroupID); err != nil {
-			return nil, err
-		}
-		g, err := tx.Group(ctx, a.Spec.GroupID)
+	var g *SupplyGroup
+	var c *Cluster
+	prior, err := prepareMutation[Profile](ctx, u, m, "PublishProfile", a, func(r Reader) error {
+		var err error
+		g, err = r.Group(ctx, a.Spec.GroupID)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
-			return nil, err
+			return err
 		}
 		if g.Version != a.ExpectedGroupVersion {
-			return nil, Conflict("VERSION_CONFLICT")
+			return Conflict("VERSION_CONFLICT")
 		}
 		if a.Spec.Mode != g.Mode || a.Spec.ModelKey != g.ModelKey {
-			return nil, Precondition("PROFILE_SCOPE_MISMATCH")
+			return Precondition("PROFILE_SCOPE_MISMATCH")
 		}
 		if err = ValidateSpec(a.Spec, g.Baseline); err != nil {
+			return err
+		}
+		c, err = r.Cluster(ctx, g.ClusterID)
+		return err
+	})
+	if err != nil || prior != nil {
+		return prior, err
+	}
+	first, err := u.inspect(ctx, *c, *g, true)
+	if err != nil {
+		return nil, err
+	}
+	v, err := u.evidence.Verify(ctx, *g, a.Spec, a.VerificationRef)
+	if err != nil {
+		return nil, err
+	}
+	if err = checkVerification(v, g.Baseline.BaselineDigest, a.VerificationRef); err != nil {
+		return nil, err
+	}
+	// Verify may have read an external attestation. Re-read provider configuration
+	// afterwards, still outside PostgreSQL, then revalidate both observations at commit.
+	second, err := u.inspect(ctx, *c, *g, true)
+	if err != nil {
+		return nil, err
+	}
+	return mutate(ctx, u, m, "PublishProfile", a, func(tx Transaction) (*Profile, error) {
+		if err := tx.Lock(ctx, "group:"+g.GroupID); err != nil {
 			return nil, err
 		}
-		c, err := tx.Cluster(ctx, g.ClusterID)
-		if err != nil {
+		if err := checkCatalogSnapshot(ctx, tx, c, nil, g, nil); err != nil {
 			return nil, err
 		}
-		if err = u.inspect(ctx, *c, *g, true); err != nil {
+		if err := u.checkInspection(*g, true, first); err != nil {
 			return nil, err
 		}
-		v, err := u.evidence.Verify(ctx, *g, a.Spec, a.VerificationRef)
-		if err != nil {
-			return nil, err
-		}
-		if err = checkVerification(v, g.Baseline.BaselineDigest, a.VerificationRef); err != nil {
-			return nil, err
-		}
-		g.Baseline.Verification = v
-		if err = u.inspect(ctx, *c, *g, true); err != nil {
+		if err := u.checkInspection(*g, true, second); err != nil {
 			return nil, err
 		}
 		if err = tx.Lock(ctx, "shared-vector:"+g.ClusterID); err != nil {
@@ -295,36 +424,63 @@ func (u *Usecase) SetAdmission(ctx context.Context, m *AdminMutation, a Admissio
 	if !UUID(a.GroupID) || a.ExpectedVersion == 0 || !Text(a.Reason, 512) || (a.Desired != Open && a.Desired != Closed) {
 		return nil, Invalid("INVALID_ADMISSION")
 	}
-	return mutate(ctx, u, m, "SetAdmission", a, func(tx Transaction) (*SupplyGroup, error) {
-		if err := tx.Lock(ctx, "group:"+a.GroupID); err != nil {
-			return nil, err
+	var g *SupplyGroup
+	var c *Cluster
+	var profiles []Profile
+	prior, err := prepareMutation[SupplyGroup](ctx, u, m, "SetAdmission", a, func(r Reader) error {
+		var err error
+		g, err = r.Group(ctx, a.GroupID)
+		if err != nil {
+			return err
 		}
-		g, err := tx.Group(ctx, a.GroupID)
+		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
+			return err
+		}
+		if g.Version != a.ExpectedVersion {
+			return Conflict("VERSION_CONFLICT")
+		}
+		if a.Desired == Open {
+			ps, err := r.Profiles(ctx, g.ClusterID, g.Mode, "", 10000)
+			if err != nil {
+				return err
+			}
+			for _, p := range ps {
+				if p.Spec.GroupID == g.GroupID {
+					profiles = append(profiles, p)
+				}
+			}
+			if len(profiles) == 0 {
+				return Precondition("PROFILE_NOT_ACTIVE")
+			}
+			c, err = r.Cluster(ctx, g.ClusterID)
+			return err
+		}
+		return nil
+	})
+	if err != nil || prior != nil {
+		return prior, err
+	}
+	var checks []GroupInspection
+	for _, p := range profiles {
+		i, err := u.checkActiveConfiguration(ctx, *c, *g, &p)
 		if err != nil {
 			return nil, err
 		}
-		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
+		checks = append(checks, i)
+	}
+	return mutate(ctx, u, m, "SetAdmission", a, func(tx Transaction) (*SupplyGroup, error) {
+		if err := tx.Lock(ctx, "group:"+g.GroupID); err != nil {
 			return nil, err
 		}
-		if g.Version != a.ExpectedVersion {
-			return nil, Conflict("VERSION_CONFLICT")
+		if err := checkCatalogSnapshot(ctx, tx, c, nil, g, nil); err != nil {
+			return nil, err
 		}
-		if a.Desired == Open {
-			ps, err := tx.Profiles(ctx, g.ClusterID, g.Mode, "", 10000)
-			if err != nil {
+		for j, p := range profiles {
+			if err := checkCatalogSnapshot(ctx, tx, nil, nil, nil, &p); err != nil {
 				return nil, err
 			}
-			found := false
-			for _, p := range ps {
-				if p.Spec.GroupID == g.GroupID {
-					found = true
-					if err = u.checkActiveConfiguration(ctx, tx, *g, &p); err != nil {
-						return nil, err
-					}
-				}
-			}
-			if !found {
-				return nil, Precondition("PROFILE_NOT_ACTIVE")
+			if err := u.checkInspection(*g, true, checks[j]); err != nil {
+				return nil, err
 			}
 		}
 		prior := g.Version
@@ -333,22 +489,19 @@ func (u *Usecase) SetAdmission(ctx context.Context, m *AdminMutation, a Admissio
 		return g, tx.UpdateGroup(ctx, *g, prior)
 	})
 }
-func (u *Usecase) checkActiveConfiguration(ctx context.Context, r Reader, g SupplyGroup, p *Profile) error {
+func (u *Usecase) checkActiveConfiguration(ctx context.Context, c Cluster, g SupplyGroup, p *Profile) (GroupInspection, error) {
 	if !p.Published || g.Baseline.Verification == nil {
-		return Precondition("PROFILE_NOT_ACTIVE")
+		return GroupInspection{}, Precondition("PROFILE_NOT_ACTIVE")
 	}
-	c, err := r.Cluster(ctx, g.ClusterID)
+	i, err := u.inspect(ctx, c, g, true)
 	if err != nil {
-		return err
-	}
-	if err = u.inspect(ctx, *c, g, true); err != nil {
-		return err
+		return i, err
 	}
 	v, err := u.evidence.Verify(ctx, g, p.Spec, g.Baseline.Verification.EvidenceRef)
 	if err != nil {
-		return err
+		return i, err
 	}
-	return checkVerification(v, g.Baseline.BaselineDigest, g.Baseline.Verification.EvidenceRef)
+	return i, checkVerification(v, g.Baseline.BaselineDigest, g.Baseline.Verification.EvidenceRef)
 }
 func (u *Usecase) Resolve(ctx context.Context, a *TenantContext, gpu *GpuRequest) (*ResolvedPlan, error) {
 	if err := AuthorizeTenant(ctx, a, "ResolveGpuRequest"); err != nil {
@@ -364,12 +517,16 @@ func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedPlan, 
 		return nil, err
 	}
 	var plan *ResolvedPlan
+	var p *Profile
+	var g *SupplyGroup
+	var c *Cluster
 	err := u.repo.View(ctx, func(r Reader) error {
-		p, err := r.Profile(ctx, gpu.ProfileID, gpu.ProfileVersion)
+		var err error
+		p, err = r.Profile(ctx, gpu.ProfileID, gpu.ProfileVersion)
 		if err != nil {
 			return err
 		}
-		g, err := r.Group(ctx, p.Spec.GroupID)
+		g, err = r.Group(ctx, p.Spec.GroupID)
 		if err != nil {
 			return err
 		}
@@ -382,7 +539,21 @@ func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedPlan, 
 		if gpu.ClusterID != g.ClusterID || gpu.PoolID != g.PoolID {
 			return Precondition("PROFILE_SCOPE_MISMATCH")
 		}
-		if err = u.checkActiveConfiguration(ctx, r, *g, p); err != nil {
+		c, err = r.Cluster(ctx, g.ClusterID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	inspection, err := u.checkActiveConfiguration(ctx, *c, *g, p)
+	if err != nil {
+		return nil, err
+	}
+	err = u.repo.View(ctx, func(r Reader) error {
+		if err := checkCatalogSnapshot(ctx, r, c, nil, g, p); err != nil {
+			return err
+		}
+		if err := u.checkInspection(*g, true, inspection); err != nil {
 			return err
 		}
 		view, err := u.capacity(ctx, r, p, g, true)

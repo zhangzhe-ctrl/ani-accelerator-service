@@ -68,6 +68,18 @@ is a software hardware-port fixture; no real GPU allocation/cleanup is claimed.
 Stop the persistent B fixture by creating `<task>/joint-b/stop`; the parent test
 stops the server child. Remove private material only after consumers have stopped.
 
+To resume a previously seeded B database, do not rerun
+`TestJointPersistentRuntime`. Read the preserved `ready.json` and launch the
+existing or freshly verified contract binary with `ACC_CONTRACT_CHILD=1`,
+`ACC_CONTRACT_CONFIG=<config_file>`, `ACC_CONTRACT_CONNECTION=<connection_ref>`,
+and a task-owned `ACC_CONTRACT_MARKER`, using
+`-test.run='^TestContractServerProcess$' -test.timeout=0 -test.v`. This starts only
+the transport/usecase runtime and preserves all catalog IDs, original keys, CA
+and database records. It does not read the wrapper's `stop` file. Record its
+exact PID and new log; stop that direct child with SIGINT. Check certificate
+expiry and database readiness before resuming. A new binary must be built from
+the verified candidate; never label an older running helper as the final runtime.
+
 ## A: production reader source with no consumption evidence
 
 `TestFormalProductionConsumptionGate` performs the complete A-layer gate. Supply
@@ -81,6 +93,16 @@ It asserts Publish reaches `CONSUMPTION_NOT_VERIFIED`, OPEN returns
 profile exists. It checks zero profiles and durable CLOSED/NOT_VERIFIED/version 1
 after restart, then records `formal-a.json` and production/source logs in
 `ACC_TEST_EVIDENCE_DIR`. No B fixture or proof key is consumed by this test.
+
+For a formal Gov→Acc integration, the same test accepts an explicit absolute
+`ACC_FORMAL_HOLD_DIR`. After all A assertions pass it writes `ready.json` there
+with the ordinary production executable's hash/PID, endpoint, independent CA,
+Gov certificate/key paths and catalog IDs, and stays alive until `<hold>/stop`
+exists. It grants the test platform actor `user:1`, and the Gov certificate has
+the sole Governance URI plus DNS `ani-governance`; the Acc server supports DNS
+`ani-accelerator`. Run the test binary with `-test.timeout=0`. The referenced
+ephemeral files remain valid only while this helper is running. This optional
+hold does not change production composition or provide consumption evidence.
 
 Build `go test -c -o <task>/joint-a/source/source.test ./internal/data/provider`.
 Run it with `ACC_FORMAL_SOURCE_DIR=<task>/joint-a/source` and

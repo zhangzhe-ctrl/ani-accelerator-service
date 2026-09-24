@@ -82,4 +82,4 @@ ObserveRelease 不以投影存在为前置。必须传原 ref、明确 DELETE op
 
 Inference 负责封闭实际创建执行点、查清所有在途写、终止生成、删除完整工作负载并清理 GPU 分配，再可靠调用既有 `quota.service.v1.QuotaReleaseService/ReportQuotaRelease`。必须用原 CREATE operation 和完整原 GPU charge 向量，全量累计 released_total；明确 DELETE 且整实例完成后报告，普通退出、失败、重启、部分 Pod 清理均不退额。Accelerator 不实现同名替代服务，也不是该业务 charge 的退款 owner。
 
-Governance/Inference 正式接口、权限模块、持久接受、可靠通知和业务闭环均为 EXT-* 后续接入项，本仓不修改其代码，不把测试调用器当作正式集成。
+GOV-ACC-V12-01 在 Governance 实现公共 GPU 受理、权限/BFF、通用账本投递、释放校验与独立使用同步；其具体交付版本和逐项软件证据见本批验收记录。真实 Inference/其他 owner 的业务 API、正式 adapter、实际执行与完整清理仍为后续接入项。独立持久化测试 owner 仅验证软件合同，不进入生产装配，不能替代正式 owner 业务闭环。

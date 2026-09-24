@@ -1,0 +1,5 @@
+--- FAIL: TestPostgresExplicitTenantSQLCIsolation (0.18s)
+    isolation_test.go:31: USAGE_PROJECTION_CONFLICT
+FAIL
+FAIL	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data	0.190s
+FAIL

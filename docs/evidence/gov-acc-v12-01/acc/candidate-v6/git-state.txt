@@ -1,0 +1,12 @@
+ M docs/testing/gov-acc-v12-01-helpers.md
+ M internal/biz/README.md
+ M internal/biz/catalog.go
+ M tests/contract/formal_process_test.go
+ M tests/contract/process_test.go
+?? docs/evidence/gov-acc-v12-01/acc/candidate-v5/formal-a.json
+?? docs/evidence/gov-acc-v12-01/acc/candidate-v5/source.sha256
+?? docs/evidence/gov-acc-v12-01/acc/candidate-v5/user-pause.txt
+?? docs/evidence/gov-acc-v12-01/acc/candidate-v5/verify.command
+?? docs/evidence/gov-acc-v12-01/acc/candidate-v5/verify.started
+?? docs/operations/governance-accelerator-v1.2-pause.md
+?? internal/data/catalog_concurrency_test.go

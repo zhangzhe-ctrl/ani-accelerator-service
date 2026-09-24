@@ -1,0 +1,5 @@
+--- FAIL: TestPostgresExplicitTenantSQLCIsolation (0.30s)
+    isolation_test.go:79: PERSISTENCE_CONSTRAINT
+FAIL
+FAIL	github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data	0.303s
+FAIL
