@@ -1,0 +1,13 @@
+[extend]
+useDefault = true
+
+# These two captured, isolated restore fixtures contain UUID request replay
+# identifiers. They grant no authority and are not authentication API keys.
+# Match both the exact evidence paths and the complete named UUID field; do
+# not exempt adjacent payloads, other files, or non-UUID values.
+[[allowlists]]
+description = "Isolated PostgreSQL restore fixture UUID idempotency keys"
+condition = "AND"
+paths = ['''^docs/evidence/gov-acc-v12-01/acc/replicas-comment/(source|restore)-admin_idempotency\.rows$''']
+regexTarget = "match"
+regexes = ['''^idempotency_key":"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"$''']
