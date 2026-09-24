@@ -1,0 +1,12 @@
+{
+  "status": "pass",
+  "changed_files": [
+    "api/gen/go/accelerator/v1/accelerator.pb.go",
+    "api/protos/accelerator/v1/accelerator.proto"
+  ],
+  "generated_change": "exactly one comment replacement",
+  "descriptor_without_source_info": "byte-identical",
+  "descriptor_sha256": "ae84be65db483ba4010180a4dda5b1754060f4e80078ba2f9bd03f8dc0a53ce0",
+  "second_make_api": "all generated file hashes identical",
+  "runtime_source_change": false
+}

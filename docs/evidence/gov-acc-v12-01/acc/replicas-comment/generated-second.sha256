@@ -1,0 +1,3 @@
+c85969f9a0bd1c71ebfaf5fa6fa60d41271682f64cdbe32626f2c954da990d06  api/gen/go/accelerator/integration/v1/owner_gpu_attachment.pb.go
+409e002a009500a3e09903dd3589e26463b2a87f4e7d6bc90ee07fd35ec7a59c  api/gen/go/accelerator/v1/accelerator_grpc.pb.go
+aa59d89c18ae843163dc5ca711b9c0558bde3a02d265300c340ec6e351def8fd  api/gen/go/accelerator/v1/accelerator.pb.go

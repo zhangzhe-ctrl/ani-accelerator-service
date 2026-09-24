@@ -2683,7 +2683,7 @@ type GpuRequest struct {
 	ProfileId string `protobuf:"bytes,3,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
 	// 必填具体版本。
 	ProfileVersion uint64 `protobuf:"varint,4,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
-	// 1..256且不超过owner实测上限。
+	// 首期固定1..16；真实owner仍须验收对应副本上限。
 	Replicas uint32 `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	// 首期必须1；>1返回SHAPE_UNSUPPORTED。
 	DevicesPerReplica uint32 `protobuf:"varint,6,opt,name=devices_per_replica,json=devicesPerReplica,proto3" json:"devices_per_replica,omitempty"`

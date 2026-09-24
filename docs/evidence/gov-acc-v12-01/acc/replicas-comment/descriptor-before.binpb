@@ -1,0 +1,492 @@
+
+y
+ accelerator/v1/accelerator.protoaccelerator.v1"+
+Actor
+type (	Rtype
+id (	Rid"x
+TenantContext
+
+request_id (	R	requestId
+	tenant_id (	RtenantId+
+actor (2.accelerator.v1.ActorRactor"W
+	AdminRead
+
+request_id (	R	requestId+
+actor (2.accelerator.v1.ActorRactor"m
+AdminMutation3
+context (2.accelerator.v1.AdminReadRcontext'
+idempotency_key (	RidempotencyKey"0
+Page
+size (Rsize
+token (	Rtoken"2
+KeyValue
+key (	Rkey
+value (	Rvalue"¶
+Observation
+complete (Rcomplete
+observed_at (	R
+observedAt
+received_at (	R
+receivedAt
+issues (	Rissues!
+snapshot_ref (	RsnapshotRef"¥
+Verification7
+state (2!.accelerator.v1.VerificationStateRstate!
+evidence_ref (	RevidenceRef
+verified_at (	R
+verifiedAt'
+baseline_digest (	RbaselineDigest"˙
+ProviderBaseline
+baseline_id (	R
+baselineId
+
+adapter_id (	R	adapterId'
+volcano_version (	RvolcanoVersion0
+volcano_image_digest (	RvolcanoImageDigest2
+device_plugin_version (	RdevicePluginVersion;
+device_plugin_image_digest (	RdevicePluginImageDigest,
+hami_core_revision (	RhamiCoreRevision(
+memory_block_mib (RmemoryBlockMib.
+factor_evidence_ref	 (	RfactorEvidenceRef'
+memory_encoding
+ (	RmemoryEncoding
+split_count (R
+splitCount0
+memory_scale_percent (RmemoryScalePercent,
+core_scale_percent (RcoreScalePercent0
+core_budget_additive (RcoreBudgetAdditive,
+node_config_digest (	RnodeConfigDigest6
+scheduler_config_digest (	RschedulerConfigDigest%
+recipe_version (	RrecipeVersion'
+baseline_digest (	RbaselineDigest@
+verification (2.accelerator.v1.VerificationRverification"/
+NodeRef
+uid (	Ruid
+name (	Rname"å
+Cluster
+
+cluster_id (	R	clusterId!
+display_name (	RdisplayName%
+connection_ref (	RconnectionRef
+version (Rversion"ù
+RegisterClusterRequest9
+mutation (2.accelerator.v1.AdminMutationRmutation!
+display_name (	RdisplayName%
+connection_ref (	RconnectionRef"t
+ListClustersRequest3
+context (2.accelerator.v1.AdminReadRcontext(
+page (2.accelerator.v1.PageRpage"d
+ListClustersResponse-
+items (2.accelerator.v1.ClusterRitems
+
+next_token (	R	nextToken"a
+Pool
+pool_id (	RpoolId
+
+cluster_id (	R	clusterId!
+display_name (	RdisplayName"ê
+CreatePoolRequest9
+mutation (2.accelerator.v1.AdminMutationRmutation
+
+cluster_id (	R	clusterId!
+display_name (	RdisplayName"ê
+ListPoolsRequest3
+context (2.accelerator.v1.AdminReadRcontext
+
+cluster_id (	R	clusterId(
+page (2.accelerator.v1.PageRpage"^
+ListPoolsResponse*
+items (2.accelerator.v1.PoolRitems
+
+next_token (	R	nextToken"”
+SupplyGroup
+group_id (	RgroupId
+pool_id (	RpoolId
+
+cluster_id (	R	clusterId!
+display_name (	RdisplayName.
+mode (2.accelerator.v1.SupplyModeRmode-
+nodes (2.accelerator.v1.NodeRefRnodes
+	model_key (	RmodelKey<
+baseline (2 .accelerator.v1.ProviderBaselineRbaseline<
+	admission	 (2.accelerator.v1.AdmissionStateR	admission
+
+queue_name
+ (	R	queueName
+version (Rversion
+
+adopted_at (	R	adoptedAt"È
+AdoptSupplyGroupRequest9
+mutation (2.accelerator.v1.AdminMutationRmutation
+pool_id (	RpoolId!
+display_name (	RdisplayName.
+mode (2.accelerator.v1.SupplyModeRmode-
+nodes (2.accelerator.v1.NodeRefRnodes
+	model_key (	RmodelKey<
+baseline (2 .accelerator.v1.ProviderBaselineRbaseline
+
+queue_name (	R	queueName"ë
+ListSupplyGroupsRequest3
+context (2.accelerator.v1.AdminReadRcontext
+pool_id (	RpoolId(
+page (2.accelerator.v1.PageRpage"l
+ListSupplyGroupsResponse1
+items (2.accelerator.v1.SupplyGroupRitems
+
+next_token (	R	nextToken"Ë
+SetAdmissionRequest9
+mutation (2.accelerator.v1.AdminMutationRmutation
+group_id (	RgroupId)
+expected_version (RexpectedVersion8
+desired (2.accelerator.v1.AdmissionStateRdesired
+reason (	Rreason"Ø
+ProfileSpec
+group_id (	RgroupId.
+mode (2.accelerator.v1.SupplyModeRmode
+	model_key (	RmodelKey*
+shared_memory_mib (RsharedMemoryMib,
+core_limit_percent (RcoreLimitPercent5
+max_devices_per_replica (RmaxDevicesPerReplica'
+isolation_class (	RisolationClass"à
+
+GpuProfile
+
+profile_id (	R	profileId'
+profile_version (RprofileVersion!
+display_name (	RdisplayName/
+spec (2.accelerator.v1.ProfileSpecRspec
+baseline_id (	R
+baselineId
+spec_digest (	R
+specDigest
+	published (R	published"á
+PublishProfileRequest9
+mutation (2.accelerator.v1.AdminMutationRmutation!
+display_name (	RdisplayName/
+spec (2.accelerator.v1.ProfileSpecRspec4
+expected_group_version (RexpectedGroupVersion)
+verification_ref (	RverificationRef"«
+ListProfilesRequest7
+context (2.accelerator.v1.TenantContextRcontext
+
+cluster_id (	R	clusterId.
+mode (2.accelerator.v1.SupplyModeRmode(
+page (2.accelerator.v1.PageRpage"g
+ListProfilesResponse0
+items (2.accelerator.v1.GpuProfileRitems
+
+next_token (	R	nextToken"ò
+AdminListProfilesRequest3
+context (2.accelerator.v1.AdminReadRcontext
+
+cluster_id (	R	clusterId(
+page (2.accelerator.v1.PageRpage"î
+GetProfileRequest7
+context (2.accelerator.v1.TenantContextRcontext
+
+profile_id (	R	profileId'
+profile_version (RprofileVersion"ˇ
+
+GpuRequest
+
+cluster_id (	R	clusterId
+pool_id (	RpoolId
+
+profile_id (	R	profileId'
+profile_version (RprofileVersion
+replicas (Rreplicas.
+devices_per_replica (RdevicesPerReplica%
+container_name (	RcontainerName"‰
+MemoryEncoding(
+memory_block_mib (RmemoryBlockMib7
+memory_blocks_per_device (RmemoryBlocksPerDevice*
+shared_memory_mib (RsharedMemoryMib+
+memory_percentage (RmemoryPercentage
+policy (	Rpolicy"§
+ResourceTotals0
+logical_device_count (RlogicalDeviceCount4
+exclusive_device_count (RexclusiveDeviceCount*
+shared_memory_mib (RsharedMemoryMib"ˆ
+RuntimeFragment%
+scheduler_name (	RschedulerName
+
+queue_name (	R	queueName9
+node_labels (2.accelerator.v1.KeyValueR
+nodeLabelsA
+pod_annotations (2.accelerator.v1.KeyValueRpodAnnotationsJ
+limits_per_container (2.accelerator.v1.KeyValueRlimitsPerContainer,
+runtime_class_name (	RruntimeClassName%
+recipe_version (	RrecipeVersion"©
+ResolvedGpuPlan%
+schema_version (RschemaVersion4
+request (2.accelerator.v1.GpuRequestRrequest4
+profile (2.accelerator.v1.GpuProfileRprofile:
+encoding (2.accelerator.v1.MemoryEncodingRencoding6
+totals (2.accelerator.v1.ResourceTotalsRtotals9
+runtime (2.accelerator.v1.RuntimeFragmentRruntime'
+baseline_digest (	RbaselineDigest+
+resolution_digest (	RresolutionDigest"Å
+ResolveGpuRequestRequest7
+context (2.accelerator.v1.TenantContextRcontext,
+gpu (2.accelerator.v1.GpuRequestRgpu"€
+DeviceCapacity
+	device_id (	RdeviceId#
+nominal_units (RnominalUnits2
+known_committed_units (RknownCommittedUnits(
+known_free_units (RknownFreeUnits3
+safe_memory_budget_mib (RsafeMemoryBudgetMib0
+committed_memory_mib (RcommittedMemoryMib4
+provider_memory_blocks (RproviderMemoryBlocks(
+memory_block_mib (RmemoryBlockMib.
+reported_memory_mib	 (RreportedMemoryMib
+complete
+ (Rcomplete
+issues (	Rissues"
+CapacityView
+
+profile_id (	R	profileId'
+profile_version (RprofileVersion.
+mode (2.accelerator.v1.SupplyModeRmode2
+physical_device_count (RphysicalDeviceCount#
+nominal_units (RnominalUnits2
+known_committed_units (RknownCommittedUnits(
+known_free_units (RknownFreeUnits8
+unplaced_requested_units (RunplacedRequestedUnits=
+observation	 (2.accelerator.v1.ObservationRobservation8
+devices
+ (2.accelerator.v1.DeviceCapacityRdevices"ï
+GetCapacityRequest7
+context (2.accelerator.v1.TenantContextRcontext
+
+profile_id (	R	profileId'
+profile_version (RprofileVersion"ø
+AdminGetCapacityRequest3
+context (2.accelerator.v1.AdminReadRcontext
+
+profile_id (	R	profileId'
+profile_version (RprofileVersion'
+include_devices (RincludeDevices"Í
+GpuFit1
+status (2.accelerator.v1.FitStatusRstatus-
+estimated_replicas (RestimatedReplicas%
+estimate_known (RestimateKnown
+reasons (	Rreasons=
+observation (2.accelerator.v1.ObservationRobservation"{
+CheckGpuFitRequest7
+context (2.accelerator.v1.TenantContextRcontext,
+gpu (2.accelerator.v1.GpuRequestRgpu"Ê
+PhysicalDevice
+	device_id (	RdeviceId
+
+cluster_id (	R	clusterId
+group_id (	RgroupId+
+node (2.accelerator.v1.NodeRefRnode(
+vendor_device_id (	RvendorDeviceId
+	model_key (	RmodelKey2
+physical_memory_bytes (RphysicalMemoryBytes
+health (	Rhealth=
+observation	 (2.accelerator.v1.ObservationRobservation"≠
+ListDevicesRequest3
+context (2.accelerator.v1.AdminReadRcontext
+
+cluster_id (	R	clusterId
+group_id (	RgroupId(
+page (2.accelerator.v1.PageRpage"j
+ListDevicesResponse4
+items (2.accelerator.v1.PhysicalDeviceRitems
+
+next_token (	R	nextToken"†
+GpuUsageRef
+	tenant_id (	RtenantId#
+owner_service (	RownerService
+resource_id (	R
+resourceId.
+create_operation_id (	RcreateOperationId"ì
+GpuUsageProjection-
+ref (2.accelerator.v1.GpuUsageRefRref
+revision (Rrevision0
+state (2.accelerator.v1.UsageStateRstate3
+plan (2.accelerator.v1.ResolvedGpuPlanRplan=
+
+end_reason (2.accelerator.v1.UsageEndReasonR	endReason&
+source_fact_ref (	RsourceFactRef=
+source_operation_created_at (	RsourceOperationCreatedAt%
+payload_digest (	RpayloadDigest"x
+SyncGpuUsageRequest
+
+request_id (	R	requestIdB
+
+projection (2".accelerator.v1.GpuUsageProjectionR
+projection"æ
+SyncGpuUsageResponse-
+ref (2.accelerator.v1.GpuUsageRefRref)
+applied_revision (RappliedRevision0
+state (2.accelerator.v1.UsageStateRstate
+replayed (Rreplayed"|
+GetGpuUsageRequest7
+context (2.accelerator.v1.TenantContextRcontext-
+ref (2.accelerator.v1.GpuUsageRefRref"–
+ListGpuUsagesRequest7
+context (2.accelerator.v1.TenantContextRcontext#
+owner_service (	RownerService0
+state (2.accelerator.v1.UsageStateRstate(
+page (2.accelerator.v1.PageRpage"p
+ListGpuUsagesResponse8
+items (2".accelerator.v1.GpuUsageProjectionRitems
+
+next_token (	R	nextToken"í
+PodRef
+
+cluster_id (	R	clusterId
+	namespace (	R	namespace
+name (	Rname
+uid (	Ruid%
+container_name (	RcontainerName"°
+
+GpuBinding
+
+binding_id (	R	bindingIdI
+verified_usage_ref (2.accelerator.v1.GpuUsageRefRverifiedUsageRef(
+pod (2.accelerator.v1.PodRefRpod,
+physical_device_id (	RphysicalDeviceId5
+state (2.accelerator.v1.AllocationStateRstate
+
+memory_mib (R	memoryMib,
+core_limit_percent (RcoreLimitPercent4
+source_baseline_digest (	RsourceBaselineDigest5
+source_memory_block_mib	 (RsourceMemoryBlockMib!
+evidence_ref
+ (	RevidenceRef=
+observation (2.accelerator.v1.ObservationRobservation"ß
+ListBindingsRequest7
+context (2.accelerator.v1.TenantContextRcontext-
+ref (2.accelerator.v1.GpuUsageRefRref(
+page (2.accelerator.v1.PageRpage"∆
+AdminListBindingsRequest3
+context (2.accelerator.v1.AdminReadRcontext
+
+cluster_id (	R	clusterId,
+physical_device_id (	RphysicalDeviceId(
+page (2.accelerator.v1.PageRpage"¶
+ListBindingsResponse0
+items (2.accelerator.v1.GpuBindingRitems
+
+next_token (	R	nextToken=
+observation (2.accelerator.v1.ObservationRobservation"¡
+ObserveReleaseRequest
+
+request_id (	R	requestId-
+ref (2.accelerator.v1.GpuUsageRefRref.
+delete_operation_id (	RdeleteOperationId*
+pods (2.accelerator.v1.PodRefRpods"ﬁ
+ReleaseObservation
+evidence_id (	R
+evidenceId-
+ref (2.accelerator.v1.GpuUsageRefRref8
+finding (2.accelerator.v1.ReleaseFindingRfinding&
+active_pod_uids (	RactivePodUids.
+uncertain_node_uids (	RuncertainNodeUids=
+observation (2.accelerator.v1.ObservationRobservation'
+evidence_digest (	RevidenceDigest*P
+
+SupplyMode
+SUPPLY_MODE_UNSPECIFIED 
+WHOLE_EXCLUSIVE
+SHARED_FIXED*U
+AdmissionState
+ADMISSION_UNSPECIFIED 
+ADMISSION_CLOSED
+ADMISSION_OPEN*b
+VerificationState
+VERIFICATION_UNSPECIFIED 
+NOT_VERIFIED
+VERIFIED
+UNSUPPORTED*B
+
+UsageState
+USAGE_STATE_UNSPECIFIED 
+DECLARED	
+ENDED*o
+UsageEndReason 
+USAGE_END_REASON_UNSPECIFIED 
+GOVERNANCE_CANCELED_UNSENT
+OWNER_RESOURCE_RELEASED*n
+AllocationState 
+ALLOCATION_STATE_UNSPECIFIED 
+
+ACTIVE
+RELEASE_CONFIRMED
+ALLOCATION_UNKNOWN*z
+	FitStatus
+FIT_STATUS_UNSPECIFIED 
+FIT_ESTIMATE
+WAIT_FOR_CAPACITY
+FIT_UNKNOWN
+REQUEST_UNSUPPORTED*}
+ReleaseFinding
+RELEASE_FINDING_UNSPECIFIED 
+ALLOCATION_RELEASED
+ALLOCATION_STILL_PRESENT
+RELEASE_UNKNOWN2∆
+AcceleratorAdminServiceR
+RegisterCluster&.accelerator.v1.RegisterClusterRequest.accelerator.v1.ClusterY
+ListClusters#.accelerator.v1.ListClustersRequest$.accelerator.v1.ListClustersResponseE
+
+CreatePool!.accelerator.v1.CreatePoolRequest.accelerator.v1.PoolP
+	ListPools .accelerator.v1.ListPoolsRequest!.accelerator.v1.ListPoolsResponseX
+AdoptSupplyGroup'.accelerator.v1.AdoptSupplyGroupRequest.accelerator.v1.SupplyGroupe
+ListSupplyGroups'.accelerator.v1.ListSupplyGroupsRequest(.accelerator.v1.ListSupplyGroupsResponseP
+SetAdmission#.accelerator.v1.SetAdmissionRequest.accelerator.v1.SupplyGroupS
+PublishProfile%.accelerator.v1.PublishProfileRequest.accelerator.v1.GpuProfilec
+AdminListProfiles(.accelerator.v1.AdminListProfilesRequest$.accelerator.v1.ListProfilesResponsec
+AdminListBindings(.accelerator.v1.AdminListBindingsRequest$.accelerator.v1.ListBindingsResponseV
+ListDevices".accelerator.v1.ListDevicesRequest#.accelerator.v1.ListDevicesResponseY
+AdminGetCapacity'.accelerator.v1.AdminGetCapacityRequest.accelerator.v1.CapacityView2ø
+AcceleratorCatalogServiceY
+ListProfiles#.accelerator.v1.ListProfilesRequest$.accelerator.v1.ListProfilesResponseK
+
+GetProfile!.accelerator.v1.GetProfileRequest.accelerator.v1.GpuProfile^
+ResolveGpuRequest(.accelerator.v1.ResolveGpuRequestRequest.accelerator.v1.ResolvedGpuPlanO
+GetCapacity".accelerator.v1.GetCapacityRequest.accelerator.v1.CapacityViewI
+CheckGpuFit".accelerator.v1.CheckGpuFitRequest.accelerator.v1.GpuFit2·
+AcceleratorUsageServiceY
+SyncGpuUsage#.accelerator.v1.SyncGpuUsageRequest$.accelerator.v1.SyncGpuUsageResponseU
+GetGpuUsage".accelerator.v1.GetGpuUsageRequest".accelerator.v1.GpuUsageProjection\
+ListGpuUsages$.accelerator.v1.ListGpuUsagesRequest%.accelerator.v1.ListGpuUsagesResponseY
+ListBindings#.accelerator.v1.ListBindingsRequest$.accelerator.v1.ListBindingsResponse[
+ObserveRelease%.accelerator.v1.ObserveReleaseRequest".accelerator.v1.ReleaseObservationBZZXgithub.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1;acceleratorv1bproto3“ˆ  
+Æ
+5accelerator/integration/v1/owner_gpu_attachment.protoaccelerator.integration.v1 accelerator/v1/accelerator.proto"q
+GpuChargeRef
+	charge_id (	RchargeId
+
+quota_code (	R	quotaCode%
+original_units (RoriginalUnits"É
+GpuOwnerCreateAttachment-
+ref (2.accelerator.v1.GpuUsageRefRref+
+actor (2.accelerator.v1.ActorRactor!
+request_hash (	RrequestHash:
+gpu_plan (2.accelerator.v1.ResolvedGpuPlanRgpuPlanI
+gpu_charges (2(.accelerator.integration.v1.GpuChargeRefR
+gpuCharges6
+business_payload_digest (	RbusinessPayloadDigest)
+metering_version (	RmeteringVersion"ù
+GpuOwnerDeleteAttachment.
+delete_operation_id (	RdeleteOperationId-
+ref (2.accelerator.v1.GpuUsageRefRref+
+actor (2.accelerator.v1.ActorRactor!
+request_hash (	RrequestHashZ
+original_gpu_charges (2(.accelerator.integration.v1.GpuChargeRefRoriginalGpuChargesK
+original_gpu_plan (2.accelerator.v1.ResolvedGpuPlanRoriginalGpuPlan)
+metering_version (	RmeteringVersion"q
+DurableOwnerAck!
+operation_id (	RoperationId
+resource_id (	R
+resourceId
+accepted (Raccepted"≤
+GpuDeleteAcceptance.
+delete_operation_id (	RdeleteOperationId
+resource_id (	R
+resourceId
+result (	Rresult2
+dispatch_operation_id (	RdispatchOperationIdBfZdgithub.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/integration/v1;integrationv1bproto3“ˆ  

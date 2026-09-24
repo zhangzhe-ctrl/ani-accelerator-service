@@ -1,0 +1,8 @@
+{
+  "status": "pass",
+  "command": "make verify",
+  "orchestrator_exec_session": "82180",
+  "observed_ssh_exit_code": 0,
+  "exit_receipt_note": "The SSH exec completion returned exit 0. Its final executed command was make verify; stdin-consuming subprocesses consumed the subsequent shell receipt statements, so the orchestrator recorded the returned exit code afterward. verify.log reaches final git diff --check.",
+  "runtime_change": false
+}

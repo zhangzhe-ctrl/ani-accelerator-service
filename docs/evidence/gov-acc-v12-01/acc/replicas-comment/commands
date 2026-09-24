@@ -1,0 +1,1 @@
+make api (twice); buf build api/protos --exclude-source-info; cmp descriptors and generation manifests; make verify
