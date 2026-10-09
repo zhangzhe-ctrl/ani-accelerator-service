@@ -82,4 +82,10 @@ ObserveRelease 不以投影存在为前置。必须传原 ref、明确 DELETE op
 
 Inference 负责封闭实际创建执行点、查清所有在途写、终止生成、删除完整工作负载并清理 GPU 分配，再可靠调用既有 `quota.service.v1.QuotaReleaseService/ReportQuotaRelease`。必须用原 CREATE operation 和完整原 GPU charge 向量，全量累计 released_total；明确 DELETE 且整实例完成后报告，普通退出、失败、重启、部分 Pod 清理均不退额。Accelerator 不实现同名替代服务，也不是该业务 charge 的退款 owner。
 
-GOV-ACC-V12-01 在 Governance 实现公共 GPU 受理、权限/BFF、通用账本投递、释放校验与独立使用同步；其具体交付版本和逐项软件证据见本批验收记录。真实 Inference/其他 owner 的业务 API、正式 adapter、实际执行与完整清理仍为后续接入项。独立持久化测试 owner 仅验证软件合同，不进入生产装配，不能替代正式 owner 业务闭环。
+GOV-ACC-V12-01 在 Governance 实现公共 GPU 受理、权限/BFF、通用账本投递、释放校验与独立使用同步。后续 `GOV-ACC-INF-V12-WIRING-01` 的三方接入导航如下；软件验证、接口发布和环境验收结论由[本批唯一结果索引](../plans/governance-accelerator-inference-v1.2-acceptance.md)维护，不从历史 PASS 推导。
+
+- Governance 公开退额 provider 为 Go 模块 `github.com/zhangzhe-ctrl/ani-governance/api/quota`，本批发布版本 `v0.0.0-20261009133356-1ab461604c74`，包 `gen/go/quota/service/v1`。其 [发布源](https://github.com/zhangzhe-ctrl/ani-governance/tree/1ab461604c74/api/quota) 定义 `QuotaReleaseService/ReportQuotaRelease`；正式消费使用 `GOWORK=off` 和锁定 module/sum，不使用兄弟目录 replace 或另建退额服务。
+- Governance 的正式业务受理、当前权限、adapter、固定 owner 退款 DNS 与运维入口见兄弟仓的 [GPU owner 接入指南](../../../ani-governance/docs/contracts/gpu-owner-integration-guide.md)。Inference 的可信 mTLS intake、原始 PG context、原子命令/ACK、真实退额客户端和部署字段见兄弟仓的 [managed GPU owner handoff](../../../ani-inference-service/docs/contracts/managed-gpu-owner-handoff.md)。ACK 只证明持久接受；受控注入退额不能证明实际清理完成。
+- **C02 的 KServe LWS 参数交接仍阻塞**：锁定 KServe v0.16.0 的 LLMI 不支持必需的 LWS 顶层 Volcano Queue 和 leader/worker GPU metadata 投影。事后 patch 不能保证首次调度且可能被 reconcile 覆盖；原始主源链接与缺失同步入口见 Inference handoff。不得以 unsupported `spec.annotations`、render 成功或软件受理替代实际 LWS 参数交接。固定副本 Deployment 的软件投影与 CPU LWS 按其各自支持范围判断，不能扩大为 C02 完成。
+
+Inference 仍负责实际 workload/model readiness、创建封闭与所有在途写、可信 Pod 身份和完整替换历史、GPU 清理与 ObserveRelease、持久关闭事实、可靠通知触发/重试及真实环境恢复。Accelerator 继续只拥有供给、计划、只读观察和使用投影，不代写这些业务事实。独立持久化测试 owner 仅验证软件合同，不进入生产装配，不能替代正式 owner 业务闭环。
