@@ -14,6 +14,8 @@
 
 执行前停下本服务写入，确认目标数据库与迁移 owner，使用 `pg_dump -Fc` 保存恢复点。将 PGHOST/PGPORT/PGDATABASE/PGUSER 和 PGPASSFILE 配置到操作者环境，不把密码放命令行或日志。由独立迁移 owner 执行 `bash scripts/migrate 0001`；`migrations/0001_accelerator.sql` 在单一事务中建 schema，版本 1，不对已有 schema 做猜测性升级。失败回滚后检查版本和恢复点，不重复绕过错误。
 
+当前实例 owner 接入的 runtime 要求 schema 3：新库依次显式执行 `0001`、`0002`、`0003`；现有 schema 2 从恢复点执行 `bash scripts/migrate 0003`。该事务只将 usages/claims/release_proofs 的固定 owner 集合扩为 Inference 与 Resource，保留原身份 JSON、租户、原 CREATE 和 FK 约束。应用不自动升级，不接受未迁移 schema；恢复旧二进制还需恢复与其匹配的数据库恢复点，不能只恢复启动配置或手改版本记录。
+
 运行角色与 schema/table owner 分开，禁止 SUPERUSER/CREATEDB/CREATEROLE 与数据库/schema CREATE，以及任何表所有权。示例授权使用已审核的实际角色名：
 
 ```sql

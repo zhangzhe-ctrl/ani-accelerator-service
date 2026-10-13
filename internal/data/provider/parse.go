@@ -107,10 +107,12 @@ func ParseHandshake(s string) (time.Time, error) {
 }
 func ParseAssignedTime(s string) (time.Time, error) {
 	n, err := strconv.ParseInt(s, 10, 64)
-	if err != nil || n <= 0 {
+	// Volcano writes time.Now().Unix(), including both reviewed scheduler
+	// releases. Reject nanosecond-shaped values instead of guessing the unit.
+	if err != nil || n <= 0 || n > 253402300799 || strconv.FormatInt(n, 10) != s {
 		return time.Time{}, biz.Invalid("PROVIDER_TIME_INVALID")
 	}
-	return time.Unix(0, n).UTC(), nil
+	return time.Unix(n, 0).UTC(), nil
 }
 func PhysicalID(cluster, node, uuid string) string {
 	// Deterministic UUIDv8 bound to cluster, Node UID and actual NVIDIA UUID.

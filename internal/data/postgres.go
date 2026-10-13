@@ -51,7 +51,7 @@ func (p *Postgres) CheckRuntime(ctx context.Context) error {
 	if err != nil {
 		return biz.Precondition("MIGRATION_REQUIRED")
 	}
-	if version != 2 {
+	if version != 3 {
 		return biz.Precondition("SCHEMA_VERSION_UNSUPPORTED")
 	}
 	restricted, err := q.RuntimeRestricted(ctx)

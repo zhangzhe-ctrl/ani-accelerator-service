@@ -102,6 +102,19 @@ func TestUNIT04NormalizeOnce(t *testing.T) {
 	requireReason(t, err, "MEMORY_GRANULARITY_MISMATCH")
 }
 func TestUNIT05UnknownFactorAndBaseline(t *testing.T) {
+	for _, version := range []string{"v1.12.0", "v1.15.2"} {
+		b := baselineForTest(1024, Shared)
+		b.VolcanoVersion = version
+		b.BaselineDigest, _ = BaselineDigest(b)
+		if err := ValidateSpec(testSpec(Shared), b); err != nil {
+			t.Fatal("reviewed scheduler/plugin contract rejected", version, err)
+		}
+		b.DevicePluginVersion = "v1.15.2"
+		requireReason(t, ValidateSpec(testSpec(Shared), b), "BASELINE_UNSUPPORTED")
+	}
+	bUnknown := baselineForTest(1024, Shared)
+	bUnknown.VolcanoVersion = "v1.16.0"
+	requireReason(t, ValidateSpec(testSpec(Shared), bUnknown), "BASELINE_UNSUPPORTED")
 	for _, f := range []uint32{0, math.MaxUint32} {
 		b := baselineForTest(f, Shared)
 		requireReason(t, ValidateSpec(testSpec(Shared), b), "MEMORY_UNIT_UNVERIFIED")
@@ -175,6 +188,17 @@ func TestSyncProjectionFactsAndTerminalShape(t *testing.T) {
 	if err := ValidateProjection(p); err != nil {
 		t.Fatal(err)
 	}
+	p.Ref.OwnerService = "ani-resource-service"
+	p.PayloadDigest, _ = ProjectionDigest(p)
+	if err := ValidateProjection(p); err != nil {
+		t.Fatal("Resource ENDED projection rejected", err)
+	}
+	p.Ref.OwnerService = "unknown-owner"
+	p.PayloadDigest, _ = ProjectionDigest(p)
+	if err := ValidateProjection(p); err == nil {
+		t.Fatal("unknown owner projection accepted")
+	}
+	p.Ref.OwnerService = "ani-resource-service"
 	p.SourceFactRef = "receipt:any"
 	p.PayloadDigest, _ = ProjectionDigest(p)
 	requireReason(t, ValidateProjection(p), "INVALID_SOURCE_FACT")

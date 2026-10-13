@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -31,6 +32,16 @@ func TestPinnedUpstreamFormats(t *testing.T) {
 	}
 	if _, err = ParseHandshake(""); err == nil {
 		t.Fatal("missing source time accepted")
+	}
+	want := time.Date(2026, 10, 13, 0, 0, 0, 0, time.UTC)
+	got, err := ParseAssignedTime(strconv.FormatInt(want.Unix(), 10))
+	if err != nil || !got.Equal(want) {
+		t.Fatal("Volcano Unix seconds changed allocation chronology", got, err)
+	}
+	for _, bad := range []string{"", "0", "-1", "+1", "1.5", strconv.FormatInt(want.UnixNano(), 10)} {
+		if _, err = ParseAssignedTime(bad); err == nil {
+			t.Fatal("invalid allocation time accepted", bad)
+		}
 	}
 }
 func TestRuntimeLimitsAreMiBNotBlocks(t *testing.T) {

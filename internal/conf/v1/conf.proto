@@ -47,6 +47,8 @@ message Accelerator {
   string attestations_dir = 5;
   string attestation_public_key_file = 6;
   string owner_public_key_file = 7;
+  // Optional Resource instance signing key; never reuses the Inference key.
+  string resource_owner_public_key_file = 8;
 }
 
 message Server {

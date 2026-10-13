@@ -101,8 +101,15 @@ func TestJointPersistentRuntime(t *testing.T) {
 	}
 	readJointJSON(t, filepath.Join(root, "seed.json"), &seed)
 	process.kill(t)
-	tenant := "11111111-1111-4111-8111-111111111111"
-	cfg.Security.Grants = append(cfg.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: "1", Actions: tenantActions, TenantIds: []string{tenant}, ClusterIds: []string{seed.Cluster.ClusterID}})
+	tenant := os.Getenv("ACC_JOINT_TENANT")
+	if tenant == "" {
+		tenant = "11111111-1111-4111-8111-111111111111"
+	}
+	actor := os.Getenv("ACC_JOINT_TENANT_ACTOR")
+	if actor == "" {
+		actor = "1"
+	}
+	cfg.Security.Grants = append(cfg.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: actor, Actions: tenantActions, TenantIds: []string{tenant}, ClusterIds: []string{seed.Cluster.ClusterID}})
 	process = startChild(t, runtime, connection, marker)
 	writeJointJSON(t, filepath.Join(root, "ready.json"), map[string]any{"address": grpcAddr, "server_name": "ani-accelerator", "ca_file": pki.CAFile, "gov_cert_file": govCert, "gov_key_file": govKey, "owner_cert_file": ownerCert, "owner_key_file": ownerKey, "config_file": runtime.WriteConfig(t), "connection_ref": connection, "tenant_id": tenant, "actor_type": "user", "actor_id": "1", "cluster_id": seed.Cluster.ClusterID, "seed_file": filepath.Join(root, "seed.json"), "dsn_file": cfg.Database.DsnFile, "scope": "test-only B layer; no hardware evidence"})
 	t.Log("B-layer helper ready; remove only task-owned resources after consumers stop")

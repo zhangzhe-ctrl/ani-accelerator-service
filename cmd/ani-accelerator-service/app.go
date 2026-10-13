@@ -49,6 +49,15 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 	if err != nil {
 		return nil, err
 	}
+	if path := bc.Accelerator.ResourceOwnerPublicKeyFile; path != "" {
+		key, err := provider.ReadPublicKey(path)
+		if err != nil {
+			return nil, err
+		}
+		if err = reader.ConfigureResourceOwnerKey(key); err != nil {
+			return nil, err
+		}
+	}
 	key, err := os.ReadFile(bc.Security.CursorKeyFile)
 	if err != nil {
 		return nil, biz.Invalid("CURSOR_KEY_UNAVAILABLE")

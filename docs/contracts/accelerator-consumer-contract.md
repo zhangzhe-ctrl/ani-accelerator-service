@@ -8,7 +8,7 @@
 
 Gov 管理/租户调用携带单值 metadata：`x-ani-action`（RPC 短方法名）、`x-ani-actor-type`、`x-ani-actor-id`；租户调用再携带 `x-ani-tenant-id`（资源租户 UUID）。这些值必须与请求 `context.actor/tenant_id` 一致，并命中服务启动配置中该 actor 的精确动作与 tenant/cluster grant。平台 grant 不含 tenant，可以明确配置 cluster `*`；租户 grant 必须列出准确 cluster UUID，不接受 `*`、`0` 或伪造 tenant。配置改动须由部署配置流程完成，不开放 RPC 自授权限。
 
-`SyncGpuUsage` 只允许精确 Gov 身份；消息中的 owner 固定 `ani-inference`。`ObserveRelease` 只允许精确 Inference 身份，并携带 `x-ani-tenant-id` 与 ref 一致。释放核对还要求实际 Pod 范围的可信 owner 断言，单靠请求自报 tenant/owner 不成立。
+`SyncGpuUsage` 只允许精确 Gov 身份；消息中的 owner 固定登记为 `ani-inference` 或 `ani-resource-service`，其他值拒绝。Resource 实例由 Gov 同步原账投影，没有新增 Resource 直接调用 `ObserveRelease` 的授权。`ObserveRelease` 仍只允许精确 Inference 身份，并携带 `x-ani-tenant-id` 与 ref 一致。释放核对还要求实际 Pod 范围的可信 owner 断言，单靠请求自报 tenant/owner 不成立。
 
 | RPC | 直接调用者/委托 | 关键输入来源与行为 |
 |---|---|---|
@@ -77,6 +77,10 @@ Sync 网络失败/Unavailable 可退避重试原报文；ACK 只代表投影持�
 创建/删除消息附件使用 `api/protos/accelerator/integration/v1/owner_gpu_attachment.proto`，嵌入真实 Inference 业务请求，不新建虚构 owner 业务服务。Gov 传可信 ref/actor、完整冻结 plan、原规范请求摘要、全部 GPU charge、完整业务 payload digest、`gpu-metering-v1`。charge 按 quota_code/charge_id 匹配，不依赖数组顺序；共享代码为 `gpu.shared_memory_mib`，整卡为 `gpu.physical.count`，单位为原始整数。DurableOwnerAck 只证明命令持久接受，必须核对 operation_id/resource_id/accepted。
 
 为避免仅凭可伪造 Pod 标签推租户，owner 须在实际 Pod UID 已知后给 GPU 容器对应 Pod 加签名断言：标签采用原设计四个 `accelerator.ani.io/{resource-tenant-id,owner-service,resource-id,create-operation-id}`，注解为 `accelerator.ani.io/plan-digest` 与 `accelerator.ani.io/owner-signature`。签名是 Ed25519，载荷为 ASCII `acc-owner-pod-v1` + LF + acc-c14n-v1 **规范 JSON 本身**（不加 canonical 哈希前缀），对象 `{pod:完整PodRef,ref:完整GpuUsageRef,plan_digest:string}`；标准 Base64 编码签名。服务配置只存 owner 公钥。未签名/不匹配的实际占用仍计容量，保持未关联；签名断言与持久投影匹配后才能出现在租户 Binding 列表。签名不含凭据，额外容器仍不被合同允许。
+
+Resource 实例固定 `replicas=1`、`devices_per_replica=1` 和主容器 `workspace`，通过 Notebook 完整投影原 plan。`resource_owner_public_key_file` 为可选受管绝对路径，存 Resource 的独立 Base64 Ed25519 公钥；它不能使用 Inference 公钥验证 Resource owner。未配置时 Resource 实际占用仍计容量、保持未关联。查询 ref/owner filter 和 Gov 同步支持该固定 owner，使用终态不等于物理分配已清空。
+
+Resource 由自身持久删除/未知结果规则决定计算已清理后可靠发送原 CREATE 的完整 GPU 子集；专属 PVC 失败继续重试，整体实例删除仍未完成。Gov 对合法 owner 原账声明做租户、原 charge、全向量、累计幂等和事务校验，不查询 Notebook/Pod，也不以额外 DELETE 记录二次批准退额。本合同的 Inference workload 清理职责保持；实例当前结果由 Resource 的 `docs/execution/status.md` 维护。
 
 ObserveRelease 不以投影存在为前置。必须传原 ref、明确 DELETE operation UUID、所有当前与替换历史的实际 Pod UID/container 范围；空范围拒绝。只读核对返回 STILL_PRESENT、UNKNOWN 或 ALLOCATION_RELEASED。后者仅证明指定实际范围有受控解除事实，不证明 owner 完整范围、已停止未来创建、没有未知在途副作用或可退款。API 强删/NotFound、节点失联、单次缺项、来源冲突均不能单独证明释放。
 

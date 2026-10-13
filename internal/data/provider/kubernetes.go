@@ -151,7 +151,8 @@ type metadata struct {
 type node struct {
 	Metadata metadata `json:"metadata"`
 	Status   struct {
-		Conditions []struct {
+		Allocatable map[string]string `json:"allocatable"`
+		Conditions  []struct {
 			Type              string `json:"type"`
 			Status            string `json:"status"`
 			LastHeartbeatTime string `json:"lastHeartbeatTime"`

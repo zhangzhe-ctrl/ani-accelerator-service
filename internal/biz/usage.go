@@ -69,7 +69,7 @@ func (u *Usecase) ListUsages(ctx context.Context, a *TenantContext, owner string
 	if err := AuthorizeTenant(ctx, a, "ListGpuUsages"); err != nil {
 		return nil, err
 	}
-	if (owner != "" && owner != "ani-inference") || (state != 0 && state != Declared && state != Ended) {
+	if (owner != "" && owner != "ani-inference" && owner != "ani-resource-service") || (state != 0 && state != Declared && state != Ended) {
 		return nil, Invalid("INVALID_USAGE_FILTER")
 	}
 	res, err := listPage(ctx, u, page, "ListGpuUsages", []any{owner, state}, func(r Reader, after string, n int) ([]UsageProjection, error) {

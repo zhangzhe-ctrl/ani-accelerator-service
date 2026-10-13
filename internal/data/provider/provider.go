@@ -9,16 +9,28 @@ import (
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"k8s.io/apimachinery/pkg/api/resource"
 	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
 )
 
 type Provider struct {
-	connections map[string]*kubeReader
-	inventory   inventoryReader
-	evidence    *EvidenceStore
-	ownerKey    ed25519.PublicKey
-	repo        biz.Repository
-	freshness   time.Duration
+	connections      map[string]*kubeReader
+	inventory        inventoryReader
+	evidence         *EvidenceStore
+	ownerKey         ed25519.PublicKey
+	resourceOwnerKey ed25519.PublicKey
+	repo             biz.Repository
+	freshness        time.Duration
+}
+
+// ConfigureResourceOwnerKey is called once by composition before collection.
+// A missing Resource key leaves its live allocations unassociated, still counted.
+func (p *Provider) ConfigureResourceOwnerKey(key ed25519.PublicKey) error {
+	if len(key) != ed25519.PublicKeySize {
+		return biz.Invalid("RESOURCE_OWNER_KEY_INVALID")
+	}
+	p.resourceOwnerKey = append(ed25519.PublicKey(nil), key...)
+	return nil
 }
 
 func New(config Config, evidence *EvidenceStore, ownerKey ed25519.PublicKey, repo biz.Repository, freshness time.Duration) (*Provider, error) {
@@ -92,6 +104,17 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 		}
 		if found == nil || !online(*found, time.Now(), p.freshness) {
 			return inspection, biz.Precondition("NODE_UNKNOWN")
+		}
+		if g.Baseline.VolcanoVersion == "v1.15.2" {
+			// This scheduler ignores the register annotation unless all three
+			// device-plugin resources are present and positive in Allocatable.
+			for _, name := range []string{"volcano.sh/vgpu-number", "volcano.sh/vgpu-memory", "volcano.sh/vgpu-cores"} {
+				quantity, err := resource.ParseQuantity(found.Status.Allocatable[name])
+				value, exact := quantity.AsInt64()
+				if err != nil || !exact || value <= 0 {
+					return inspection, biz.Precondition("CONFIG_DRIFT")
+				}
+			}
 		}
 		ds, err := ParseNodeDevices(found.Metadata.Annotations[NodeRegister])
 		if err != nil {
@@ -377,7 +400,7 @@ func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node No
 				return nil, biz.Invalid("PROVIDER_DEVICE_IDENTITY")
 			}
 			podRef := biz.PodRef{ClusterID: cluster, Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, UID: pod.Metadata.UID, ContainerName: container.Name}
-			ref, plan := VerifyOwnerAssertion(podRef, pod.Metadata.Labels, pod.Metadata.Annotations, p.ownerKey)
+			ref, plan := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
 			m, err := biz.NormalizeMemory(a.MemoryBlocks, "BLOCKS", g.Baseline.MemoryBlockMiB)
 			if err != nil {
 				return nil, err
@@ -415,6 +438,14 @@ func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node No
 		}
 	}
 	return claims, nil
+}
+
+func (p *Provider) verifyOwner(pod biz.PodRef, labels, annotations map[string]string) (*biz.UsageRef, string) {
+	key := p.ownerKey
+	if labels["accelerator.ani.io/owner-service"] == "ani-resource-service" {
+		key = p.resourceOwnerKey
+	}
+	return VerifyOwnerAssertion(pod, labels, annotations, key)
 }
 func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeSource, snapshot nodeSnapshot, nodeOnline bool, now time.Time) ([]biz.ReleaseProof, error) {
 	if !nodeOnline || !snapshot.ResourcesOK || !snapshot.RuntimeOK {

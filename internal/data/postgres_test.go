@@ -239,11 +239,22 @@ func TestPostgresProjectionOrderConflictAndRestart(t *testing.T) {
 	t.Log("SYNC-RX-01/02/03: parallel terminal-first delivery, stale revision and create-operation resurrection; DB persistence across connections")
 }
 func TestPostgresBindingsBeforeProjectionAndScopedRelease(t *testing.T) {
+	for _, owner := range []string{"ani-inference", "ani-resource-service"} {
+		t.Run(owner, func(t *testing.T) { testOwnerBindingsBeforeProjectionAndScopedRelease(t, owner) })
+	}
+}
+func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerService string) {
 	f := pgSetup(t)
 	p := f.projection(1)
+	p.Ref.OwnerService = ownerService
+	if ownerService == "ani-resource-service" {
+		p.Plan.Request.ContainerName = "workspace"
+		p.Plan.ResolutionDigest, _ = biz.PlanDigest(p.Plan)
+	}
+	p.PayloadDigest, _ = biz.ProjectionDigest(p)
 	now := time.Now().UTC()
 	device := biz.NewID()
-	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "pod", UID: "pod-" + biz.NewID(), ContainerName: "inference"}
+	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "pod", UID: "pod-" + biz.NewID(), ContainerName: p.Plan.Request.ContainerName}
 	d := biz.DeviceRecord{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &f.group.Nodes[0], VendorDeviceID: "GPU-test", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24, MemoryBlockMiB: 1024, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest}
 	batch := biz.ObservationBatch{ClusterID: f.cluster.ClusterID, Devices: []biz.DeviceRecord{d}}
 	for _, source := range []string{"scheduler", "allocation", "runtime"} {
@@ -280,7 +291,7 @@ func TestPostgresBindingsBeforeProjectionAndScopedRelease(t *testing.T) {
 	if err != nil || capacity.KnownCommittedUnits != 1 || capacity.KnownFreeUnits != 3 {
 		t.Fatal(capacity, err)
 	}
-	owner := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-inference", Action: "ObserveRelease", TenantID: p.Ref.TenantID})
+	owner := biz.WithCaller(context.Background(), biz.Caller{Service: ownerService, Action: "ObserveRelease", TenantID: p.Ref.TenantID})
 	obs, err := f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), []biz.PodRef{pod})
 	if err != nil || obs.Finding != biz.StillPresent {
 		t.Fatal(obs, err)

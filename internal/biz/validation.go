@@ -72,7 +72,7 @@ func ValidateRef(r *UsageRef) error {
 	if r == nil || !UUID(r.TenantID) || !UUID(r.ResourceID) || !UUID(r.CreateOperationID) {
 		return Invalid("INVALID_USAGE_REF")
 	}
-	if r.OwnerService != "ani-inference" {
+	if r.OwnerService != "ani-inference" && r.OwnerService != "ani-resource-service" {
 		return Invalid("OWNER_UNSUPPORTED")
 	}
 	return nil
@@ -96,7 +96,9 @@ func ValidateBaseline(b *ProviderBaseline, mode SupplyMode) error {
 	if mode != Whole && mode != Shared {
 		return Invalid("SHAPE_UNSUPPORTED")
 	}
-	if !UUID(b.BaselineID) || b.AdapterID != "volcano-hami-factor-v1" || b.VolcanoVersion != "v1.12.0" || b.DevicePluginVersion != "v1.12.0" || b.RecipeVersion != "volcano-hami-v1" || b.MemoryEncoding != "VOLCANO_BLOCKS_TO_MIB" {
+	// These are reviewed source contracts, not hardware verification. Scheduler
+	// and device-plugin releases are independent; unknown combinations stay closed.
+	if !UUID(b.BaselineID) || b.AdapterID != "volcano-hami-factor-v1" || (b.VolcanoVersion != "v1.12.0" && b.VolcanoVersion != "v1.15.2") || b.DevicePluginVersion != "v1.12.0" || b.RecipeVersion != "volcano-hami-v1" || b.MemoryEncoding != "VOLCANO_BLOCKS_TO_MIB" {
 		return Precondition("BASELINE_UNSUPPORTED")
 	}
 	if !imageDigest(b.VolcanoImageDigest) || !imageDigest(b.DevicePluginImageDigest) || !Ref(b.HamiCoreRevision) || !Ref(b.FactorEvidenceRef) || !Digest(b.NodeConfigDigest) || !Digest(b.SchedulerConfigDigest) {

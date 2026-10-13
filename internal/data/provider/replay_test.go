@@ -124,6 +124,12 @@ func unixServer(t *testing.T, name string, register func(*grpc.Server)) string {
 }
 
 func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
+	for _, version := range []string{"v1.12.0", "v1.15.2"} {
+		t.Run(version, func(t *testing.T) { providerControlledSources(t, version) })
+	}
+}
+
+func providerControlledSources(t *testing.T, schedulerVersion string) {
 	path := os.Getenv("ACC_TEST_DSN_FILE")
 	if path == "" {
 		t.Skip("requires isolated PostgreSQL")
@@ -142,6 +148,7 @@ func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
 	cm := map[string]any{"data": map[string]string{"config.yaml": "constructed-source-fixture: true"}, "binaryData": nil}
 	configDigest, _ := biz.Hash(cm)
 	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-replay", MemoryBlockMiB: 1024, FactorEvidenceRef: "replay:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: configDigest, SchedulerConfigDigest: configDigest, RecipeVersion: "volcano-hami-v1"}
+	b.VolcanoVersion = schedulerVersion
 	b.BaselineDigest, _ = biz.BaselineDigest(b)
 	g := biz.SupplyGroup{GroupID: groupID, PoolID: pool.PoolID, ClusterID: cluster.ClusterID, DisplayName: "replay", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: nodeUID, Name: "replay-node"}}, ModelKey: "nvidia-test", Baseline: b, Admission: biz.Closed, QueueName: "gpu", Version: 1, AdoptedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	spec := &biz.ProfileSpec{GroupID: groupID, Mode: biz.Shared, ModelKey: g.ModelKey, SharedMemoryMiB: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}
@@ -179,11 +186,22 @@ func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
 		switch {
 		case r.URL.Path == "/api/v1/nodes":
 			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24,NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4,24,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
+			status := response.(map[string]any)["items"].([]any)[0].(map[string]any)["status"].(map[string]any)
+			if fault != "allocatable" {
+				status["allocatable"] = map[string]string{"volcano.sh/vgpu-number": "8", "volcano.sh/vgpu-memory": "48", "volcano.sh/vgpu-cores": "200"}
+			}
+			if fault == "allocatable_zero" {
+				status["allocatable"].(map[string]string)["volcano.sh/vgpu-cores"] = "0"
+			}
+			if fault == "allocatable_invalid" {
+				status["allocatable"].(map[string]string)["volcano.sh/vgpu-memory"] = "bad"
+			}
+
 		case r.URL.Path == "/api/v1/pods":
 			items := []any{}
 			items = append(items, map[string]any{"metadata": map[string]any{"uid": "pending-1", "name": "pending", "namespace": "replay"}, "spec": map[string]any{"nodeSelector": map[string]string{biz.GroupLabel: g.GroupID}, "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1"}}}}}, "status": map[string]string{"phase": "Pending"}})
 			if !deleted {
-				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: gpuUUID + ",NVIDIA,6,25:", AssignedTime: strconv.FormatInt(assignmentTime.UnixNano(), 10), "accelerator.ani.io/plan-digest": plan.ResolutionDigest, "accelerator.ani.io/owner-signature": signature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6"}}}}}})
+				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: gpuUUID + ",NVIDIA,6,25:", AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/plan-digest": plan.ResolutionDigest, "accelerator.ani.io/owner-signature": signature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6"}}}}}})
 			}
 			response = map[string]any{"items": items}
 		case strings.Contains(r.URL.Path, "/configmaps/"):
@@ -302,7 +320,11 @@ func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
 		t.Fatal(v)
 	}
 	owner := biz.WithCaller(ctx, biz.Caller{Service: "ani-inference", Action: "ObserveRelease", TenantID: ref.TenantID})
-	for _, fault := range []string{"stale", "offline", "factor"} {
+	faults := []string{"stale", "offline", "factor"}
+	if schedulerVersion == "v1.15.2" {
+		faults = append(faults, "allocatable", "allocatable_zero", "allocatable_invalid")
+	}
+	for _, fault := range faults {
 		state.setFault(fault)
 		if _, err := adapter.Inspect(ctx, cluster, g); err == nil {
 			t.Fatal("inspection accepted", fault)

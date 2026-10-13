@@ -69,8 +69,31 @@ func TestAttestationAndOwnerTrustBoundaries(t *testing.T) {
 	if got, _ := VerifyOwnerAssertion(pod, labels, annotations, pub); got == nil || *got != ref {
 		t.Fatal("valid owner assertion failed")
 	}
+	resourcePub, resourceKey, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatal(err)
+	}
+	provider := &Provider{ownerKey: pub}
+	ref.OwnerService = "ani-resource-service"
+	labels["accelerator.ani.io/owner-service"] = ref.OwnerService
+	payload, _ = biz.Canonical(OwnerAssertion{pod, ref, digest})
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(resourceKey, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	if got, _ := provider.verifyOwner(pod, labels, annotations); got != nil {
+		t.Fatal("missing Resource key trusted")
+	}
+	if err = provider.ConfigureResourceOwnerKey(resourcePub); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := provider.verifyOwner(pod, labels, annotations); got == nil || *got != ref {
+		t.Fatal("Resource owner assertion failed")
+	}
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	if got, _ := provider.verifyOwner(pod, labels, annotations); got != nil {
+		t.Fatal("Inference key authorized Resource owner")
+	}
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(resourceKey, append([]byte("acc-owner-pod-v1\n"), payload...)))
 	pod.UID = "recreated-pod"
-	if got, _ := VerifyOwnerAssertion(pod, labels, annotations, pub); got != nil {
+	if got, _ := provider.verifyOwner(pod, labels, annotations); got != nil {
 		t.Fatal("Pod UID replay accepted")
 	}
 	for _, raw := range []string{`{"connections":[],"connections":[]}`, `{"connections":[{"ref":"a","ref":"b"}]}`, `{"connections":[]} {}`, `{"unexpected":true}`} {

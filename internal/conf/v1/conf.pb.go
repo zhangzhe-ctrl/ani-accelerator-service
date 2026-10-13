@@ -322,8 +322,10 @@ type Accelerator struct {
 	AttestationsDir          string `protobuf:"bytes,5,opt,name=attestations_dir,json=attestationsDir,proto3" json:"attestations_dir,omitempty"`
 	AttestationPublicKeyFile string `protobuf:"bytes,6,opt,name=attestation_public_key_file,json=attestationPublicKeyFile,proto3" json:"attestation_public_key_file,omitempty"`
 	OwnerPublicKeyFile       string `protobuf:"bytes,7,opt,name=owner_public_key_file,json=ownerPublicKeyFile,proto3" json:"owner_public_key_file,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	// Optional Resource instance signing key; never reuses the Inference key.
+	ResourceOwnerPublicKeyFile string `protobuf:"bytes,8,opt,name=resource_owner_public_key_file,json=resourceOwnerPublicKeyFile,proto3" json:"resource_owner_public_key_file,omitempty"`
+	unknownFields              protoimpl.UnknownFields
+	sizeCache                  protoimpl.SizeCache
 }
 
 func (x *Accelerator) Reset() {
@@ -401,6 +403,13 @@ func (x *Accelerator) GetAttestationPublicKeyFile() string {
 func (x *Accelerator) GetOwnerPublicKeyFile() string {
 	if x != nil {
 		return x.OwnerPublicKeyFile
+	}
+	return ""
+}
+
+func (x *Accelerator) GetResourceOwnerPublicKeyFile() string {
+	if x != nil {
+		return x.ResourceOwnerPublicKeyFile
 	}
 	return ""
 }
@@ -614,7 +623,7 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\n" +
 	"tenant_ids\x18\x05 \x03(\tR\ttenantIds\x12\x1f\n" +
 	"\vcluster_ids\x18\x06 \x03(\tR\n" +
-	"clusterIds\"\xfe\x02\n" +
+	"clusterIds\"\xc2\x03\n" +
 	"\vAccelerator\x12!\n" +
 	"\fmax_replicas\x18\x01 \x01(\rR\vmaxReplicas\x127\n" +
 	"\tfreshness\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\tfreshness\x12D\n" +
@@ -622,7 +631,8 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\x14provider_config_file\x18\x04 \x01(\tR\x12providerConfigFile\x12)\n" +
 	"\x10attestations_dir\x18\x05 \x01(\tR\x0fattestationsDir\x12=\n" +
 	"\x1battestation_public_key_file\x18\x06 \x01(\tR\x18attestationPublicKeyFile\x121\n" +
-	"\x15owner_public_key_file\x18\a \x01(\tR\x12ownerPublicKeyFile\"\xfc\x02\n" +
+	"\x15owner_public_key_file\x18\a \x01(\tR\x12ownerPublicKeyFile\x12B\n" +
+	"\x1eresource_owner_public_key_file\x18\b \x01(\tR\x1aresourceOwnerPublicKeyFile\"\xfc\x02\n" +
 	"\x06Server\x12(\n" +
 	"\x04grpc\x18\x01 \x01(\v2\x14.conf.v1.Server.GRPCR\x04grpc\x12+\n" +
 	"\x05admin\x18\x02 \x01(\v2\x15.conf.v1.Server.AdminR\x05admin\x12D\n" +

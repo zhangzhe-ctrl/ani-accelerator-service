@@ -18,6 +18,9 @@ func (c *Bootstrap) ValidateRuntime() error {
 		return fmt.Errorf("database, security and accelerator config are required")
 	}
 	s := c.Security
+	if c.Accelerator.ResourceOwnerPublicKeyFile != "" && !filepath.IsAbs(c.Accelerator.ResourceOwnerPublicKeyFile) {
+		return fmt.Errorf("Resource owner public key must use an absolute path")
+	}
 	for _, path := range []string{s.CaFile, s.CertFile, s.KeyFile, s.CursorKeyFile, c.Accelerator.ProviderConfigFile, c.Accelerator.AttestationsDir, c.Accelerator.AttestationPublicKeyFile, c.Accelerator.OwnerPublicKeyFile} {
 		if !filepath.IsAbs(path) {
 			return fmt.Errorf("runtime secret/config references must be absolute paths")
