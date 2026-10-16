@@ -159,7 +159,7 @@ func (s *Accelerator) PublishProfile(ctx context.Context, q *pb.PublishProfileRe
 	return invoke[pb.GpuProfile](q, func(a *input) (*biz.Profile, error) { return s.u.PublishProfile(ctx, a.Mutation, a.PublishInput) })
 }
 func (s *Accelerator) AdminListProfiles(ctx context.Context, q *pb.AdminListProfilesRequest) (*pb.ListProfilesResponse, error) {
-	return invoke[pb.ListProfilesResponse](q, func(a *adminInput) (*biz.ListResult[biz.Profile], error) {
+	return invoke[pb.ListProfilesResponse](q, func(a *adminInput) (*biz.ProfileListResult, error) {
 		return s.u.AdminListProfiles(ctx, a.Context, a.ClusterID, a.Page)
 	})
 }
@@ -179,7 +179,7 @@ func (s *Accelerator) AdminGetCapacity(ctx context.Context, q *pb.AdminGetCapaci
 	})
 }
 func (s *Accelerator) ListProfiles(ctx context.Context, q *pb.ListProfilesRequest) (*pb.ListProfilesResponse, error) {
-	return invoke[pb.ListProfilesResponse](q, func(a *tenantInput) (*biz.ListResult[biz.Profile], error) {
+	return invoke[pb.ListProfilesResponse](q, func(a *tenantInput) (*biz.ProfileListResult, error) {
 		return s.u.ListProfiles(ctx, a.Context, a.ClusterID, a.Mode, a.Page)
 	})
 }

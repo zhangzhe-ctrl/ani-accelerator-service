@@ -75,7 +75,7 @@ func TestUNIT02GranularityRejectsPublicationAndResolution(t *testing.T) {
 	b := baselineForTest(10, Shared)
 	s := testSpec(Shared)
 	requireReason(t, ValidateSpec(s, b), "MEMORY_GRANULARITY_MISMATCH")
-	_, _, err := Render(s, b, "gpu")
+	_, _, err := Render(s, b, "gpu", 1)
 	requireReason(t, err, "MEMORY_GRANULARITY_MISMATCH")
 }
 func TestUNIT03PerDeviceQuantization(t *testing.T) {
@@ -143,7 +143,7 @@ func TestUNIT07RejectsOverflowShapeAndDuplicates(t *testing.T) {
 	_, err = EncodeMemory(int64(math.MaxInt32)+1, 1)
 	requireReason(t, err, "PROVIDER_INTEGER_OVERFLOW")
 	r := *testPlan(t, Shared, 1024).Request
-	for _, mutate := range []func(*GpuRequest){func(r *GpuRequest) { r.Replicas = 17 }, func(r *GpuRequest) { r.Replicas = 0 }, func(r *GpuRequest) { r.DevicesPerReplica = 2 }, func(r *GpuRequest) { r.ContainerName = "Bad_Container" }} {
+	for _, mutate := range []func(*GpuRequest){func(r *GpuRequest) { r.Replicas = 17 }, func(r *GpuRequest) { r.Replicas = 0 }, func(r *GpuRequest) { r.DevicesPerReplica = 0 }, func(r *GpuRequest) { r.DevicesPerReplica = 3 }, func(r *GpuRequest) { r.ContainerName = "Bad_Container" }} {
 		copy := r
 		mutate(&copy)
 		requireReason(t, ValidateRequest(&copy, 16), "SHAPE_UNSUPPORTED")

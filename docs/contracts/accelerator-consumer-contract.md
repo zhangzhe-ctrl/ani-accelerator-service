@@ -39,11 +39,15 @@ Gov 管理/租户调用携带单值 metadata：`x-ani-action`（RPC 短方法名
 
 分页 size=0 默认 50，最大 200；游标由持久 cursor key 做 HMAC-SHA256，绑定调用主体、精确动作、tenant/cluster 范围、过滤条件和排序。它不是跨页数据库快照，改变条件/身份必须从首页重新查询。重启/多副本须使用同一受管 cursor key。
 
+ListProfiles/AdminListProfiles 的响应 scopes 与本页 items 同序一一对应，包含 profile_id、profile_version、spec_digest、cluster_id、pool_id。归属来自同一只读事务中的 Profile→Group→Pool 关系；未知/冲突不返回有效目录。scopes 是目录元数据，不加入 GpuProfile 或完整 plan，也不改变租户委托授权。
+
 ## 规格、计划与计量
 
-首期 owner 软件合同上限为 16 个固定副本；不声称真实 Inference 已通过该能力验证。每 Pod 一个指定 GPU 容器、每容器一物理设备；`devices_per_replica=1`。实际 workload 中不得添加额外 GPU init/sidecar、GPU 容器、额外滚动副本或在线扩缩；owner 必须在持久接受和实际渲染处执行相同约束，属于 EXT-04。
+owner 软件合同上限为 16 个固定副本；不声称真实 Inference 已通过该能力验证。每 Pod 一个指定 GPU 容器；WHOLE_EXCLUSIVE 的 `devices_per_replica` 为 1 或 2，且不超过 Profile 的 max_devices_per_replica（1或2）；SHARED_FIXED 的上限和请求数均为1。同一max=2整卡Profile接受N=1和N=2，不按Profile身份分流。实际 workload 中不得添加额外 GPU init/sidecar、GPU 容器、额外滚动副本或在线扩缩；owner 必须在持久接受和实际渲染处执行相同约束，属于 EXT-04。
 
-共享每设备 `m>0` MiB、`F>0` MiB/block，要求 `m%F=0`，`q=m/F`。provider int32 边界对 q 和插件乘回后的 m 均校验。F=1/256/1024、m=6144 对应 q=6144/24/6；F=10 拒绝。单容器 limits 写 q，实例总 MiB 为 replicas*m；不把总量写每个 Pod。整卡固定 number=1、cores=100、memory-percentage=100，不同时写绝对 memory；只计整卡数量，不重复计共享 MiB。F 不是超配倍率，memory/core scale 均为 100%。
+共享每设备 `m>0` MiB、`F>0` MiB/block，要求 `m%F=0`，`q=m/F`。provider int32 边界对 q 和插件乘回后的 m 均校验。F=1/256/1024、m=6144 对应 q=6144/24/6；F=10 拒绝。单容器 limits 写 q，实例总 MiB 为 replicas*m；不把总量写每个 Pod。整卡number=N、cores=100、memory-percentage=100，不同时写绝对 memory；整卡总量按checked replicas*N计量，不重复计共享MiB。F不是超配倍率，memory/core scale均为100%。
+
+CheckGpuFit 对每副本两设备明确返回SHAPE_UNSUPPORTED，不把单设备KnownFreeUnits当作两卡副本估计。两卡计划/实际Pod字段的软件合同不宣称两卡组合容量、真实runtime绑定、模型并行、硬件隔离或释放已经验证；现有provider对未知多UUID运行时仍保守拒绝，不伪造Verified。
 
 同集群只有一个共享 MiB/cores/isolation 向量；整卡和共享 Node UID 集合不重叠。受管渲染固定 scheduler `volcano`、recipe `volcano-hami-v1`、已核对 Queue、`accelerator.ani.io/{supply-group,model-key,baseline-id}` 及 `volcano.sh/vgpu-mode=hami-core`。调用者不能覆盖、删除或扩大选择器。绑定身份为 cluster+Pod UID+container+物理设备，平台资源 UUID、Node index、PodResources 伪 ID 和显存块均不等于物理 GPU UUID。
 
@@ -72,13 +76,21 @@ Sync 网络失败/Unavailable 可退避重试原报文；ACK 只代表投影持�
 
 主要 reason：`MEMORY_UNIT_UNVERIFIED`、`MEMORY_GRANULARITY_MISMATCH`、`PROVIDER_INTEGER_OVERFLOW`、`INTEGER_OVERFLOW`、`SHAPE_UNSUPPORTED`、`BASELINE_DIGEST_MISMATCH`、`PLAN_DIGEST_MISMATCH`、`CONFIG_DRIFT`、`ADMISSION_CLOSED`、`PROFILE_NOT_ACTIVE`、`CONSUMPTION_NOT_VERIFIED`、`IDEMPOTENCY_CONFLICT`、`VERSION_CONFLICT`、`USAGE_PROJECTION_CONFLICT`、`USAGE_PROJECTION_NOT_READY`、`PAGE_SCOPE_MISMATCH`、`SOURCE_UNKNOWN`。gRPC ErrorInfo reason 稳定；错误不携带 DSN、私钥、token 或 provider 原始响应。完整度不足的容量响应通过 complete/issues 表达，不伪装为全部耗尽。
 
+## Scheduler 配置与供给基线
+
+Scheduler 基线统一使用公开纯函数 `pkg/schedulerconfig.ConfigMapDigest(volcanoVersion, data, binaryData)` 产生 `scheduler_config_digest`；provider 的 `Inspect` 使用同一函数消费。版本明确传 `v1.12.0` 或 `v1.15.2`，固定 YAML 键为 `volcano-scheduler.conf`。只比较本次 YAML 的编辑方使用 `ProtectedDigest(volcanoVersion, document)`；这不授予写 ACC 基线的权限，也不证明 scheduler 已加载。
+
+两个已审核版本允许调整 nodeorder 的八个 `*.weight`、binpack 的评分权重/资源列表、deviceshare 的 `SchedulePolicy`/`ScheduleWeight` 及对应 `enableNodeOrder` 评分开关。纯 nodeorder/binpack 条目可增删，不要求保留亲和评分插件或使用正权重。policy 原生为 string，`binpack`/`spread` 和 default 分支按对应版本源码处理。错误 YAML、重复 key、错误结构及已审核字段的错误类型拒绝。
+
+模式开关、设备配置来源、其他 hook、未知字段、actions 顺序和受保护 tiers 结构均参与摘要；其他 data/binaryData 键也保留保护。device-plugin ConfigMap 仍使用完整内容摘要。算法没有旧整份 scheduler 摘要回退：旧基线须经清点后明确重建/重新验证；这会改变 BaselineDigest 及后续新 plan 的承诺，不能重写已受理 plan、usage 或 Inference 原 charges，也不能沿用旧 evidence 伪造 Verified。
+
 ## owner 身份附件与释放观察
 
 创建/删除消息附件使用 `api/protos/accelerator/integration/v1/owner_gpu_attachment.proto`，嵌入真实 Inference 业务请求，不新建虚构 owner 业务服务。Gov 传可信 ref/actor、完整冻结 plan、原规范请求摘要、全部 GPU charge、完整业务 payload digest、`gpu-metering-v1`。charge 按 quota_code/charge_id 匹配，不依赖数组顺序；共享代码为 `gpu.shared_memory_mib`，整卡为 `gpu.physical.count`，单位为原始整数。DurableOwnerAck 只证明命令持久接受，必须核对 operation_id/resource_id/accepted。
 
 为避免仅凭可伪造 Pod 标签推租户，owner 须在实际 Pod UID 已知后给 GPU 容器对应 Pod 加签名断言：标签采用原设计四个 `accelerator.ani.io/{resource-tenant-id,owner-service,resource-id,create-operation-id}`，注解为 `accelerator.ani.io/plan-digest` 与 `accelerator.ani.io/owner-signature`。签名是 Ed25519，载荷为 ASCII `acc-owner-pod-v1` + LF + acc-c14n-v1 **规范 JSON 本身**（不加 canonical 哈希前缀），对象 `{pod:完整PodRef,ref:完整GpuUsageRef,plan_digest:string}`；标准 Base64 编码签名。服务配置只存 owner 公钥。未签名/不匹配的实际占用仍计容量，保持未关联；签名断言与持久投影匹配后才能出现在租户 Binding 列表。签名不含凭据，额外容器仍不被合同允许。
 
-Resource 实例固定 `replicas=1`、`devices_per_replica=1` 和主容器 `workspace`，通过 Notebook 完整投影原 plan。`resource_owner_public_key_file` 为可选受管绝对路径，存 Resource 的独立 Base64 Ed25519 公钥；它不能使用 Inference 公钥验证 Resource owner。未配置时 Resource 实际占用仍计容量、保持未关联。查询 ref/owner filter 和 Gov 同步支持该固定 owner，使用终态不等于物理分配已清空。
+Resource 实例固定 `replicas=1` 和主容器 `workspace`，卡数按上述模式规则进入devices_per_replica，通过 Notebook 完整投影原 plan。`resource_owner_public_key_file` 为可选受管绝对路径，存 Resource 的独立 Base64 Ed25519 公钥；它不能使用 Inference 公钥验证 Resource owner。未配置时 Resource 实际占用仍计容量、保持未关联。查询 ref/owner filter 和 Gov 同步支持该固定 owner，使用终态不等于物理分配已清空。
 
 Resource 由自身持久删除/未知结果规则决定计算已清理后可靠发送原 CREATE 的完整 GPU 子集；专属 PVC 失败继续重试，整体实例删除仍未完成。Gov 对合法 owner 原账声明做租户、原 charge、全向量、累计幂等和事务校验，不查询 Notebook/Pod，也不以额外 DELETE 记录二次批准退额。本合同的 Inference workload 清理职责保持；实例当前结果由 Resource 的 `docs/execution/status.md` 维护。
 

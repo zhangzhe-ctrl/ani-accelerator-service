@@ -358,7 +358,7 @@ message ProfileSpec {
   int64 shared_memory_mib = 4;
   // 共享1..99；整卡100。
   uint32 core_limit_percent = 5;
-  // 首期固定1；多设备另验收。
+  // 整卡能力上限1或2；共享固定1。申请数量不得超过此值。
   uint32 max_devices_per_replica = 6;
   // 整卡WHOLE_DEVICE_EXCLUSIVE；软件共享SOFTWARE_COOPERATIVE。
   string isolation_class = 7;
@@ -414,6 +414,17 @@ message ListProfilesResponse {
   repeated GpuProfile items = 1;
   // 分页。
   string next_token = 2;
+  // 与本页items按顺序一一对应；只读目录归属，不进入GPU plan。
+  repeated ProfileScope scopes = 3;
+}
+
+// 由Profile所属Group/Pool的同一只读快照确定，不由调用者填写。
+message ProfileScope {
+  string profile_id = 1;
+  uint64 profile_version = 2;
+  string spec_digest = 3;
+  string cluster_id = 4;
+  string pool_id = 5;
 }
 
 // 平台目录查询，不伪造租户调用租户Catalog。
@@ -448,7 +459,7 @@ message GpuRequest {
   uint64 profile_version = 4;
   // 首期固定1..16；真实owner仍须验收对应副本上限。
   uint32 replicas = 5;
-  // 首期必须1；>1返回SHAPE_UNSUPPORTED。
+  // 每Pod设备数：整卡1或2且不超过Profile上限，共享固定1。
   uint32 devices_per_replica = 6;
   // 必填合法K8s容器名；每Pod只有这一GPU容器。
   string container_name = 7;

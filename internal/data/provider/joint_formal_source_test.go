@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/pkg/schedulerconfig"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 )
 
@@ -33,9 +34,14 @@ func TestJointFormalProviderSource(t *testing.T) {
 	pki := testkit.NewPKI(t)
 	cert, key := pki.Issue(t, "source-server", "", true)
 	clientCert, clientKey := pki.Issue(t, "source-client", "spiffe://ani.internal/test/source-reader", false)
-	cm := map[string]any{"data": map[string]string{"config.yaml": "constructed-source-fixture: true"}, "binaryData": nil}
+	cmData := map[string]string{"config.yaml": "constructed-source-fixture: true", schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
+	cm := map[string]any{"data": cmData, "binaryData": nil}
 	digest, _ := biz.Hash(cm)
-	baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-formal-source", MemoryBlockMiB: 1024, FactorEvidenceRef: "formal:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: digest, SchedulerConfigDigest: digest, RecipeVersion: "volcano-hami-v1"}
+	schedulerDigest, err := schedulerconfig.ConfigMapDigest("v1.12.0", cmData, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-formal-source", MemoryBlockMiB: 1024, FactorEvidenceRef: "formal:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: digest, SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-v1"}
 	baseline.BaselineDigest, _ = biz.BaselineDigest(baseline)
 	node := biz.NodeRef{UID: "formal-node-" + biz.NewID(), Name: "formal-source-node"}
 	groupFile := filepath.Join(root, "group-id")

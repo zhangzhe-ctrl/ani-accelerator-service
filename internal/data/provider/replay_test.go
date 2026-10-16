@@ -21,6 +21,7 @@ import (
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/pkg/schedulerconfig"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -145,9 +146,14 @@ func providerControlledSources(t *testing.T, schedulerVersion string) {
 	nodeUID := "node-" + biz.NewID()
 	podUID := "pod-" + biz.NewID()
 	groupID := biz.NewID()
-	cm := map[string]any{"data": map[string]string{"config.yaml": "constructed-source-fixture: true"}, "binaryData": nil}
+	cmData := map[string]string{"config.yaml": "constructed-source-fixture: true", schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
+	cm := map[string]any{"data": cmData, "binaryData": nil}
 	configDigest, _ := biz.Hash(cm)
-	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-replay", MemoryBlockMiB: 1024, FactorEvidenceRef: "replay:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: configDigest, SchedulerConfigDigest: configDigest, RecipeVersion: "volcano-hami-v1"}
+	schedulerDigest, err := schedulerconfig.ConfigMapDigest(schedulerVersion, cmData, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-replay", MemoryBlockMiB: 1024, FactorEvidenceRef: "replay:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: configDigest, SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-v1"}
 	b.VolcanoVersion = schedulerVersion
 	b.BaselineDigest, _ = biz.BaselineDigest(b)
 	g := biz.SupplyGroup{GroupID: groupID, PoolID: pool.PoolID, ClusterID: cluster.ClusterID, DisplayName: "replay", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: nodeUID, Name: "replay-node"}}, ModelKey: "nvidia-test", Baseline: b, Admission: biz.Closed, QueueName: "gpu", Version: 1, AdoptedAt: time.Now().UTC().Format(time.RFC3339Nano)}

@@ -8,6 +8,12 @@ type ListResult[T any] struct {
 	Observation *Observation `json:"observation,omitempty"`
 }
 
+type ProfileListResult struct {
+	Items     []Profile      `json:"items"`
+	NextToken string         `json:"next_token"`
+	Scopes    []ProfileScope `json:"scopes"`
+}
+
 func listPage[T any](ctx context.Context, u *Usecase, page *Page, method string, filter any, read func(Reader, string, int) ([]T, error), id func(T) string) (*ListResult[T], error) {
 	scope, err := PageScope(ctx, method, filter)
 	if err != nil {
@@ -76,31 +82,85 @@ func (u *Usecase) ListSupplyGroups(ctx context.Context, a *AdminRead, pool strin
 		return r.Groups(ctx, pool, after, n)
 	}, func(g SupplyGroup) string { return g.GroupID })
 }
-func (u *Usecase) AdminListProfiles(ctx context.Context, a *AdminRead, cluster string, page *Page) (*ListResult[Profile], error) {
+func (u *Usecase) AdminListProfiles(ctx context.Context, a *AdminRead, cluster string, page *Page) (*ProfileListResult, error) {
 	if err := AuthorizeAdmin(ctx, a, "AdminListProfiles"); err != nil {
 		return nil, err
 	}
 	return u.listProfiles(ctx, cluster, 0, page, "AdminListProfiles")
 }
-func (u *Usecase) ListProfiles(ctx context.Context, a *TenantContext, cluster string, mode SupplyMode, page *Page) (*ListResult[Profile], error) {
+func (u *Usecase) ListProfiles(ctx context.Context, a *TenantContext, cluster string, mode SupplyMode, page *Page) (*ProfileListResult, error) {
 	if err := AuthorizeTenant(ctx, a, "ListProfiles"); err != nil {
 		return nil, err
 	}
 	return u.listProfiles(ctx, cluster, mode, page, "ListProfiles")
 }
-func (u *Usecase) listProfiles(ctx context.Context, cluster string, mode SupplyMode, page *Page, method string) (*ListResult[Profile], error) {
+func (u *Usecase) listProfiles(ctx context.Context, cluster string, mode SupplyMode, page *Page, method string) (*ProfileListResult, error) {
 	if !UUID(cluster) || (mode != 0 && mode != Whole && mode != Shared) {
 		return nil, Invalid("INVALID_PROFILE_FILTER")
 	}
 	if err := AuthorizeCluster(ctx, cluster); err != nil {
 		return nil, err
 	}
-	return listPage(ctx, u, page, method, []any{cluster, mode}, func(r Reader, after string, n int) ([]Profile, error) {
+	scopes := make(map[string]ProfileScope)
+	result, err := listPage(ctx, u, page, method, []any{cluster, mode}, func(r Reader, after string, n int) ([]Profile, error) {
 		if _, err := r.Cluster(ctx, cluster); err != nil {
 			return nil, err
 		}
-		return r.Profiles(ctx, cluster, mode, after, n)
+		profiles, err := r.Profiles(ctx, cluster, mode, after, n)
+		if err != nil {
+			return nil, err
+		}
+		for _, profile := range profiles {
+			if profile.Spec == nil {
+				return nil, Precondition("PROFILE_SCOPE_MISMATCH")
+			}
+			group, err := r.Group(ctx, profile.Spec.GroupID)
+			if err != nil {
+				return nil, err
+			}
+			if group == nil {
+				return nil, Precondition("PROFILE_SCOPE_MISMATCH")
+			}
+			pool, err := r.Pool(ctx, group.PoolID)
+			if err != nil {
+				return nil, err
+			}
+			scope, err := profileCatalogScope(profile, group, pool, cluster)
+			if err != nil {
+				return nil, err
+			}
+			if _, exists := scopes[profile.ProfileID]; exists {
+				return nil, Precondition("PROFILE_SCOPE_MISMATCH")
+			}
+			scopes[profile.ProfileID] = scope
+		}
+		return profiles, nil
 	}, func(p Profile) string { return p.ProfileID })
+	if err != nil {
+		return nil, err
+	}
+	out := &ProfileListResult{Items: result.Items, NextToken: result.NextToken, Scopes: make([]ProfileScope, 0, len(result.Items))}
+	for _, profile := range result.Items {
+		out.Scopes = append(out.Scopes, scopes[profile.ProfileID])
+	}
+	return out, nil
+}
+
+func profileCatalogScope(p Profile, g *SupplyGroup, pool *Pool, cluster string) (ProfileScope, error) {
+	if !UUID(p.ProfileID) || p.ProfileVersion == 0 || p.Spec == nil || g == nil || pool == nil || g.Baseline == nil ||
+		!UUID(p.Spec.GroupID) || p.Spec.GroupID != g.GroupID || g.ClusterID != cluster || !UUID(g.PoolID) ||
+		g.PoolID != pool.PoolID || pool.ClusterID != cluster || p.BaselineID != g.Baseline.BaselineID ||
+		p.Spec.Mode != g.Mode || p.Spec.ModelKey != g.ModelKey {
+		return ProfileScope{}, Precondition("PROFILE_SCOPE_MISMATCH")
+	}
+	digest, err := SpecDigest(p.Spec, p.BaselineID)
+	if err != nil {
+		return ProfileScope{}, err
+	}
+	if !Digest(p.SpecDigest) || digest != p.SpecDigest {
+		return ProfileScope{}, Invalid("SPEC_DIGEST_MISMATCH")
+	}
+	return ProfileScope{ProfileID: p.ProfileID, ProfileVersion: p.ProfileVersion, SpecDigest: p.SpecDigest, ClusterID: cluster, PoolID: pool.PoolID}, nil
 }
 func (u *Usecase) ListDevices(ctx context.Context, a *AdminRead, cluster, group string, page *Page) (*ListResult[PhysicalDevice], error) {
 	if err := AuthorizeAdmin(ctx, a, "ListDevices"); err != nil {

@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/url"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/pkg/schedulerconfig"
 )
 
 type Connection struct {
@@ -238,6 +240,20 @@ func (k *kubeReader) configDigest(ctx context.Context, namespace, name string) (
 		return "", err
 	}
 	return biz.Hash(cm)
+}
+func (k *kubeReader) schedulerConfigDigest(ctx context.Context, namespace, name, version string) (string, error) {
+	var cm struct {
+		Data       map[string]string `json:"data"`
+		BinaryData map[string]string `json:"binaryData"`
+	}
+	if err := k.get(ctx, "/api/v1/namespaces/"+url.PathEscape(namespace)+"/configmaps/"+url.PathEscape(name), &cm); err != nil {
+		return "", err
+	}
+	digest, err := schedulerconfig.ConfigMapDigest(version, cm.Data, cm.BinaryData)
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", biz.Precondition("SCHEDULER_CONFIG_INVALID"), err)
+	}
+	return digest, nil
 }
 func online(n node, now time.Time, ttl time.Duration) bool {
 	for _, c := range n.Status.Conditions {

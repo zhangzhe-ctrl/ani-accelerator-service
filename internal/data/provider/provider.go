@@ -60,7 +60,7 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 	if err != nil {
 		return biz.GroupInspection{}, err
 	}
-	schedulerDigest, err := k.configDigest(ctx, k.config.SchedulerNamespace, k.config.SchedulerConfigMap)
+	schedulerDigest, err := k.schedulerConfigDigest(ctx, k.config.SchedulerNamespace, k.config.SchedulerConfigMap, g.Baseline.VolcanoVersion)
 	if err != nil {
 		return biz.GroupInspection{}, err
 	}

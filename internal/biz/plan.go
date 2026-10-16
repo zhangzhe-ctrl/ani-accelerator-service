@@ -8,9 +8,12 @@ const (
 	BaselineLabel = "accelerator.ani.io/baseline-id"
 )
 
-func Render(s *ProfileSpec, b *ProviderBaseline, queue string) (*RuntimeFragment, *MemoryEncoding, error) {
+func Render(s *ProfileSpec, b *ProviderBaseline, queue string, devicesPerReplica uint32) (*RuntimeFragment, *MemoryEncoding, error) {
 	if err := ValidateSpec(s, b); err != nil {
 		return nil, nil, err
+	}
+	if devicesPerReplica < 1 || devicesPerReplica > s.MaxDevicesPerReplica || (s.Mode == Shared && devicesPerReplica != 1) {
+		return nil, nil, Invalid("SHAPE_UNSUPPORTED")
 	}
 	if !Name(queue) {
 		return nil, nil, Invalid("INVALID_QUEUE")
@@ -19,7 +22,7 @@ func Render(s *ProfileSpec, b *ProviderBaseline, queue string) (*RuntimeFragment
 	r := &RuntimeFragment{SchedulerName: "volcano", QueueName: queue, RecipeVersion: b.RecipeVersion,
 		NodeLabels:         []KeyValue{{BaselineLabel, b.BaselineID}, {ModelLabel, s.ModelKey}, {GroupLabel, s.GroupID}},
 		PodAnnotations:     []KeyValue{{"volcano.sh/vgpu-mode", "hami-core"}},
-		LimitsPerContainer: []KeyValue{{"volcano.sh/vgpu-cores", strconv.FormatUint(uint64(s.CoreLimitPercent), 10)}, {"volcano.sh/vgpu-number", "1"}}}
+		LimitsPerContainer: []KeyValue{{"volcano.sh/vgpu-cores", strconv.FormatUint(uint64(s.CoreLimitPercent), 10)}, {"volcano.sh/vgpu-number", strconv.FormatUint(uint64(devicesPerReplica), 10)}}}
 	if s.Mode == Whole {
 		e.MemoryPercentage = 100
 		r.LimitsPerContainer = append(r.LimitsPerContainer, KeyValue{"volcano.sh/vgpu-memory-percentage", "100"})
@@ -48,7 +51,7 @@ func BuildPlan(request *GpuRequest, profile *Profile, group *SupplyGroup, maxRep
 	if d, err := SpecDigest(profile.Spec, profile.BaselineID); err != nil || d != profile.SpecDigest {
 		return nil, Invalid("SPEC_DIGEST_MISMATCH")
 	}
-	r, e, err := Render(profile.Spec, group.Baseline, group.QueueName)
+	r, e, err := Render(profile.Spec, group.Baseline, group.QueueName, request.DevicesPerReplica)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +63,10 @@ func BuildPlan(request *GpuRequest, profile *Profile, group *SupplyGroup, maxRep
 			return nil, err
 		}
 	} else {
-		totals.ExclusiveDeviceCount = int64(request.Replicas)
+		totals.ExclusiveDeviceCount, err = Multiply(int64(request.Replicas), int64(request.DevicesPerReplica))
+		if err != nil {
+			return nil, err
+		}
 	}
 	p := &ResolvedPlan{SchemaVersion: 1, Request: request, Profile: profile, Encoding: e, Totals: totals, Runtime: r, BaselineDigest: group.Baseline.BaselineDigest}
 	p.ResolutionDigest, err = PlanDigest(p)

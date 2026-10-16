@@ -169,6 +169,16 @@ type Profile struct {
 	SpecDigest     string       `json:"spec_digest"`
 	Published      bool         `json:"published"`
 }
+
+// ProfileScope is catalog metadata, deliberately separate from the immutable
+// Profile embedded in a resolved plan and its digest.
+type ProfileScope struct {
+	ProfileID      string `json:"profile_id"`
+	ProfileVersion uint64 `json:"profile_version"`
+	SpecDigest     string `json:"spec_digest"`
+	ClusterID      string `json:"cluster_id"`
+	PoolID         string `json:"pool_id"`
+}
 type GpuRequest struct {
 	ClusterID         string `json:"cluster_id"`
 	PoolID            string `json:"pool_id"`

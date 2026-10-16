@@ -46,6 +46,11 @@ func (u *Usecase) CheckFit(ctx context.Context, a *TenantContext, request *GpuRe
 	if err := AuthorizeTenant(ctx, a, "CheckGpuFit"); err != nil {
 		return nil, err
 	}
+	// Capacity units are per physical device, not multi-device placements.
+	// Do not turn a two-device request into a single-device replica estimate.
+	if request != nil && request.DevicesPerReplica > 1 {
+		return nil, Invalid("SHAPE_UNSUPPORTED")
+	}
 	if _, err := u.resolve(ctx, request); err != nil {
 		return nil, err
 	}

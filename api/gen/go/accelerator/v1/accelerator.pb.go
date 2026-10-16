@@ -2147,7 +2147,7 @@ type ProfileSpec struct {
 	SharedMemoryMib int64 `protobuf:"varint,4,opt,name=shared_memory_mib,json=sharedMemoryMib,proto3" json:"shared_memory_mib,omitempty"`
 	// 共享1..99；整卡100。
 	CoreLimitPercent uint32 `protobuf:"varint,5,opt,name=core_limit_percent,json=coreLimitPercent,proto3" json:"core_limit_percent,omitempty"`
-	// 首期固定1；多设备另验收。
+	// 整卡能力上限1或2；共享固定1。申请数量不得超过此值。
 	MaxDevicesPerReplica uint32 `protobuf:"varint,6,opt,name=max_devices_per_replica,json=maxDevicesPerReplica,proto3" json:"max_devices_per_replica,omitempty"`
 	// 整卡WHOLE_DEVICE_EXCLUSIVE；软件共享SOFTWARE_COOPERATIVE。
 	IsolationClass string `protobuf:"bytes,7,opt,name=isolation_class,json=isolationClass,proto3" json:"isolation_class,omitempty"`
@@ -2495,7 +2495,9 @@ type ListProfilesResponse struct {
 	// 脱敏目录，不包括原始节点与配置证据。
 	Items []*GpuProfile `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 分页。
-	NextToken     string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	// 与本页items按顺序一一对应；只读目录归属，不进入GPU plan。
+	Scopes        []*ProfileScope `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2544,6 +2546,90 @@ func (x *ListProfilesResponse) GetNextToken() string {
 	return ""
 }
 
+func (x *ListProfilesResponse) GetScopes() []*ProfileScope {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+// 由Profile所属Group/Pool的同一只读快照确定，不由调用者填写。
+type ProfileScope struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId      string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileVersion uint64                 `protobuf:"varint,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	SpecDigest     string                 `protobuf:"bytes,3,opt,name=spec_digest,json=specDigest,proto3" json:"spec_digest,omitempty"`
+	ClusterId      string                 `protobuf:"bytes,4,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	PoolId         string                 `protobuf:"bytes,5,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ProfileScope) Reset() {
+	*x = ProfileScope{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfileScope) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfileScope) ProtoMessage() {}
+
+func (x *ProfileScope) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfileScope.ProtoReflect.Descriptor instead.
+func (*ProfileScope) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{28}
+}
+
+func (x *ProfileScope) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *ProfileScope) GetProfileVersion() uint64 {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return 0
+}
+
+func (x *ProfileScope) GetSpecDigest() string {
+	if x != nil {
+		return x.SpecDigest
+	}
+	return ""
+}
+
+func (x *ProfileScope) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *ProfileScope) GetPoolId() string {
+	if x != nil {
+		return x.PoolId
+	}
+	return ""
+}
+
 // 平台目录查询，不伪造租户调用租户Catalog。
 type AdminListProfilesRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -2559,7 +2645,7 @@ type AdminListProfilesRequest struct {
 
 func (x *AdminListProfilesRequest) Reset() {
 	*x = AdminListProfilesRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2571,7 +2657,7 @@ func (x *AdminListProfilesRequest) String() string {
 func (*AdminListProfilesRequest) ProtoMessage() {}
 
 func (x *AdminListProfilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2584,7 +2670,7 @@ func (x *AdminListProfilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListProfilesRequest.ProtoReflect.Descriptor instead.
 func (*AdminListProfilesRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{28}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *AdminListProfilesRequest) GetContext() *AdminRead {
@@ -2623,7 +2709,7 @@ type GetProfileRequest struct {
 
 func (x *GetProfileRequest) Reset() {
 	*x = GetProfileRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2635,7 +2721,7 @@ func (x *GetProfileRequest) String() string {
 func (*GetProfileRequest) ProtoMessage() {}
 
 func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2648,7 +2734,7 @@ func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetProfileRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{29}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GetProfileRequest) GetContext() *TenantContext {
@@ -2685,7 +2771,7 @@ type GpuRequest struct {
 	ProfileVersion uint64 `protobuf:"varint,4,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
 	// 首期固定1..16；真实owner仍须验收对应副本上限。
 	Replicas uint32 `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	// 首期必须1；>1返回SHAPE_UNSUPPORTED。
+	// 每Pod设备数：整卡1或2且不超过Profile上限，共享固定1。
 	DevicesPerReplica uint32 `protobuf:"varint,6,opt,name=devices_per_replica,json=devicesPerReplica,proto3" json:"devices_per_replica,omitempty"`
 	// 必填合法K8s容器名；每Pod只有这一GPU容器。
 	ContainerName string `protobuf:"bytes,7,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
@@ -2695,7 +2781,7 @@ type GpuRequest struct {
 
 func (x *GpuRequest) Reset() {
 	*x = GpuRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2707,7 +2793,7 @@ func (x *GpuRequest) String() string {
 func (*GpuRequest) ProtoMessage() {}
 
 func (x *GpuRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2720,7 +2806,7 @@ func (x *GpuRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuRequest.ProtoReflect.Descriptor instead.
 func (*GpuRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{30}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GpuRequest) GetClusterId() string {
@@ -2791,7 +2877,7 @@ type MemoryEncoding struct {
 
 func (x *MemoryEncoding) Reset() {
 	*x = MemoryEncoding{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2803,7 +2889,7 @@ func (x *MemoryEncoding) String() string {
 func (*MemoryEncoding) ProtoMessage() {}
 
 func (x *MemoryEncoding) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2816,7 +2902,7 @@ func (x *MemoryEncoding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MemoryEncoding.ProtoReflect.Descriptor instead.
 func (*MemoryEncoding) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{31}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *MemoryEncoding) GetMemoryBlockMib() uint32 {
@@ -2869,7 +2955,7 @@ type ResourceTotals struct {
 
 func (x *ResourceTotals) Reset() {
 	*x = ResourceTotals{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2881,7 +2967,7 @@ func (x *ResourceTotals) String() string {
 func (*ResourceTotals) ProtoMessage() {}
 
 func (x *ResourceTotals) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2894,7 +2980,7 @@ func (x *ResourceTotals) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResourceTotals.ProtoReflect.Descriptor instead.
 func (*ResourceTotals) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{32}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ResourceTotals) GetLogicalDeviceCount() int64 {
@@ -2941,7 +3027,7 @@ type RuntimeFragment struct {
 
 func (x *RuntimeFragment) Reset() {
 	*x = RuntimeFragment{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2953,7 +3039,7 @@ func (x *RuntimeFragment) String() string {
 func (*RuntimeFragment) ProtoMessage() {}
 
 func (x *RuntimeFragment) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2966,7 +3052,7 @@ func (x *RuntimeFragment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RuntimeFragment.ProtoReflect.Descriptor instead.
 func (*RuntimeFragment) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{33}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *RuntimeFragment) GetSchedulerName() string {
@@ -3043,7 +3129,7 @@ type ResolvedGpuPlan struct {
 
 func (x *ResolvedGpuPlan) Reset() {
 	*x = ResolvedGpuPlan{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3055,7 +3141,7 @@ func (x *ResolvedGpuPlan) String() string {
 func (*ResolvedGpuPlan) ProtoMessage() {}
 
 func (x *ResolvedGpuPlan) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3068,7 +3154,7 @@ func (x *ResolvedGpuPlan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolvedGpuPlan.ProtoReflect.Descriptor instead.
 func (*ResolvedGpuPlan) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{34}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ResolvedGpuPlan) GetSchemaVersion() uint32 {
@@ -3140,7 +3226,7 @@ type ResolveGpuRequestRequest struct {
 
 func (x *ResolveGpuRequestRequest) Reset() {
 	*x = ResolveGpuRequestRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[35]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3152,7 +3238,7 @@ func (x *ResolveGpuRequestRequest) String() string {
 func (*ResolveGpuRequestRequest) ProtoMessage() {}
 
 func (x *ResolveGpuRequestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[35]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3165,7 +3251,7 @@ func (x *ResolveGpuRequestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveGpuRequestRequest.ProtoReflect.Descriptor instead.
 func (*ResolveGpuRequestRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{35}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ResolveGpuRequestRequest) GetContext() *TenantContext {
@@ -3213,7 +3299,7 @@ type DeviceCapacity struct {
 
 func (x *DeviceCapacity) Reset() {
 	*x = DeviceCapacity{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3225,7 +3311,7 @@ func (x *DeviceCapacity) String() string {
 func (*DeviceCapacity) ProtoMessage() {}
 
 func (x *DeviceCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3238,7 +3324,7 @@ func (x *DeviceCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceCapacity.ProtoReflect.Descriptor instead.
 func (*DeviceCapacity) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{36}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *DeviceCapacity) GetDeviceId() string {
@@ -3347,7 +3433,7 @@ type CapacityView struct {
 
 func (x *CapacityView) Reset() {
 	*x = CapacityView{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3359,7 +3445,7 @@ func (x *CapacityView) String() string {
 func (*CapacityView) ProtoMessage() {}
 
 func (x *CapacityView) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3372,7 +3458,7 @@ func (x *CapacityView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapacityView.ProtoReflect.Descriptor instead.
 func (*CapacityView) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{37}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *CapacityView) GetProfileId() string {
@@ -3460,7 +3546,7 @@ type GetCapacityRequest struct {
 
 func (x *GetCapacityRequest) Reset() {
 	*x = GetCapacityRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3472,7 +3558,7 @@ func (x *GetCapacityRequest) String() string {
 func (*GetCapacityRequest) ProtoMessage() {}
 
 func (x *GetCapacityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3485,7 +3571,7 @@ func (x *GetCapacityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCapacityRequest.ProtoReflect.Descriptor instead.
 func (*GetCapacityRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{38}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *GetCapacityRequest) GetContext() *TenantContext {
@@ -3526,7 +3612,7 @@ type AdminGetCapacityRequest struct {
 
 func (x *AdminGetCapacityRequest) Reset() {
 	*x = AdminGetCapacityRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3538,7 +3624,7 @@ func (x *AdminGetCapacityRequest) String() string {
 func (*AdminGetCapacityRequest) ProtoMessage() {}
 
 func (x *AdminGetCapacityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3551,7 +3637,7 @@ func (x *AdminGetCapacityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetCapacityRequest.ProtoReflect.Descriptor instead.
 func (*AdminGetCapacityRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{39}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *AdminGetCapacityRequest) GetContext() *AdminRead {
@@ -3601,7 +3687,7 @@ type GpuFit struct {
 
 func (x *GpuFit) Reset() {
 	*x = GpuFit{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3613,7 +3699,7 @@ func (x *GpuFit) String() string {
 func (*GpuFit) ProtoMessage() {}
 
 func (x *GpuFit) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3626,7 +3712,7 @@ func (x *GpuFit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuFit.ProtoReflect.Descriptor instead.
 func (*GpuFit) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{40}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *GpuFit) GetStatus() FitStatus {
@@ -3677,7 +3763,7 @@ type CheckGpuFitRequest struct {
 
 func (x *CheckGpuFitRequest) Reset() {
 	*x = CheckGpuFitRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3689,7 +3775,7 @@ func (x *CheckGpuFitRequest) String() string {
 func (*CheckGpuFitRequest) ProtoMessage() {}
 
 func (x *CheckGpuFitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3702,7 +3788,7 @@ func (x *CheckGpuFitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckGpuFitRequest.ProtoReflect.Descriptor instead.
 func (*CheckGpuFitRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{41}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *CheckGpuFitRequest) GetContext() *TenantContext {
@@ -3746,7 +3832,7 @@ type PhysicalDevice struct {
 
 func (x *PhysicalDevice) Reset() {
 	*x = PhysicalDevice{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3758,7 +3844,7 @@ func (x *PhysicalDevice) String() string {
 func (*PhysicalDevice) ProtoMessage() {}
 
 func (x *PhysicalDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3771,7 +3857,7 @@ func (x *PhysicalDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhysicalDevice.ProtoReflect.Descriptor instead.
 func (*PhysicalDevice) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{42}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *PhysicalDevice) GetDeviceId() string {
@@ -3854,7 +3940,7 @@ type ListDevicesRequest struct {
 
 func (x *ListDevicesRequest) Reset() {
 	*x = ListDevicesRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3866,7 +3952,7 @@ func (x *ListDevicesRequest) String() string {
 func (*ListDevicesRequest) ProtoMessage() {}
 
 func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3879,7 +3965,7 @@ func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesRequest.ProtoReflect.Descriptor instead.
 func (*ListDevicesRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{43}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *ListDevicesRequest) GetContext() *AdminRead {
@@ -3923,7 +4009,7 @@ type ListDevicesResponse struct {
 
 func (x *ListDevicesResponse) Reset() {
 	*x = ListDevicesResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3935,7 +4021,7 @@ func (x *ListDevicesResponse) String() string {
 func (*ListDevicesResponse) ProtoMessage() {}
 
 func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3948,7 +4034,7 @@ func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesResponse.ProtoReflect.Descriptor instead.
 func (*ListDevicesResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{44}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *ListDevicesResponse) GetItems() []*PhysicalDevice {
@@ -3982,7 +4068,7 @@ type GpuUsageRef struct {
 
 func (x *GpuUsageRef) Reset() {
 	*x = GpuUsageRef{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3994,7 +4080,7 @@ func (x *GpuUsageRef) String() string {
 func (*GpuUsageRef) ProtoMessage() {}
 
 func (x *GpuUsageRef) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4007,7 +4093,7 @@ func (x *GpuUsageRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuUsageRef.ProtoReflect.Descriptor instead.
 func (*GpuUsageRef) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{45}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *GpuUsageRef) GetTenantId() string {
@@ -4063,7 +4149,7 @@ type GpuUsageProjection struct {
 
 func (x *GpuUsageProjection) Reset() {
 	*x = GpuUsageProjection{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4075,7 +4161,7 @@ func (x *GpuUsageProjection) String() string {
 func (*GpuUsageProjection) ProtoMessage() {}
 
 func (x *GpuUsageProjection) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4088,7 +4174,7 @@ func (x *GpuUsageProjection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuUsageProjection.ProtoReflect.Descriptor instead.
 func (*GpuUsageProjection) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{46}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *GpuUsageProjection) GetRef() *GpuUsageRef {
@@ -4160,7 +4246,7 @@ type SyncGpuUsageRequest struct {
 
 func (x *SyncGpuUsageRequest) Reset() {
 	*x = SyncGpuUsageRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4172,7 +4258,7 @@ func (x *SyncGpuUsageRequest) String() string {
 func (*SyncGpuUsageRequest) ProtoMessage() {}
 
 func (x *SyncGpuUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4185,7 +4271,7 @@ func (x *SyncGpuUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncGpuUsageRequest.ProtoReflect.Descriptor instead.
 func (*SyncGpuUsageRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{47}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *SyncGpuUsageRequest) GetRequestId() string {
@@ -4219,7 +4305,7 @@ type SyncGpuUsageResponse struct {
 
 func (x *SyncGpuUsageResponse) Reset() {
 	*x = SyncGpuUsageResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4231,7 +4317,7 @@ func (x *SyncGpuUsageResponse) String() string {
 func (*SyncGpuUsageResponse) ProtoMessage() {}
 
 func (x *SyncGpuUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4244,7 +4330,7 @@ func (x *SyncGpuUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncGpuUsageResponse.ProtoReflect.Descriptor instead.
 func (*SyncGpuUsageResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{48}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *SyncGpuUsageResponse) GetRef() *GpuUsageRef {
@@ -4288,7 +4374,7 @@ type GetGpuUsageRequest struct {
 
 func (x *GetGpuUsageRequest) Reset() {
 	*x = GetGpuUsageRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4300,7 +4386,7 @@ func (x *GetGpuUsageRequest) String() string {
 func (*GetGpuUsageRequest) ProtoMessage() {}
 
 func (x *GetGpuUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4313,7 +4399,7 @@ func (x *GetGpuUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGpuUsageRequest.ProtoReflect.Descriptor instead.
 func (*GetGpuUsageRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{49}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GetGpuUsageRequest) GetContext() *TenantContext {
@@ -4347,7 +4433,7 @@ type ListGpuUsagesRequest struct {
 
 func (x *ListGpuUsagesRequest) Reset() {
 	*x = ListGpuUsagesRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4359,7 +4445,7 @@ func (x *ListGpuUsagesRequest) String() string {
 func (*ListGpuUsagesRequest) ProtoMessage() {}
 
 func (x *ListGpuUsagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4372,7 +4458,7 @@ func (x *ListGpuUsagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGpuUsagesRequest.ProtoReflect.Descriptor instead.
 func (*ListGpuUsagesRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{50}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *ListGpuUsagesRequest) GetContext() *TenantContext {
@@ -4416,7 +4502,7 @@ type ListGpuUsagesResponse struct {
 
 func (x *ListGpuUsagesResponse) Reset() {
 	*x = ListGpuUsagesResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4428,7 +4514,7 @@ func (x *ListGpuUsagesResponse) String() string {
 func (*ListGpuUsagesResponse) ProtoMessage() {}
 
 func (x *ListGpuUsagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4441,7 +4527,7 @@ func (x *ListGpuUsagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGpuUsagesResponse.ProtoReflect.Descriptor instead.
 func (*ListGpuUsagesResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{51}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *ListGpuUsagesResponse) GetItems() []*GpuUsageProjection {
@@ -4477,7 +4563,7 @@ type PodRef struct {
 
 func (x *PodRef) Reset() {
 	*x = PodRef{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4489,7 +4575,7 @@ func (x *PodRef) String() string {
 func (*PodRef) ProtoMessage() {}
 
 func (x *PodRef) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4502,7 +4588,7 @@ func (x *PodRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PodRef.ProtoReflect.Descriptor instead.
 func (*PodRef) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{52}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *PodRef) GetClusterId() string {
@@ -4571,7 +4657,7 @@ type GpuBinding struct {
 
 func (x *GpuBinding) Reset() {
 	*x = GpuBinding{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4583,7 +4669,7 @@ func (x *GpuBinding) String() string {
 func (*GpuBinding) ProtoMessage() {}
 
 func (x *GpuBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4596,7 +4682,7 @@ func (x *GpuBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuBinding.ProtoReflect.Descriptor instead.
 func (*GpuBinding) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{53}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *GpuBinding) GetBindingId() string {
@@ -4691,7 +4777,7 @@ type ListBindingsRequest struct {
 
 func (x *ListBindingsRequest) Reset() {
 	*x = ListBindingsRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4703,7 +4789,7 @@ func (x *ListBindingsRequest) String() string {
 func (*ListBindingsRequest) ProtoMessage() {}
 
 func (x *ListBindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4716,7 +4802,7 @@ func (x *ListBindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBindingsRequest.ProtoReflect.Descriptor instead.
 func (*ListBindingsRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{54}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ListBindingsRequest) GetContext() *TenantContext {
@@ -4757,7 +4843,7 @@ type AdminListBindingsRequest struct {
 
 func (x *AdminListBindingsRequest) Reset() {
 	*x = AdminListBindingsRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4769,7 +4855,7 @@ func (x *AdminListBindingsRequest) String() string {
 func (*AdminListBindingsRequest) ProtoMessage() {}
 
 func (x *AdminListBindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4782,7 +4868,7 @@ func (x *AdminListBindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListBindingsRequest.ProtoReflect.Descriptor instead.
 func (*AdminListBindingsRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{55}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *AdminListBindingsRequest) GetContext() *AdminRead {
@@ -4828,7 +4914,7 @@ type ListBindingsResponse struct {
 
 func (x *ListBindingsResponse) Reset() {
 	*x = ListBindingsResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4840,7 +4926,7 @@ func (x *ListBindingsResponse) String() string {
 func (*ListBindingsResponse) ProtoMessage() {}
 
 func (x *ListBindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4853,7 +4939,7 @@ func (x *ListBindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBindingsResponse.ProtoReflect.Descriptor instead.
 func (*ListBindingsResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{56}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *ListBindingsResponse) GetItems() []*GpuBinding {
@@ -4894,7 +4980,7 @@ type ObserveReleaseRequest struct {
 
 func (x *ObserveReleaseRequest) Reset() {
 	*x = ObserveReleaseRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4906,7 +4992,7 @@ func (x *ObserveReleaseRequest) String() string {
 func (*ObserveReleaseRequest) ProtoMessage() {}
 
 func (x *ObserveReleaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4919,7 +5005,7 @@ func (x *ObserveReleaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveReleaseRequest.ProtoReflect.Descriptor instead.
 func (*ObserveReleaseRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{57}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ObserveReleaseRequest) GetRequestId() string {
@@ -4973,7 +5059,7 @@ type ReleaseObservation struct {
 
 func (x *ReleaseObservation) Reset() {
 	*x = ReleaseObservation{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4985,7 +5071,7 @@ func (x *ReleaseObservation) String() string {
 func (*ReleaseObservation) ProtoMessage() {}
 
 func (x *ReleaseObservation) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4998,7 +5084,7 @@ func (x *ReleaseObservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseObservation.ProtoReflect.Descriptor instead.
 func (*ReleaseObservation) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{58}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *ReleaseObservation) GetEvidenceId() string {
@@ -5225,11 +5311,21 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\n" +
 	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12.\n" +
 	"\x04mode\x18\x03 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x12(\n" +
-	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"g\n" +
+	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\x9d\x01\n" +
 	"\x14ListProfilesResponse\x120\n" +
 	"\x05items\x18\x01 \x03(\v2\x1a.accelerator.v1.GpuProfileR\x05items\x12\x1d\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\"\x98\x01\n" +
+	"next_token\x18\x02 \x01(\tR\tnextToken\x124\n" +
+	"\x06scopes\x18\x03 \x03(\v2\x1c.accelerator.v1.ProfileScopeR\x06scopes\"\xaf\x01\n" +
+	"\fProfileScope\x12\x1d\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\tprofileId\x12'\n" +
+	"\x0fprofile_version\x18\x02 \x01(\x04R\x0eprofileVersion\x12\x1f\n" +
+	"\vspec_digest\x18\x03 \x01(\tR\n" +
+	"specDigest\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x04 \x01(\tR\tclusterId\x12\x17\n" +
+	"\apool_id\x18\x05 \x01(\tR\x06poolId\"\x98\x01\n" +
 	"\x18AdminListProfilesRequest\x123\n" +
 	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1d\n" +
 	"\n" +
@@ -5523,7 +5619,7 @@ func file_accelerator_v1_accelerator_proto_rawDescGZIP() []byte {
 }
 
 var file_accelerator_v1_accelerator_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_accelerator_v1_accelerator_proto_msgTypes = make([]protoimpl.MessageInfo, 59)
+var file_accelerator_v1_accelerator_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
 var file_accelerator_v1_accelerator_proto_goTypes = []any{
 	(SupplyMode)(0),                  // 0: accelerator.v1.SupplyMode
 	(AdmissionState)(0),              // 1: accelerator.v1.AdmissionState
@@ -5561,37 +5657,38 @@ var file_accelerator_v1_accelerator_proto_goTypes = []any{
 	(*PublishProfileRequest)(nil),    // 33: accelerator.v1.PublishProfileRequest
 	(*ListProfilesRequest)(nil),      // 34: accelerator.v1.ListProfilesRequest
 	(*ListProfilesResponse)(nil),     // 35: accelerator.v1.ListProfilesResponse
-	(*AdminListProfilesRequest)(nil), // 36: accelerator.v1.AdminListProfilesRequest
-	(*GetProfileRequest)(nil),        // 37: accelerator.v1.GetProfileRequest
-	(*GpuRequest)(nil),               // 38: accelerator.v1.GpuRequest
-	(*MemoryEncoding)(nil),           // 39: accelerator.v1.MemoryEncoding
-	(*ResourceTotals)(nil),           // 40: accelerator.v1.ResourceTotals
-	(*RuntimeFragment)(nil),          // 41: accelerator.v1.RuntimeFragment
-	(*ResolvedGpuPlan)(nil),          // 42: accelerator.v1.ResolvedGpuPlan
-	(*ResolveGpuRequestRequest)(nil), // 43: accelerator.v1.ResolveGpuRequestRequest
-	(*DeviceCapacity)(nil),           // 44: accelerator.v1.DeviceCapacity
-	(*CapacityView)(nil),             // 45: accelerator.v1.CapacityView
-	(*GetCapacityRequest)(nil),       // 46: accelerator.v1.GetCapacityRequest
-	(*AdminGetCapacityRequest)(nil),  // 47: accelerator.v1.AdminGetCapacityRequest
-	(*GpuFit)(nil),                   // 48: accelerator.v1.GpuFit
-	(*CheckGpuFitRequest)(nil),       // 49: accelerator.v1.CheckGpuFitRequest
-	(*PhysicalDevice)(nil),           // 50: accelerator.v1.PhysicalDevice
-	(*ListDevicesRequest)(nil),       // 51: accelerator.v1.ListDevicesRequest
-	(*ListDevicesResponse)(nil),      // 52: accelerator.v1.ListDevicesResponse
-	(*GpuUsageRef)(nil),              // 53: accelerator.v1.GpuUsageRef
-	(*GpuUsageProjection)(nil),       // 54: accelerator.v1.GpuUsageProjection
-	(*SyncGpuUsageRequest)(nil),      // 55: accelerator.v1.SyncGpuUsageRequest
-	(*SyncGpuUsageResponse)(nil),     // 56: accelerator.v1.SyncGpuUsageResponse
-	(*GetGpuUsageRequest)(nil),       // 57: accelerator.v1.GetGpuUsageRequest
-	(*ListGpuUsagesRequest)(nil),     // 58: accelerator.v1.ListGpuUsagesRequest
-	(*ListGpuUsagesResponse)(nil),    // 59: accelerator.v1.ListGpuUsagesResponse
-	(*PodRef)(nil),                   // 60: accelerator.v1.PodRef
-	(*GpuBinding)(nil),               // 61: accelerator.v1.GpuBinding
-	(*ListBindingsRequest)(nil),      // 62: accelerator.v1.ListBindingsRequest
-	(*AdminListBindingsRequest)(nil), // 63: accelerator.v1.AdminListBindingsRequest
-	(*ListBindingsResponse)(nil),     // 64: accelerator.v1.ListBindingsResponse
-	(*ObserveReleaseRequest)(nil),    // 65: accelerator.v1.ObserveReleaseRequest
-	(*ReleaseObservation)(nil),       // 66: accelerator.v1.ReleaseObservation
+	(*ProfileScope)(nil),             // 36: accelerator.v1.ProfileScope
+	(*AdminListProfilesRequest)(nil), // 37: accelerator.v1.AdminListProfilesRequest
+	(*GetProfileRequest)(nil),        // 38: accelerator.v1.GetProfileRequest
+	(*GpuRequest)(nil),               // 39: accelerator.v1.GpuRequest
+	(*MemoryEncoding)(nil),           // 40: accelerator.v1.MemoryEncoding
+	(*ResourceTotals)(nil),           // 41: accelerator.v1.ResourceTotals
+	(*RuntimeFragment)(nil),          // 42: accelerator.v1.RuntimeFragment
+	(*ResolvedGpuPlan)(nil),          // 43: accelerator.v1.ResolvedGpuPlan
+	(*ResolveGpuRequestRequest)(nil), // 44: accelerator.v1.ResolveGpuRequestRequest
+	(*DeviceCapacity)(nil),           // 45: accelerator.v1.DeviceCapacity
+	(*CapacityView)(nil),             // 46: accelerator.v1.CapacityView
+	(*GetCapacityRequest)(nil),       // 47: accelerator.v1.GetCapacityRequest
+	(*AdminGetCapacityRequest)(nil),  // 48: accelerator.v1.AdminGetCapacityRequest
+	(*GpuFit)(nil),                   // 49: accelerator.v1.GpuFit
+	(*CheckGpuFitRequest)(nil),       // 50: accelerator.v1.CheckGpuFitRequest
+	(*PhysicalDevice)(nil),           // 51: accelerator.v1.PhysicalDevice
+	(*ListDevicesRequest)(nil),       // 52: accelerator.v1.ListDevicesRequest
+	(*ListDevicesResponse)(nil),      // 53: accelerator.v1.ListDevicesResponse
+	(*GpuUsageRef)(nil),              // 54: accelerator.v1.GpuUsageRef
+	(*GpuUsageProjection)(nil),       // 55: accelerator.v1.GpuUsageProjection
+	(*SyncGpuUsageRequest)(nil),      // 56: accelerator.v1.SyncGpuUsageRequest
+	(*SyncGpuUsageResponse)(nil),     // 57: accelerator.v1.SyncGpuUsageResponse
+	(*GetGpuUsageRequest)(nil),       // 58: accelerator.v1.GetGpuUsageRequest
+	(*ListGpuUsagesRequest)(nil),     // 59: accelerator.v1.ListGpuUsagesRequest
+	(*ListGpuUsagesResponse)(nil),    // 60: accelerator.v1.ListGpuUsagesResponse
+	(*PodRef)(nil),                   // 61: accelerator.v1.PodRef
+	(*GpuBinding)(nil),               // 62: accelerator.v1.GpuBinding
+	(*ListBindingsRequest)(nil),      // 63: accelerator.v1.ListBindingsRequest
+	(*AdminListBindingsRequest)(nil), // 64: accelerator.v1.AdminListBindingsRequest
+	(*ListBindingsResponse)(nil),     // 65: accelerator.v1.ListBindingsResponse
+	(*ObserveReleaseRequest)(nil),    // 66: accelerator.v1.ObserveReleaseRequest
+	(*ReleaseObservation)(nil),       // 67: accelerator.v1.ReleaseObservation
 }
 var file_accelerator_v1_accelerator_proto_depIdxs = []int32{
 	8,   // 0: accelerator.v1.TenantContext.actor:type_name -> accelerator.v1.Actor
@@ -5628,111 +5725,112 @@ var file_accelerator_v1_accelerator_proto_depIdxs = []int32{
 	0,   // 31: accelerator.v1.ListProfilesRequest.mode:type_name -> accelerator.v1.SupplyMode
 	12,  // 32: accelerator.v1.ListProfilesRequest.page:type_name -> accelerator.v1.Page
 	32,  // 33: accelerator.v1.ListProfilesResponse.items:type_name -> accelerator.v1.GpuProfile
-	10,  // 34: accelerator.v1.AdminListProfilesRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 35: accelerator.v1.AdminListProfilesRequest.page:type_name -> accelerator.v1.Page
-	9,   // 36: accelerator.v1.GetProfileRequest.context:type_name -> accelerator.v1.TenantContext
-	13,  // 37: accelerator.v1.RuntimeFragment.node_labels:type_name -> accelerator.v1.KeyValue
-	13,  // 38: accelerator.v1.RuntimeFragment.pod_annotations:type_name -> accelerator.v1.KeyValue
-	13,  // 39: accelerator.v1.RuntimeFragment.limits_per_container:type_name -> accelerator.v1.KeyValue
-	38,  // 40: accelerator.v1.ResolvedGpuPlan.request:type_name -> accelerator.v1.GpuRequest
-	32,  // 41: accelerator.v1.ResolvedGpuPlan.profile:type_name -> accelerator.v1.GpuProfile
-	39,  // 42: accelerator.v1.ResolvedGpuPlan.encoding:type_name -> accelerator.v1.MemoryEncoding
-	40,  // 43: accelerator.v1.ResolvedGpuPlan.totals:type_name -> accelerator.v1.ResourceTotals
-	41,  // 44: accelerator.v1.ResolvedGpuPlan.runtime:type_name -> accelerator.v1.RuntimeFragment
-	9,   // 45: accelerator.v1.ResolveGpuRequestRequest.context:type_name -> accelerator.v1.TenantContext
-	38,  // 46: accelerator.v1.ResolveGpuRequestRequest.gpu:type_name -> accelerator.v1.GpuRequest
-	0,   // 47: accelerator.v1.CapacityView.mode:type_name -> accelerator.v1.SupplyMode
-	14,  // 48: accelerator.v1.CapacityView.observation:type_name -> accelerator.v1.Observation
-	44,  // 49: accelerator.v1.CapacityView.devices:type_name -> accelerator.v1.DeviceCapacity
-	9,   // 50: accelerator.v1.GetCapacityRequest.context:type_name -> accelerator.v1.TenantContext
-	10,  // 51: accelerator.v1.AdminGetCapacityRequest.context:type_name -> accelerator.v1.AdminRead
-	6,   // 52: accelerator.v1.GpuFit.status:type_name -> accelerator.v1.FitStatus
-	14,  // 53: accelerator.v1.GpuFit.observation:type_name -> accelerator.v1.Observation
-	9,   // 54: accelerator.v1.CheckGpuFitRequest.context:type_name -> accelerator.v1.TenantContext
-	38,  // 55: accelerator.v1.CheckGpuFitRequest.gpu:type_name -> accelerator.v1.GpuRequest
-	17,  // 56: accelerator.v1.PhysicalDevice.node:type_name -> accelerator.v1.NodeRef
-	14,  // 57: accelerator.v1.PhysicalDevice.observation:type_name -> accelerator.v1.Observation
-	10,  // 58: accelerator.v1.ListDevicesRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 59: accelerator.v1.ListDevicesRequest.page:type_name -> accelerator.v1.Page
-	50,  // 60: accelerator.v1.ListDevicesResponse.items:type_name -> accelerator.v1.PhysicalDevice
-	53,  // 61: accelerator.v1.GpuUsageProjection.ref:type_name -> accelerator.v1.GpuUsageRef
-	3,   // 62: accelerator.v1.GpuUsageProjection.state:type_name -> accelerator.v1.UsageState
-	42,  // 63: accelerator.v1.GpuUsageProjection.plan:type_name -> accelerator.v1.ResolvedGpuPlan
-	4,   // 64: accelerator.v1.GpuUsageProjection.end_reason:type_name -> accelerator.v1.UsageEndReason
-	54,  // 65: accelerator.v1.SyncGpuUsageRequest.projection:type_name -> accelerator.v1.GpuUsageProjection
-	53,  // 66: accelerator.v1.SyncGpuUsageResponse.ref:type_name -> accelerator.v1.GpuUsageRef
-	3,   // 67: accelerator.v1.SyncGpuUsageResponse.state:type_name -> accelerator.v1.UsageState
-	9,   // 68: accelerator.v1.GetGpuUsageRequest.context:type_name -> accelerator.v1.TenantContext
-	53,  // 69: accelerator.v1.GetGpuUsageRequest.ref:type_name -> accelerator.v1.GpuUsageRef
-	9,   // 70: accelerator.v1.ListGpuUsagesRequest.context:type_name -> accelerator.v1.TenantContext
-	3,   // 71: accelerator.v1.ListGpuUsagesRequest.state:type_name -> accelerator.v1.UsageState
-	12,  // 72: accelerator.v1.ListGpuUsagesRequest.page:type_name -> accelerator.v1.Page
-	54,  // 73: accelerator.v1.ListGpuUsagesResponse.items:type_name -> accelerator.v1.GpuUsageProjection
-	53,  // 74: accelerator.v1.GpuBinding.verified_usage_ref:type_name -> accelerator.v1.GpuUsageRef
-	60,  // 75: accelerator.v1.GpuBinding.pod:type_name -> accelerator.v1.PodRef
-	5,   // 76: accelerator.v1.GpuBinding.state:type_name -> accelerator.v1.AllocationState
-	14,  // 77: accelerator.v1.GpuBinding.observation:type_name -> accelerator.v1.Observation
-	9,   // 78: accelerator.v1.ListBindingsRequest.context:type_name -> accelerator.v1.TenantContext
-	53,  // 79: accelerator.v1.ListBindingsRequest.ref:type_name -> accelerator.v1.GpuUsageRef
-	12,  // 80: accelerator.v1.ListBindingsRequest.page:type_name -> accelerator.v1.Page
-	10,  // 81: accelerator.v1.AdminListBindingsRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 82: accelerator.v1.AdminListBindingsRequest.page:type_name -> accelerator.v1.Page
-	61,  // 83: accelerator.v1.ListBindingsResponse.items:type_name -> accelerator.v1.GpuBinding
-	14,  // 84: accelerator.v1.ListBindingsResponse.observation:type_name -> accelerator.v1.Observation
-	53,  // 85: accelerator.v1.ObserveReleaseRequest.ref:type_name -> accelerator.v1.GpuUsageRef
-	60,  // 86: accelerator.v1.ObserveReleaseRequest.pods:type_name -> accelerator.v1.PodRef
-	53,  // 87: accelerator.v1.ReleaseObservation.ref:type_name -> accelerator.v1.GpuUsageRef
-	7,   // 88: accelerator.v1.ReleaseObservation.finding:type_name -> accelerator.v1.ReleaseFinding
-	14,  // 89: accelerator.v1.ReleaseObservation.observation:type_name -> accelerator.v1.Observation
-	19,  // 90: accelerator.v1.AcceleratorAdminService.RegisterCluster:input_type -> accelerator.v1.RegisterClusterRequest
-	20,  // 91: accelerator.v1.AcceleratorAdminService.ListClusters:input_type -> accelerator.v1.ListClustersRequest
-	23,  // 92: accelerator.v1.AcceleratorAdminService.CreatePool:input_type -> accelerator.v1.CreatePoolRequest
-	24,  // 93: accelerator.v1.AcceleratorAdminService.ListPools:input_type -> accelerator.v1.ListPoolsRequest
-	27,  // 94: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:input_type -> accelerator.v1.AdoptSupplyGroupRequest
-	28,  // 95: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:input_type -> accelerator.v1.ListSupplyGroupsRequest
-	30,  // 96: accelerator.v1.AcceleratorAdminService.SetAdmission:input_type -> accelerator.v1.SetAdmissionRequest
-	33,  // 97: accelerator.v1.AcceleratorAdminService.PublishProfile:input_type -> accelerator.v1.PublishProfileRequest
-	36,  // 98: accelerator.v1.AcceleratorAdminService.AdminListProfiles:input_type -> accelerator.v1.AdminListProfilesRequest
-	63,  // 99: accelerator.v1.AcceleratorAdminService.AdminListBindings:input_type -> accelerator.v1.AdminListBindingsRequest
-	51,  // 100: accelerator.v1.AcceleratorAdminService.ListDevices:input_type -> accelerator.v1.ListDevicesRequest
-	47,  // 101: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:input_type -> accelerator.v1.AdminGetCapacityRequest
-	34,  // 102: accelerator.v1.AcceleratorCatalogService.ListProfiles:input_type -> accelerator.v1.ListProfilesRequest
-	37,  // 103: accelerator.v1.AcceleratorCatalogService.GetProfile:input_type -> accelerator.v1.GetProfileRequest
-	43,  // 104: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:input_type -> accelerator.v1.ResolveGpuRequestRequest
-	46,  // 105: accelerator.v1.AcceleratorCatalogService.GetCapacity:input_type -> accelerator.v1.GetCapacityRequest
-	49,  // 106: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:input_type -> accelerator.v1.CheckGpuFitRequest
-	55,  // 107: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:input_type -> accelerator.v1.SyncGpuUsageRequest
-	57,  // 108: accelerator.v1.AcceleratorUsageService.GetGpuUsage:input_type -> accelerator.v1.GetGpuUsageRequest
-	58,  // 109: accelerator.v1.AcceleratorUsageService.ListGpuUsages:input_type -> accelerator.v1.ListGpuUsagesRequest
-	62,  // 110: accelerator.v1.AcceleratorUsageService.ListBindings:input_type -> accelerator.v1.ListBindingsRequest
-	65,  // 111: accelerator.v1.AcceleratorUsageService.ObserveRelease:input_type -> accelerator.v1.ObserveReleaseRequest
-	18,  // 112: accelerator.v1.AcceleratorAdminService.RegisterCluster:output_type -> accelerator.v1.Cluster
-	21,  // 113: accelerator.v1.AcceleratorAdminService.ListClusters:output_type -> accelerator.v1.ListClustersResponse
-	22,  // 114: accelerator.v1.AcceleratorAdminService.CreatePool:output_type -> accelerator.v1.Pool
-	25,  // 115: accelerator.v1.AcceleratorAdminService.ListPools:output_type -> accelerator.v1.ListPoolsResponse
-	26,  // 116: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:output_type -> accelerator.v1.SupplyGroup
-	29,  // 117: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:output_type -> accelerator.v1.ListSupplyGroupsResponse
-	26,  // 118: accelerator.v1.AcceleratorAdminService.SetAdmission:output_type -> accelerator.v1.SupplyGroup
-	32,  // 119: accelerator.v1.AcceleratorAdminService.PublishProfile:output_type -> accelerator.v1.GpuProfile
-	35,  // 120: accelerator.v1.AcceleratorAdminService.AdminListProfiles:output_type -> accelerator.v1.ListProfilesResponse
-	64,  // 121: accelerator.v1.AcceleratorAdminService.AdminListBindings:output_type -> accelerator.v1.ListBindingsResponse
-	52,  // 122: accelerator.v1.AcceleratorAdminService.ListDevices:output_type -> accelerator.v1.ListDevicesResponse
-	45,  // 123: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:output_type -> accelerator.v1.CapacityView
-	35,  // 124: accelerator.v1.AcceleratorCatalogService.ListProfiles:output_type -> accelerator.v1.ListProfilesResponse
-	32,  // 125: accelerator.v1.AcceleratorCatalogService.GetProfile:output_type -> accelerator.v1.GpuProfile
-	42,  // 126: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:output_type -> accelerator.v1.ResolvedGpuPlan
-	45,  // 127: accelerator.v1.AcceleratorCatalogService.GetCapacity:output_type -> accelerator.v1.CapacityView
-	48,  // 128: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:output_type -> accelerator.v1.GpuFit
-	56,  // 129: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:output_type -> accelerator.v1.SyncGpuUsageResponse
-	54,  // 130: accelerator.v1.AcceleratorUsageService.GetGpuUsage:output_type -> accelerator.v1.GpuUsageProjection
-	59,  // 131: accelerator.v1.AcceleratorUsageService.ListGpuUsages:output_type -> accelerator.v1.ListGpuUsagesResponse
-	64,  // 132: accelerator.v1.AcceleratorUsageService.ListBindings:output_type -> accelerator.v1.ListBindingsResponse
-	66,  // 133: accelerator.v1.AcceleratorUsageService.ObserveRelease:output_type -> accelerator.v1.ReleaseObservation
-	112, // [112:134] is the sub-list for method output_type
-	90,  // [90:112] is the sub-list for method input_type
-	90,  // [90:90] is the sub-list for extension type_name
-	90,  // [90:90] is the sub-list for extension extendee
-	0,   // [0:90] is the sub-list for field type_name
+	36,  // 34: accelerator.v1.ListProfilesResponse.scopes:type_name -> accelerator.v1.ProfileScope
+	10,  // 35: accelerator.v1.AdminListProfilesRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 36: accelerator.v1.AdminListProfilesRequest.page:type_name -> accelerator.v1.Page
+	9,   // 37: accelerator.v1.GetProfileRequest.context:type_name -> accelerator.v1.TenantContext
+	13,  // 38: accelerator.v1.RuntimeFragment.node_labels:type_name -> accelerator.v1.KeyValue
+	13,  // 39: accelerator.v1.RuntimeFragment.pod_annotations:type_name -> accelerator.v1.KeyValue
+	13,  // 40: accelerator.v1.RuntimeFragment.limits_per_container:type_name -> accelerator.v1.KeyValue
+	39,  // 41: accelerator.v1.ResolvedGpuPlan.request:type_name -> accelerator.v1.GpuRequest
+	32,  // 42: accelerator.v1.ResolvedGpuPlan.profile:type_name -> accelerator.v1.GpuProfile
+	40,  // 43: accelerator.v1.ResolvedGpuPlan.encoding:type_name -> accelerator.v1.MemoryEncoding
+	41,  // 44: accelerator.v1.ResolvedGpuPlan.totals:type_name -> accelerator.v1.ResourceTotals
+	42,  // 45: accelerator.v1.ResolvedGpuPlan.runtime:type_name -> accelerator.v1.RuntimeFragment
+	9,   // 46: accelerator.v1.ResolveGpuRequestRequest.context:type_name -> accelerator.v1.TenantContext
+	39,  // 47: accelerator.v1.ResolveGpuRequestRequest.gpu:type_name -> accelerator.v1.GpuRequest
+	0,   // 48: accelerator.v1.CapacityView.mode:type_name -> accelerator.v1.SupplyMode
+	14,  // 49: accelerator.v1.CapacityView.observation:type_name -> accelerator.v1.Observation
+	45,  // 50: accelerator.v1.CapacityView.devices:type_name -> accelerator.v1.DeviceCapacity
+	9,   // 51: accelerator.v1.GetCapacityRequest.context:type_name -> accelerator.v1.TenantContext
+	10,  // 52: accelerator.v1.AdminGetCapacityRequest.context:type_name -> accelerator.v1.AdminRead
+	6,   // 53: accelerator.v1.GpuFit.status:type_name -> accelerator.v1.FitStatus
+	14,  // 54: accelerator.v1.GpuFit.observation:type_name -> accelerator.v1.Observation
+	9,   // 55: accelerator.v1.CheckGpuFitRequest.context:type_name -> accelerator.v1.TenantContext
+	39,  // 56: accelerator.v1.CheckGpuFitRequest.gpu:type_name -> accelerator.v1.GpuRequest
+	17,  // 57: accelerator.v1.PhysicalDevice.node:type_name -> accelerator.v1.NodeRef
+	14,  // 58: accelerator.v1.PhysicalDevice.observation:type_name -> accelerator.v1.Observation
+	10,  // 59: accelerator.v1.ListDevicesRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 60: accelerator.v1.ListDevicesRequest.page:type_name -> accelerator.v1.Page
+	51,  // 61: accelerator.v1.ListDevicesResponse.items:type_name -> accelerator.v1.PhysicalDevice
+	54,  // 62: accelerator.v1.GpuUsageProjection.ref:type_name -> accelerator.v1.GpuUsageRef
+	3,   // 63: accelerator.v1.GpuUsageProjection.state:type_name -> accelerator.v1.UsageState
+	43,  // 64: accelerator.v1.GpuUsageProjection.plan:type_name -> accelerator.v1.ResolvedGpuPlan
+	4,   // 65: accelerator.v1.GpuUsageProjection.end_reason:type_name -> accelerator.v1.UsageEndReason
+	55,  // 66: accelerator.v1.SyncGpuUsageRequest.projection:type_name -> accelerator.v1.GpuUsageProjection
+	54,  // 67: accelerator.v1.SyncGpuUsageResponse.ref:type_name -> accelerator.v1.GpuUsageRef
+	3,   // 68: accelerator.v1.SyncGpuUsageResponse.state:type_name -> accelerator.v1.UsageState
+	9,   // 69: accelerator.v1.GetGpuUsageRequest.context:type_name -> accelerator.v1.TenantContext
+	54,  // 70: accelerator.v1.GetGpuUsageRequest.ref:type_name -> accelerator.v1.GpuUsageRef
+	9,   // 71: accelerator.v1.ListGpuUsagesRequest.context:type_name -> accelerator.v1.TenantContext
+	3,   // 72: accelerator.v1.ListGpuUsagesRequest.state:type_name -> accelerator.v1.UsageState
+	12,  // 73: accelerator.v1.ListGpuUsagesRequest.page:type_name -> accelerator.v1.Page
+	55,  // 74: accelerator.v1.ListGpuUsagesResponse.items:type_name -> accelerator.v1.GpuUsageProjection
+	54,  // 75: accelerator.v1.GpuBinding.verified_usage_ref:type_name -> accelerator.v1.GpuUsageRef
+	61,  // 76: accelerator.v1.GpuBinding.pod:type_name -> accelerator.v1.PodRef
+	5,   // 77: accelerator.v1.GpuBinding.state:type_name -> accelerator.v1.AllocationState
+	14,  // 78: accelerator.v1.GpuBinding.observation:type_name -> accelerator.v1.Observation
+	9,   // 79: accelerator.v1.ListBindingsRequest.context:type_name -> accelerator.v1.TenantContext
+	54,  // 80: accelerator.v1.ListBindingsRequest.ref:type_name -> accelerator.v1.GpuUsageRef
+	12,  // 81: accelerator.v1.ListBindingsRequest.page:type_name -> accelerator.v1.Page
+	10,  // 82: accelerator.v1.AdminListBindingsRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 83: accelerator.v1.AdminListBindingsRequest.page:type_name -> accelerator.v1.Page
+	62,  // 84: accelerator.v1.ListBindingsResponse.items:type_name -> accelerator.v1.GpuBinding
+	14,  // 85: accelerator.v1.ListBindingsResponse.observation:type_name -> accelerator.v1.Observation
+	54,  // 86: accelerator.v1.ObserveReleaseRequest.ref:type_name -> accelerator.v1.GpuUsageRef
+	61,  // 87: accelerator.v1.ObserveReleaseRequest.pods:type_name -> accelerator.v1.PodRef
+	54,  // 88: accelerator.v1.ReleaseObservation.ref:type_name -> accelerator.v1.GpuUsageRef
+	7,   // 89: accelerator.v1.ReleaseObservation.finding:type_name -> accelerator.v1.ReleaseFinding
+	14,  // 90: accelerator.v1.ReleaseObservation.observation:type_name -> accelerator.v1.Observation
+	19,  // 91: accelerator.v1.AcceleratorAdminService.RegisterCluster:input_type -> accelerator.v1.RegisterClusterRequest
+	20,  // 92: accelerator.v1.AcceleratorAdminService.ListClusters:input_type -> accelerator.v1.ListClustersRequest
+	23,  // 93: accelerator.v1.AcceleratorAdminService.CreatePool:input_type -> accelerator.v1.CreatePoolRequest
+	24,  // 94: accelerator.v1.AcceleratorAdminService.ListPools:input_type -> accelerator.v1.ListPoolsRequest
+	27,  // 95: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:input_type -> accelerator.v1.AdoptSupplyGroupRequest
+	28,  // 96: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:input_type -> accelerator.v1.ListSupplyGroupsRequest
+	30,  // 97: accelerator.v1.AcceleratorAdminService.SetAdmission:input_type -> accelerator.v1.SetAdmissionRequest
+	33,  // 98: accelerator.v1.AcceleratorAdminService.PublishProfile:input_type -> accelerator.v1.PublishProfileRequest
+	37,  // 99: accelerator.v1.AcceleratorAdminService.AdminListProfiles:input_type -> accelerator.v1.AdminListProfilesRequest
+	64,  // 100: accelerator.v1.AcceleratorAdminService.AdminListBindings:input_type -> accelerator.v1.AdminListBindingsRequest
+	52,  // 101: accelerator.v1.AcceleratorAdminService.ListDevices:input_type -> accelerator.v1.ListDevicesRequest
+	48,  // 102: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:input_type -> accelerator.v1.AdminGetCapacityRequest
+	34,  // 103: accelerator.v1.AcceleratorCatalogService.ListProfiles:input_type -> accelerator.v1.ListProfilesRequest
+	38,  // 104: accelerator.v1.AcceleratorCatalogService.GetProfile:input_type -> accelerator.v1.GetProfileRequest
+	44,  // 105: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:input_type -> accelerator.v1.ResolveGpuRequestRequest
+	47,  // 106: accelerator.v1.AcceleratorCatalogService.GetCapacity:input_type -> accelerator.v1.GetCapacityRequest
+	50,  // 107: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:input_type -> accelerator.v1.CheckGpuFitRequest
+	56,  // 108: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:input_type -> accelerator.v1.SyncGpuUsageRequest
+	58,  // 109: accelerator.v1.AcceleratorUsageService.GetGpuUsage:input_type -> accelerator.v1.GetGpuUsageRequest
+	59,  // 110: accelerator.v1.AcceleratorUsageService.ListGpuUsages:input_type -> accelerator.v1.ListGpuUsagesRequest
+	63,  // 111: accelerator.v1.AcceleratorUsageService.ListBindings:input_type -> accelerator.v1.ListBindingsRequest
+	66,  // 112: accelerator.v1.AcceleratorUsageService.ObserveRelease:input_type -> accelerator.v1.ObserveReleaseRequest
+	18,  // 113: accelerator.v1.AcceleratorAdminService.RegisterCluster:output_type -> accelerator.v1.Cluster
+	21,  // 114: accelerator.v1.AcceleratorAdminService.ListClusters:output_type -> accelerator.v1.ListClustersResponse
+	22,  // 115: accelerator.v1.AcceleratorAdminService.CreatePool:output_type -> accelerator.v1.Pool
+	25,  // 116: accelerator.v1.AcceleratorAdminService.ListPools:output_type -> accelerator.v1.ListPoolsResponse
+	26,  // 117: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:output_type -> accelerator.v1.SupplyGroup
+	29,  // 118: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:output_type -> accelerator.v1.ListSupplyGroupsResponse
+	26,  // 119: accelerator.v1.AcceleratorAdminService.SetAdmission:output_type -> accelerator.v1.SupplyGroup
+	32,  // 120: accelerator.v1.AcceleratorAdminService.PublishProfile:output_type -> accelerator.v1.GpuProfile
+	35,  // 121: accelerator.v1.AcceleratorAdminService.AdminListProfiles:output_type -> accelerator.v1.ListProfilesResponse
+	65,  // 122: accelerator.v1.AcceleratorAdminService.AdminListBindings:output_type -> accelerator.v1.ListBindingsResponse
+	53,  // 123: accelerator.v1.AcceleratorAdminService.ListDevices:output_type -> accelerator.v1.ListDevicesResponse
+	46,  // 124: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:output_type -> accelerator.v1.CapacityView
+	35,  // 125: accelerator.v1.AcceleratorCatalogService.ListProfiles:output_type -> accelerator.v1.ListProfilesResponse
+	32,  // 126: accelerator.v1.AcceleratorCatalogService.GetProfile:output_type -> accelerator.v1.GpuProfile
+	43,  // 127: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:output_type -> accelerator.v1.ResolvedGpuPlan
+	46,  // 128: accelerator.v1.AcceleratorCatalogService.GetCapacity:output_type -> accelerator.v1.CapacityView
+	49,  // 129: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:output_type -> accelerator.v1.GpuFit
+	57,  // 130: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:output_type -> accelerator.v1.SyncGpuUsageResponse
+	55,  // 131: accelerator.v1.AcceleratorUsageService.GetGpuUsage:output_type -> accelerator.v1.GpuUsageProjection
+	60,  // 132: accelerator.v1.AcceleratorUsageService.ListGpuUsages:output_type -> accelerator.v1.ListGpuUsagesResponse
+	65,  // 133: accelerator.v1.AcceleratorUsageService.ListBindings:output_type -> accelerator.v1.ListBindingsResponse
+	67,  // 134: accelerator.v1.AcceleratorUsageService.ObserveRelease:output_type -> accelerator.v1.ReleaseObservation
+	113, // [113:135] is the sub-list for method output_type
+	91,  // [91:113] is the sub-list for method input_type
+	91,  // [91:91] is the sub-list for extension type_name
+	91,  // [91:91] is the sub-list for extension extendee
+	0,   // [0:91] is the sub-list for field type_name
 }
 
 func init() { file_accelerator_v1_accelerator_proto_init() }
@@ -5746,7 +5844,7 @@ func file_accelerator_v1_accelerator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_accelerator_v1_accelerator_proto_rawDesc), len(file_accelerator_v1_accelerator_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   59,
+			NumMessages:   60,
 			NumExtensions: 0,
 			NumServices:   3,
 		},
