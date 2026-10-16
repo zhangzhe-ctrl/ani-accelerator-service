@@ -2147,7 +2147,7 @@ type ProfileSpec struct {
 	SharedMemoryMib int64 `protobuf:"varint,4,opt,name=shared_memory_mib,json=sharedMemoryMib,proto3" json:"shared_memory_mib,omitempty"`
 	// 共享1..99；整卡100。
 	CoreLimitPercent uint32 `protobuf:"varint,5,opt,name=core_limit_percent,json=coreLimitPercent,proto3" json:"core_limit_percent,omitempty"`
-	// 整卡能力上限1或2；共享固定1。申请数量不得超过此值。
+	// 整卡能力为正整数上限；共享固定1。申请数量不得超过此值。
 	MaxDevicesPerReplica uint32 `protobuf:"varint,6,opt,name=max_devices_per_replica,json=maxDevicesPerReplica,proto3" json:"max_devices_per_replica,omitempty"`
 	// 整卡WHOLE_DEVICE_EXCLUSIVE；软件共享SOFTWARE_COOPERATIVE。
 	IsolationClass string `protobuf:"bytes,7,opt,name=isolation_class,json=isolationClass,proto3" json:"isolation_class,omitempty"`
@@ -2771,7 +2771,7 @@ type GpuRequest struct {
 	ProfileVersion uint64 `protobuf:"varint,4,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
 	// 首期固定1..16；真实owner仍须验收对应副本上限。
 	Replicas uint32 `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
-	// 每Pod设备数：整卡1或2且不超过Profile上限，共享固定1。
+	// 每Pod设备数：整卡正整数且不超过Profile上限，共享固定1。
 	DevicesPerReplica uint32 `protobuf:"varint,6,opt,name=devices_per_replica,json=devicesPerReplica,proto3" json:"devices_per_replica,omitempty"`
 	// 必填合法K8s容器名；每Pod只有这一GPU容器。
 	ContainerName string `protobuf:"bytes,7,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`

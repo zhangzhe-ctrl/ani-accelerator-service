@@ -124,7 +124,7 @@ func imageDigest(s string) bool {
 	return strings.HasPrefix(s, "sha256:") && Digest(strings.TrimPrefix(s, "sha256:"))
 }
 func ValidateSpec(s *ProfileSpec, b *ProviderBaseline) error {
-	if s == nil || !UUID(s.GroupID) || !Label(s.ModelKey) || s.MaxDevicesPerReplica < 1 || s.MaxDevicesPerReplica > 2 {
+	if s == nil || !UUID(s.GroupID) || !Label(s.ModelKey) || s.MaxDevicesPerReplica < 1 {
 		return Invalid("SHAPE_UNSUPPORTED")
 	}
 	if err := ValidateBaseline(b, s.Mode); err != nil {
@@ -208,7 +208,7 @@ func ValidateRequest(r *GpuRequest, maxReplicas uint32) error {
 	if r == nil || !UUID(r.ClusterID) || !UUID(r.PoolID) || !UUID(r.ProfileID) || r.ProfileVersion != 1 {
 		return Invalid("INVALID_GPU_REQUEST")
 	}
-	if maxReplicas == 0 || maxReplicas > 256 || r.Replicas == 0 || r.Replicas > maxReplicas || r.DevicesPerReplica < 1 || r.DevicesPerReplica > 2 || !Name(r.ContainerName) {
+	if maxReplicas == 0 || maxReplicas > 256 || r.Replicas == 0 || r.Replicas > maxReplicas || r.DevicesPerReplica < 1 || !Name(r.ContainerName) {
 		return Invalid("SHAPE_UNSUPPORTED")
 	}
 	return nil

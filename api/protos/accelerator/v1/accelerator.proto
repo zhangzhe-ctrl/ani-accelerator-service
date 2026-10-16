@@ -358,7 +358,7 @@ message ProfileSpec {
   int64 shared_memory_mib = 4;
   // 共享1..99；整卡100。
   uint32 core_limit_percent = 5;
-  // 整卡能力上限1或2；共享固定1。申请数量不得超过此值。
+  // 整卡能力为正整数上限；共享固定1。申请数量不得超过此值。
   uint32 max_devices_per_replica = 6;
   // 整卡WHOLE_DEVICE_EXCLUSIVE；软件共享SOFTWARE_COOPERATIVE。
   string isolation_class = 7;
@@ -459,7 +459,7 @@ message GpuRequest {
   uint64 profile_version = 4;
   // 首期固定1..16；真实owner仍须验收对应副本上限。
   uint32 replicas = 5;
-  // 每Pod设备数：整卡1或2且不超过Profile上限，共享固定1。
+  // 每Pod设备数：整卡正整数且不超过Profile上限，共享固定1。
   uint32 devices_per_replica = 6;
   // 必填合法K8s容器名；每Pod只有这一GPU容器。
   string container_name = 7;

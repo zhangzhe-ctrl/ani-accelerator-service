@@ -43,11 +43,11 @@ ListProfiles/AdminListProfiles 的响应 scopes 与本页 items 同序一一对�
 
 ## 规格、计划与计量
 
-owner 软件合同上限为 16 个固定副本；不声称真实 Inference 已通过该能力验证。每 Pod 一个指定 GPU 容器；WHOLE_EXCLUSIVE 的 `devices_per_replica` 为 1 或 2，且不超过 Profile 的 max_devices_per_replica（1或2）；SHARED_FIXED 的上限和请求数均为1。同一max=2整卡Profile接受N=1和N=2，不按Profile身份分流。实际 workload 中不得添加额外 GPU init/sidecar、GPU 容器、额外滚动副本或在线扩缩；owner 必须在持久接受和实际渲染处执行相同约束，属于 EXT-04。
+owner 软件合同上限为 16 个固定副本；不声称真实 Inference 已通过该能力验证。每 Pod 一个指定 GPU 容器；WHOLE_EXCLUSIVE 的 `devices_per_replica` 为正uint32整数，且不超过 Profile 的正整数max_devices_per_replica；不另写死设备数量上限。SHARED_FIXED 的上限和请求数均为1。同一整卡Profile按同一规则接受其上限内的申请，不按Profile身份分流。实际 workload 中不得添加额外 GPU init/sidecar、GPU 容器、额外滚动副本或在线扩缩；owner 必须在持久接受和实际渲染处执行相同约束，属于 EXT-04。
 
 共享每设备 `m>0` MiB、`F>0` MiB/block，要求 `m%F=0`，`q=m/F`。provider int32 边界对 q 和插件乘回后的 m 均校验。F=1/256/1024、m=6144 对应 q=6144/24/6；F=10 拒绝。单容器 limits 写 q，实例总 MiB 为 replicas*m；不把总量写每个 Pod。整卡number=N、cores=100、memory-percentage=100，不同时写绝对 memory；整卡总量按checked replicas*N计量，不重复计共享MiB。F不是超配倍率，memory/core scale均为100%。
 
-CheckGpuFit 对每副本两设备明确返回SHAPE_UNSUPPORTED，不把单设备KnownFreeUnits当作两卡副本估计。两卡计划/实际Pod字段的软件合同不宣称两卡组合容量、真实runtime绑定、模型并行、硬件隔离或释放已经验证；现有provider对未知多UUID运行时仍保守拒绝，不伪造Verified。
+CheckGpuFit 对每副本多于一个设备明确返回SHAPE_UNSUPPORTED，不把单设备KnownFreeUnits当作多卡副本估计。多卡计划/实际Pod字段的软件合同不宣称多卡组合容量、真实runtime绑定、模型并行、硬件隔离或释放已经验证；现有provider对未知多UUID运行时仍保守拒绝，不伪造Verified。
 
 同集群只有一个共享 MiB/cores/isolation 向量；整卡和共享 Node UID 集合不重叠。受管渲染固定 scheduler `volcano`、recipe `volcano-hami-v1`、已核对 Queue、`accelerator.ani.io/{supply-group,model-key,baseline-id}` 及 `volcano.sh/vgpu-mode=hami-core`。调用者不能覆盖、删除或扩大选择器。绑定身份为 cluster+Pod UID+container+物理设备，平台资源 UUID、Node index、PodResources 伪 ID 和显存块均不等于物理 GPU UUID。
 

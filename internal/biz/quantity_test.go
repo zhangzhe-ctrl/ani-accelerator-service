@@ -99,6 +99,31 @@ func TestQuantitySharedRetainsSingleDeviceEncoding(t *testing.T) {
 	}
 }
 
+func TestQuantityWholeUsesProfileMaximum(t *testing.T) {
+	profile, group := quantityProfile(t, Whole, 4)
+	profile.ProfileID = "10000000-0000-4000-8000-000000000004"
+	request := quantityRequest(4, 1)
+	request.ProfileID = profile.ProfileID
+	plan, err := BuildPlan(request, profile, group, 16)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if plan.Totals.ExclusiveDeviceCount != 4 {
+		t.Fatalf("wrong whole total: %+v", plan.Totals)
+	}
+	if err := ValidatePlan(plan, profile, group, 16); err != nil {
+		t.Fatal(err)
+	}
+	raw, err := json.Marshal(plan)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Logf("BUILDER_VECTOR WholeProfileMax %s", raw)
+	request.DevicesPerReplica = profile.Spec.MaxDevicesPerReplica + 1
+	_, err = BuildPlan(request, profile, group, 16)
+	requireReason(t, err, "SHAPE_UNSUPPORTED")
+}
+
 func TestQuantityRejectsUnsupportedRequestsAndCapabilities(t *testing.T) {
 	for _, tc := range []struct {
 		name             string
@@ -109,7 +134,6 @@ func TestQuantityRejectsUnsupportedRequestsAndCapabilities(t *testing.T) {
 		{"whole-request0", Whole, 2, 0},
 		{"whole-request3", Whole, 2, 3},
 		{"whole-max0", Whole, 0, 1},
-		{"whole-max3", Whole, 3, 1},
 		{"shared-request2", Shared, 1, 2},
 		{"shared-max2", Shared, 2, 1},
 	} {
@@ -176,14 +200,17 @@ func TestQuantityTwoDeviceFitRejectsBeforeExternalReads(t *testing.T) {
 
 func TestQuantityInferenceBuilderVectors(t *testing.T) {
 	whole, wholeGroup := quantityProfile(t, Whole, 2)
+	wholeMaximum, wholeMaximumGroup := quantityProfile(t, Whole, 4)
+	wholeMaximum.ProfileID = "10000000-0000-4000-8000-000000000004"
 	shared, sharedGroup := quantityProfile(t, Shared, 1)
 	for _, tc := range []struct {
 		name    string
 		profile *Profile
 		group   *SupplyGroup
 		devices uint32
-	}{{"Whole1", whole, wholeGroup, 1}, {"Whole2", whole, wholeGroup, 2}, {"Shared1", shared, sharedGroup, 1}} {
+	}{{"Whole1", whole, wholeGroup, 1}, {"Whole2", whole, wholeGroup, 2}, {"Shared1", shared, sharedGroup, 1}, {"WholeProfileMax", wholeMaximum, wholeMaximumGroup, 4}} {
 		request := quantityRequest(tc.devices, 1)
+		request.ProfileID = tc.profile.ProfileID
 		request.ContainerName = "kserve-container"
 		plan, err := BuildPlan(request, tc.profile, tc.group, 16)
 		if err != nil {

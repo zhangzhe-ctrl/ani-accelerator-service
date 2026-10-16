@@ -143,7 +143,8 @@ func TestUNIT07RejectsOverflowShapeAndDuplicates(t *testing.T) {
 	_, err = EncodeMemory(int64(math.MaxInt32)+1, 1)
 	requireReason(t, err, "PROVIDER_INTEGER_OVERFLOW")
 	r := *testPlan(t, Shared, 1024).Request
-	for _, mutate := range []func(*GpuRequest){func(r *GpuRequest) { r.Replicas = 17 }, func(r *GpuRequest) { r.Replicas = 0 }, func(r *GpuRequest) { r.DevicesPerReplica = 0 }, func(r *GpuRequest) { r.DevicesPerReplica = 3 }, func(r *GpuRequest) { r.ContainerName = "Bad_Container" }} {
+	// Positive device counts are bounded by the Profile in Render/BuildPlan.
+	for _, mutate := range []func(*GpuRequest){func(r *GpuRequest) { r.Replicas = 17 }, func(r *GpuRequest) { r.Replicas = 0 }, func(r *GpuRequest) { r.DevicesPerReplica = 0 }, func(r *GpuRequest) { r.ContainerName = "Bad_Container" }} {
 		copy := r
 		mutate(&copy)
 		requireReason(t, ValidateRequest(&copy, 16), "SHAPE_UNSUPPORTED")
