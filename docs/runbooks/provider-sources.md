@@ -87,6 +87,8 @@ v1 仍使用 `acc-hardware-attestation-v1` 签名域及其原有效期，不会�
 
 验收资格与运行源健康分开判断。资格缺失/损坏/旧 v1 过期，或调度镜像、配置偏离准入 baseline，不停止 Kubernetes、PodResources、CRI 的事实采集和正向释放证明。此时库存/可售容量保持保守不完整，不凭健康水位宣称可以新增分配；单位 F 或注册格式无法核对时不重新解释分配块数。来源水位表达实际连接、节点与读取健康，不把准入配置不匹配伪装为来源失联。真实来源失联、容器未退出或仍有设备分配时仍不能确认释放。
 
+调度分配按原始 assigned 时间记录历史事实。owner 签名晚于首次采集到达时，同 Pod/container/device/node/assigned 时间的已有 scheduler 记录保留原归属及版本；不把后来到达的归属回填为同一历史版本的新报文。当前 runtime/allocation 事实继续独立严格验签并关联 usage；两个有效归属相异仍产生 ownership conflict，同时间的真实分配字段变化仍拒绝为 source revision conflict。
+
 解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。release 查询不写数据库、不删除 workload、不结束 usage、不发配额释放。
 
 轮询可能错过 kubelet 清理前的短暂 EXITED 状态。生产部署应启用 CRI `GetContainerEvents` 连续采集，并把 `runtime_events_directory` 挂载到该服务独占的受管持久目录，权限 0700；多个服务不要共写目录。同节点/Unix socket 的连接别名共用一个订阅。记录保存完整容器身份及 Created/Started/Exited 状态，不保存 OCI 环境变量；状态变化原子写入并同步落盘，重启后读回。任何已知 attempt 缺少正向退出记录，或当前仍有 Running/Unknown attempt，继续保留未知占用。

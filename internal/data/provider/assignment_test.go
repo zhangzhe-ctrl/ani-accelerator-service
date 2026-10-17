@@ -1,6 +1,10 @@
 package provider
 
 import (
+	"context"
+	"crypto/ed25519"
+	"crypto/rand"
+	"encoding/base64"
 	"strings"
 	"testing"
 	"time"
@@ -24,6 +28,10 @@ func liveAssignedPod() pod {
 }
 
 func assignedPodClaims(t *testing.T, pod pod, now time.Time) ([]biz.Claim, error) {
+	return assignedPodClaimsUsing(t, &Provider{}, pod, now)
+}
+
+func assignedPodClaimsUsing(t *testing.T, reader *Provider, pod pod, now time.Time) ([]biz.Claim, error) {
 	t.Helper()
 	status := &cri.ContainerStatusResponse{
 		Status: &cri.ContainerStatus{Id: "live-container", Metadata: &cri.ContainerMetadata{Name: "inference"}, Labels: map[string]string{"io.kubernetes.pod.uid": pod.Metadata.UID}, State: cri.ContainerState_CONTAINER_RUNNING},
@@ -36,7 +44,66 @@ func assignedPodClaims(t *testing.T, pod pod, now time.Time) ([]biz.Claim, error
 		Resources:  &pr.ListPodResourcesResponse{PodResources: []*pr.PodResources{{Namespace: "acc-live", Name: "acc-plan-iris", Containers: []*pr.ContainerResources{{Name: "inference", Devices: []*pr.ContainerDevices{{ResourceName: "volcano.sh/vgpu-number", DeviceIds: []string{"NVIDIA-0"}}}}}}}},
 	}
 	group := biz.SupplyGroup{Baseline: &biz.ProviderBaseline{MemoryBlockMiB: 1024, BaselineDigest: strings.Repeat("a", 64)}}
-	return (&Provider{}).podClaims("cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
+	return reader.podClaims(context.Background(), "cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
+}
+
+func signAssignedOwner(t *testing.T, pod *pod, ref biz.UsageRef, key ed25519.PrivateKey, digest string) {
+	t.Helper()
+	pod.Metadata.Labels = map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}
+	pod.Metadata.Annotations["accelerator.ani.io/plan-digest"] = digest
+	podRef := biz.PodRef{ClusterID: "cluster", Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, UID: pod.Metadata.UID, ContainerName: "inference"}
+	payload, err := biz.Canonical(OwnerAssertion{podRef, ref, digest})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pod.Metadata.Annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v1\n"), payload...)))
+}
+
+func TestSchedulerHistoryDoesNotHideConflictingOrInvalidOwner(t *testing.T) {
+	for _, invalid := range []bool{false, true} {
+		name := "two_verified_owners_conflict"
+		if invalid {
+			name = "invalid_late_signature_is_unassociated"
+		}
+		t.Run(name, func(t *testing.T) {
+			public, key, err := ed25519.GenerateKey(rand.Reader)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader := &Provider{resourceOwnerKey: public}
+			pod := liveAssignedPod()
+			now := time.Now().UTC()
+			firstOwner := biz.UsageRef{TenantID: biz.NewID(), OwnerService: "ani-resource-service", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
+			if !invalid {
+				signAssignedOwner(t, &pod, firstOwner, key, strings.Repeat("b", 64))
+			}
+			first, err := assignedPodClaimsUsing(t, reader, pod, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			reader.repo = releaseRepository{reader: releaseReader{claims: first[:1]}}
+			lateOwner := biz.UsageRef{TenantID: firstOwner.TenantID, OwnerService: "ani-resource-service", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
+			digest := strings.Repeat("c", 64)
+			signAssignedOwner(t, &pod, lateOwner, key, digest)
+			if invalid {
+				pod.Metadata.Annotations["accelerator.ani.io/owner-signature"] = "invalid"
+			}
+			current, err := assignedPodClaimsUsing(t, reader, pod, now.Add(time.Second))
+			if err != nil || len(current) != 3 || current[0].Cursor != first[0].Cursor || current[0].EvidenceRef != first[0].EvidenceRef {
+				t.Fatalf("historical scheduler revision changed: claims=%+v error=%v", current, err)
+			}
+			for _, claim := range current[1:] {
+				if invalid && claim.OwnerRef != nil || !invalid && (claim.OwnerRef == nil || *claim.OwnerRef != lateOwner || claim.PlanDigest != digest) {
+					t.Fatalf("current owner signature boundary was bypassed: %+v", claim)
+				}
+			}
+			usage := &biz.UsageProjection{Ref: &lateOwner, Plan: &biz.ResolvedPlan{ResolutionDigest: digest, Request: &biz.GpuRequest{ClusterID: "cluster", ContainerName: "inference"}}}
+			binding, err := biz.MergeBinding("binding", current, nil, usage)
+			if err != nil || binding.VerifiedUsageRef != nil || !invalid && !strings.Contains(strings.Join(binding.Observation.Issues, ","), "OWNERSHIP_CONFLICT") {
+				t.Fatalf("conflicting/invalid owner acquired attribution: binding=%+v error=%v", binding, err)
+			}
+		})
+	}
 }
 
 func TestPodClaimsConsumedAssignmentUsesHistoricalBindTime(t *testing.T) {

@@ -72,6 +72,9 @@ func (r *replayRuntime) Version(context.Context, *cri.VersionRequest) (*cri.Vers
 	return &cri.VersionResponse{Version: "0.1.0", RuntimeName: "containerd", RuntimeVersion: "2.1.5", RuntimeApiVersion: "v1"}, nil
 }
 func (r *replayRuntime) ListContainers(context.Context, *cri.ListContainersRequest) (*cri.ListContainersResponse, error) {
+	if r.state.getFault() == "pending_owner" {
+		return &cri.ListContainersResponse{}, nil
+	}
 	_, exited, _, _, failed := r.state.snapshot()
 	if failed {
 		return nil, status.Error(codes.Unavailable, "controlled source outage")
@@ -133,6 +136,10 @@ func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
 	}
 }
 
+func TestProviderLateOwnerPreservesHistoricalSchedulerAndAssociatesRuntime(t *testing.T) {
+	providerControlledSources(t, "v1.15.2", "late_owner")
+}
+
 func providerControlledSources(t *testing.T, schedulerVersion, qualificationFault string) {
 	path := os.Getenv("ACC_TEST_DSN_FILE")
 	if path == "" {
@@ -176,6 +183,9 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 	assertion, _ := biz.Canonical(OwnerAssertion{podRef, *ref, plan.ResolutionDigest})
 	signature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v1\n"), assertion...)))
 	state := &replayState{memory: 6144}
+	if qualificationFault == "late_owner" {
+		state.setFault("pending_owner")
+	}
 	assignmentTime := time.Now().UTC()
 	pki := testkit.NewPKI(t)
 	cert, key := pki.Issue(t, "kubernetes", "", true)
@@ -184,6 +194,14 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		_, _, _, deleted, _ := state.snapshot()
 		now := time.Now().UTC()
 		fault := state.getFault()
+		currentSignature := signature
+		if fault == "pending_owner" {
+			currentSignature = ""
+		}
+		assignmentValue := gpuUUID + ",NVIDIA,6,25:"
+		if fault == "scheduler_memory" {
+			assignmentValue = gpuUUID + ",NVIDIA,7,25:"
+		}
 		if fault == "stale" {
 			now = now.Add(-time.Hour)
 		}
@@ -213,7 +231,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 			items := []any{}
 			items = append(items, map[string]any{"metadata": map[string]any{"uid": "pending-1", "name": "pending", "namespace": "replay"}, "spec": map[string]any{"nodeSelector": map[string]string{biz.GroupLabel: g.GroupID}, "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1"}}}}}, "status": map[string]string{"phase": "Pending"}})
 			if !deleted {
-				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: gpuUUID + ",NVIDIA,6,25:", AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/plan-digest": plan.ResolutionDigest, "accelerator.ani.io/owner-signature": signature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6"}}}}}})
+				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: assignmentValue, AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/plan-digest": plan.ResolutionDigest, "accelerator.ani.io/owner-signature": currentSignature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6"}}}}}})
 			}
 			response = map[string]any{"items": items}
 		case strings.Contains(r.URL.Path, "/configmaps/"):
@@ -323,6 +341,71 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		}
 	}
 	collect()
+	if qualificationFault == "late_owner" {
+		var first biz.Claim
+		if err := db.View(ctx, func(r biz.Reader) error {
+			claims, _, err := r.PodEvidence(ctx, podRef)
+			if err != nil {
+				return err
+			}
+			if len(claims) != 1 || claims[0].Source != "scheduler" || claims[0].OwnerRef != nil || claims[0].PlanDigest != "" {
+				t.Fatalf("expected pre-signature scheduler-only observation: %+v", claims)
+			}
+			first = claims[0]
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		state.setFault("")
+		collect()
+		collect() // Reception time changes do not create a new scheduler revision.
+		// Owner operation times originate in PostgreSQL at microsecond precision.
+		createdAt := time.Now().UTC().Truncate(time.Microsecond)
+		projection := biz.UsageProjection{Ref: ref, Revision: 1, State: biz.Declared, Plan: plan, SourceOperationCreatedAt: createdAt.Format(time.RFC3339Nano), SourceFactRef: "quota-operation:" + ref.CreateOperationID + ":accepted"}
+		projection.PayloadDigest, _ = biz.ProjectionDigest(&projection)
+		if err := db.Transact(ctx, func(tx biz.Transaction) error { _, err := tx.SaveUsage(ctx, projection); return err }); err != nil {
+			t.Fatal(err)
+		}
+		if err := db.View(ctx, func(r biz.Reader) error {
+			claims, _, err := r.PodEvidence(ctx, podRef)
+			if err != nil {
+				return err
+			}
+			if len(claims) != 3 {
+				t.Fatalf("late signature blocked current runtime/allocation: %+v", claims)
+			}
+			for _, claim := range claims {
+				if claim.Source == "scheduler" {
+					old, next := first, claim
+					old.ReceivedAt, next.ReceivedAt = time.Time{}, time.Time{}
+					a, _ := biz.Hash(old)
+					b, _ := biz.Hash(next)
+					if a != b || claim.OwnerRef != nil {
+						t.Fatal("late owner rewrote the original scheduler fact")
+					}
+				} else if claim.OwnerRef == nil || *claim.OwnerRef != *ref || claim.PlanDigest != plan.ResolutionDigest {
+					t.Fatalf("fresh actual allocation lost verified owner: %+v", claim)
+				}
+			}
+			bindings, err := r.Bindings(ctx, biz.BindingFilter{ClusterID: cluster.ClusterID, Pod: &podRef}, "", 201)
+			if err != nil || len(bindings) != 1 || bindings[0].State != biz.Active || bindings[0].VerifiedUsageRef == nil || *bindings[0].VerifiedUsageRef != *ref || bindings[0].MemoryMiB != 6144 {
+				t.Fatalf("runtime ownership did not reconcile one actual binding: %+v error=%v", bindings, err)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		state.setFault("scheduler_memory")
+		changed, err := adapter.Collect(ctx, cluster, []biz.SupplyGroup{g})
+		if err != nil {
+			t.Fatal(err)
+		}
+		err = db.Transact(ctx, func(tx biz.Transaction) error { return tx.SaveObservation(ctx, changed) })
+		if err == nil || err.Error() != "SOURCE_REVISION_CONFLICT" {
+			t.Fatalf("different actual allocation reused its historical revision: %v", err)
+		}
+		return
+	}
 	codec, _ := biz.NewCursorCodec([]byte(strings.Repeat("k", 32)))
 	u, err := biz.NewUsecase(db, adapter, evidence, codec, []string{cluster.ConnectionRef}, 16, time.Minute)
 	if err != nil {

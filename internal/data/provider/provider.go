@@ -420,7 +420,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			var claims []biz.Claim
 			var err error
 			if unitsTrusted {
-				claims, err = p.podClaims(c.ClusterID, *group, pod, source, snapshot, registered, now)
+				claims, err = p.podClaims(ctx, c.ClusterID, *group, pod, source, snapshot, registered, now)
 			} else {
 				claims, err = p.runtimeClaims(c.ClusterID, *group, pod, source, snapshot, batch.Devices, now)
 			}
@@ -543,7 +543,7 @@ func (p *Provider) runtimeClaims(cluster string, g biz.SupplyGroup, pod pod, nod
 	return claims, nil
 }
 
-func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node NodeSource, snapshot nodeSnapshot, registered []RegisteredDevice, now time.Time) ([]biz.Claim, error) {
+func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGroup, pod pod, node NodeSource, snapshot nodeSnapshot, registered []RegisteredDevice, now time.Time) ([]biz.Claim, error) {
 	assignments, err := ParseAssignments(pod.Metadata.Annotations[AssignedIDs])
 	if err != nil {
 		return nil, err
@@ -566,6 +566,17 @@ func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node No
 	}
 	var claims []biz.Claim
 	for i, container := range containers {
+		podRef := biz.PodRef{ClusterID: cluster, Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, UID: pod.Metadata.UID, ContainerName: container.Name}
+		var previous []biz.Claim
+		if p.repo != nil {
+			if err := p.repo.View(ctx, func(r biz.Reader) error {
+				var err error
+				previous, _, err = r.PodEvidence(ctx, podRef)
+				return err
+			}); err != nil {
+				return nil, err
+			}
+		}
 		for _, a := range assignments[i] {
 			known := false
 			for _, d := range registered {
@@ -576,13 +587,21 @@ func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node No
 			if !known {
 				return nil, biz.Invalid("PROVIDER_DEVICE_IDENTITY")
 			}
-			podRef := biz.PodRef{ClusterID: cluster, Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, UID: pod.Metadata.UID, ContainerName: container.Name}
 			ref, plan := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
 			m, err := biz.NormalizeMemory(a.MemoryBlocks, "BLOCKS", g.Baseline.MemoryBlockMiB)
 			if err != nil {
 				return nil, err
 			}
 			c := biz.Claim{Pod: podRef, DeviceID: PhysicalID(cluster, node.UID, a.UUID), NodeUID: node.UID, Source: "scheduler", ObservedAt: assigned, ReceivedAt: now, State: biz.Active, MemoryMiB: m, CoreLimitPercent: a.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, OwnerRef: ref, PlanDigest: plan}
+			// Owner signing follows Pod UID creation and may arrive after the
+			// scheduler fact was saved. Preserve that fact's original ownership;
+			// current verified ownership belongs to fresh runtime/allocation facts.
+			for _, prior := range previous {
+				if prior.Source == "scheduler" && prior.Pod == podRef && prior.DeviceID == c.DeviceID && prior.NodeUID == c.NodeUID && prior.ObservedAt.Equal(assigned) {
+					c.OwnerRef, c.PlanDigest = prior.OwnerRef, prior.PlanDigest
+					break
+				}
+			}
 			// The revision belongs to this historical allocation fact. Pod
 			// status/resourceVersion and poll reception time may change freely.
 			revision := c
@@ -606,6 +625,7 @@ func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node No
 				if alloc.UUID != a.UUID {
 					return nil, biz.Invalid("PROVIDER_DEVICE_CONFLICT")
 				}
+				c.OwnerRef, c.PlanDigest = ref, plan
 				c.Source = "runtime"
 				c.ObservedAt = snapshot.ObservedAt
 				c.Cursor = status.Status.Id
