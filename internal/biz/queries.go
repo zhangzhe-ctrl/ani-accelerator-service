@@ -257,6 +257,12 @@ func (u *Usecase) bindingViews(ctx context.Context, r Reader, f BindingFilter, a
 		if b.Pod == nil {
 			continue
 		}
+		observation := bindingsObservation([]Binding{*b}, u.now(), u.freshness)
+		// A complete persisted release retires the covered historical claims.
+		// Current source availability cannot undo that established fact.
+		if b.State == ReleaseConfirmed && observation.Complete {
+			continue
+		}
 		claims, _, err := r.PodEvidence(ctx, *b.Pod)
 		if err != nil {
 			return nil, err
@@ -272,7 +278,6 @@ func (u *Usecase) bindingViews(ctx context.Context, r Reader, f BindingFilter, a
 				break
 			}
 		}
-		observation := bindingsObservation([]Binding{*b}, u.now(), u.freshness)
 		if !healthy || !observation.Complete {
 			b.State = AllocationUnknown
 			if b.Observation == nil {

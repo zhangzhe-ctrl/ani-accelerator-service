@@ -53,6 +53,8 @@ CheckGpuFit 对每副本多于一个设备明确返回SHAPE_UNSUPPORTED，不把
 
 ResolvedGpuPlan 一旦持久接受即复用原快照，不按当前 F、目录或容量重算。CLOSED 只拒绝新解析，不撤销旧计划或已在途分配。配置未知/漂移/未验证是错误；当前满容量或读模型未知是参考状态。合法形态、有配额但无空闲可由外部 owner 受理等待，不以预检 0 代替配额准入。
 
+硬件验收资格 v2 绑定 baseline/spec、Node UID、物理 GPU 和原始实验，不设 24 小时或其他时间自动失效；关键环境变化后重新验收。Publish、OPEN、Resolve、CheckFit 仍核对资格和当前受管配置，不把资格永久有效解释为跳过漂移检查。旧 v1 时限证明需要显式迁移，保持原签名与到期语义。资格或准入配置不通过时，运行占用、健康水位和释放事实仍独立采集；容量保守不完整，不能作为新分配依据。ObserveRelease 继续核对真实在线节点、CRI 正向退出和 PodResources 无分配，不依赖新增准入是否开放，也不把来源失联视为释放。文件格式和迁移步骤见 [provider 读取合同](../runbooks/provider-sources.md)。
+
 ## 规范摘要 acc-c14n-v1
 
 摘要不是鉴权令牌。实现位于 `internal/biz/canonical.go`：UTF-8，无 Unicode 归一化；对象键按 UTF-8 字典顺序；所有整数转换成无前导零十进制 JSON 字符串，范围 0..2^63-1（领域数量不允许负数）；布尔值保持 JSON 布尔；字符串使用 JSON 转义但不进行 HTML 转义；null 保持 null；无空白、无末尾换行。拒绝浮点、溢出、重复受管 KeyValue 键。数组保持语义顺序，以下集合例外。

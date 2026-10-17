@@ -33,7 +33,7 @@ type Attestation struct {
 	NodeUIDs       []string         `json:"node_uids"`
 	Devices        []HardwareDevice `json:"devices"`
 	VerifiedAt     string           `json:"verified_at"`
-	ExpiresAt      string           `json:"expires_at"`
+	ExpiresAt      string           `json:"expires_at,omitempty"`
 	// Immutable raw experiment manifest digest, not an administrator's boolean.
 	ExperimentManifestDigest string `json:"experiment_manifest_digest"`
 }
@@ -85,6 +85,16 @@ func (s *EvidenceStore) Load(ref string) (*Attestation, error) {
 	if decodeStrict(f, &signed) != nil {
 		return nil, biz.Precondition("ATTESTATION_INVALID")
 	}
+	p := signed.Payload
+	domain := ""
+	switch {
+	case p.SchemaVersion == 1 && p.Kind == "gpu-hardware-consumption-v1":
+		domain = "acc-hardware-attestation-v1\n"
+	case p.SchemaVersion == 2 && p.Kind == "gpu-hardware-qualification-v2":
+		domain = "acc-hardware-qualification-v2\n"
+	default:
+		return nil, biz.Precondition("ATTESTATION_INVALID")
+	}
 	sig, err := base64.StdEncoding.DecodeString(signed.Signature)
 	if err != nil {
 		return nil, biz.Precondition("ATTESTATION_INVALID")
@@ -93,17 +103,26 @@ func (s *EvidenceStore) Load(ref string) (*Attestation, error) {
 	if err != nil {
 		return nil, err
 	}
-	if !ed25519.Verify(s.public, append([]byte("acc-hardware-attestation-v1\n"), bytes...), sig) {
+	if !ed25519.Verify(s.public, append([]byte(domain), bytes...), sig) {
 		return nil, biz.Precondition("ATTESTATION_INVALID")
 	}
-	p := signed.Payload
-	if p.SchemaVersion != 1 || p.Kind != "gpu-hardware-consumption-v1" || p.EvidenceRef != ref || !biz.Digest(p.ExperimentManifestDigest) || !biz.ValidTime(p.VerifiedAt) || !biz.ValidTime(p.ExpiresAt) {
+	if p.EvidenceRef != ref || !biz.Digest(p.ExperimentManifestDigest) || !biz.ValidTime(p.VerifiedAt) {
 		return nil, biz.Precondition("ATTESTATION_INVALID")
 	}
 	verified, _ := time.Parse(time.RFC3339Nano, p.VerifiedAt)
-	expires, _ := time.Parse(time.RFC3339Nano, p.ExpiresAt)
-	if verified.After(s.now()) || !expires.After(s.now()) || !expires.After(verified) {
-		return nil, biz.Precondition("ATTESTATION_EXPIRED")
+	now := s.now()
+	// V1 retains its signed expiry. V2 is an explicit baseline qualification;
+	// elapsed time does not extend or invalidate the original hardware result.
+	if p.SchemaVersion == 1 {
+		if !biz.ValidTime(p.ExpiresAt) {
+			return nil, biz.Precondition("ATTESTATION_INVALID")
+		}
+		expires, _ := time.Parse(time.RFC3339Nano, p.ExpiresAt)
+		if verified.After(now) || !expires.After(now) || !expires.After(verified) {
+			return nil, biz.Precondition("ATTESTATION_EXPIRED")
+		}
+	} else if p.ExpiresAt != "" || verified.After(now) {
+		return nil, biz.Precondition("ATTESTATION_INVALID")
 	}
 	return &p, nil
 }

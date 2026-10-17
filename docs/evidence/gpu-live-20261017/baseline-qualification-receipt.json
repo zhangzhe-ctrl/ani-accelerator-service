@@ -1,0 +1,331 @@
+{
+  "schema_version": 1,
+  "kind": "baseline-qualification-deployment-receipt",
+  "result": "pass",
+  "completed_at_utc": "2026-10-17T01:05:07.978116+00:00",
+  "source_final_result": {
+    "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/final-result.json",
+    "sha256": "3e58dea88209b71d94e846d934b95a8cec9f63954ab0377b2a76636624b8bc30"
+  },
+  "prior_hardware_acceptance_receipt": {
+    "path": "/home/chabking/acc-gpu-live-20261017/evidence/retained-20261017/receipt.json",
+    "sha256": "e9cfdf944d172b2a58e337eb4de8f203ff21ef2470072187a52ad054f2bd0c81"
+  },
+  "runtime": {
+    "app_image_reference": "localhost/ani-accelerator@sha256:51b2cc26ae909e25637ee108649c90eddb1b4ff71492660bdc1e22cab42cced8",
+    "app_image_digest": "sha256:51b2cc26ae909e25637ee108649c90eddb1b4ff71492660bdc1e22cab42cced8",
+    "app_binary_sha256": "c85753ea097176e094bdbfe655b883238becf5f842bead421d97005d39a226ad",
+    "compiled_go_manifest": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/build/go-source-manifest.json",
+      "sha256": "d231e6227e43deec7390b1ba5abda6a4a031144c07f6a1ebffa65d1b39dedc8b"
+    },
+    "source_go_manifest": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/build/all-go-source-manifest.json",
+      "sha256": "70c2ef0924045b84978250861792068c2f7236159d40e529bcc6168169bd8e66"
+    },
+    "scheduler_image_reference": "172.16.101.10:5000/volcanosh/vc-scheduler:v1.15.2-ani-percent-only@sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+    "scheduler_image_digest": "sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+    "helm": {
+      "release": "ani-volcano",
+      "namespace": "volcano-system",
+      "revision": 3,
+      "scheduler_image_tag_version": "v1.15.2-ani-percent-only@sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+      "changed_this_qualification_run": false
+    }
+  },
+  "qualifications": {
+    "whole": {
+      "schema_version": 2,
+      "kind": "gpu-hardware-qualification-v2",
+      "validity": "baseline-bound; no elapsed-time expiry",
+      "evidence_ref": "acc-retained-20261017:whole-corrected-current-hardware",
+      "verified_at": "2026-10-16T19:16:23Z",
+      "baseline_digest": "d8a60fc2b467ee23c655d394e8a857141063a3b521a3fdeefd084202d7ef1cc0",
+      "spec_digest": "583438547cadfd4e80f0b6eb8d39595621555239b584900e09e20fc5105c36d1",
+      "node_uids": [
+        "af992ed9-cbe1-4f64-8fac-7433808bfab2"
+      ],
+      "devices": [
+        {
+          "node_uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+          "vendor_uuid": "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878",
+          "model_key": "nvidia-tesla-t4",
+          "physical_bytes": 16106127360,
+          "safe_memory_mib": 15360
+        }
+      ],
+      "new_configmap": "acc-qualification-whole-20261017",
+      "original_signed_v1": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/retained-20261017/whole/attestations/3a9dc7f67e423eb9294075189c9878d849292873f2fc8f99bbc60f32e328400f.json",
+        "sha256": "c2e41eeca5110a179ba3312c22275eee67539e2b01ec00311544c5ff79e21d28"
+      },
+      "signed_v2": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/attestations/3a9dc7f67e423eb9294075189c9878d849292873f2fc8f99bbc60f32e328400f.json",
+        "sha256": "0f8127a0bfe7ff30bf42faad7748fbee415abf3ec3f29b32c61d88639a6d4fff"
+      },
+      "original_experiment_manifest": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/retained-20261017/whole/percentage-raw/acc-hardware-experiment.json",
+        "sha256": "abc9034f4daef265963cdce9b0286d7d00c11bd1cb1ddece315246e8962b6912"
+      },
+      "old_payload_identity_preserved": true,
+      "expires_at_present": false
+    },
+    "shared": {
+      "schema_version": 2,
+      "kind": "gpu-hardware-qualification-v2",
+      "validity": "baseline-bound; no elapsed-time expiry",
+      "evidence_ref": "acc-retained-20261017:shared-corrected-current-hardware",
+      "verified_at": "2026-10-16T19:22:15.961433253Z",
+      "baseline_digest": "89243cf8c5e74129b0d1a4c2a3ec0e6134844e443562ac1469b27f81cda03330",
+      "spec_digest": "eb969a0f82d19b6434cd7b4c545327a5fda3cbecfb6c574e69b3272a37a2a78b",
+      "node_uids": [
+        "af992ed9-cbe1-4f64-8fac-7433808bfab2"
+      ],
+      "devices": [
+        {
+          "node_uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+          "vendor_uuid": "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878",
+          "model_key": "nvidia-tesla-t4",
+          "physical_bytes": 16106127360,
+          "safe_memory_mib": 10240
+        }
+      ],
+      "new_configmap": "acc-qualification-shared-20261017",
+      "original_signed_v1": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/retained-20261017/shared/attestations/bfc7cb66dccdcf3414c9ffd8a0925f23a02e081a912a2a8953c49dc25b8065c7.json",
+        "sha256": "66384059e349f77aea82823a025d8cdd95d20099ad98097c302b6b4a072faf66"
+      },
+      "signed_v2": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/attestations/bfc7cb66dccdcf3414c9ffd8a0925f23a02e081a912a2a8953c49dc25b8065c7.json",
+        "sha256": "d870ef0c860a45519beb0353275445faf06665a9f711a6e39fc17c58b96ec11f"
+      },
+      "original_experiment_manifest": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/retained-20261017/shared/raw/acc-hardware-experiment.json",
+        "sha256": "1d72b4349ddcaaf5f6096ebaf3d5f7ad0dd508f772698b812c4cf818a5ba25b7"
+      },
+      "old_payload_identity_preserved": true,
+      "expires_at_present": false
+    }
+  },
+  "actual_owner_workloads": {
+    "whole": {
+      "result": "pass",
+      "pod": {
+        "cluster_id": "99695d54-5244-4337-8cf0-7a08dbdc6113",
+        "namespace": "acc-gpu-live-20261017",
+        "name": "acc-qualification-whole-iris",
+        "uid": "03568a97-296d-4904-8e6b-62cce6c39186",
+        "container_name": "inference"
+      },
+      "binding_id": "af8b46d5-fe91-4897-b11c-1b3d9d2347d5",
+      "physical_device_id": "e8f5adfb-f789-8fb4-a818-aff259475004",
+      "known_free_units": [
+        1,
+        0,
+        1
+      ],
+      "binding_states": [
+        "ACTIVE",
+        "RELEASE_CONFIRMED"
+      ],
+      "release_findings": [
+        "ALLOCATION_STILL_PRESENT",
+        "ALLOCATION_RELEASED"
+      ],
+      "real_cuda_model_sha256": "0e2456b6914834b7be005b0e5e9b62a8fc3f1e6cb5c42e12f1012380b95a0139",
+      "positive_cri_exit": true
+    },
+    "shared": {
+      "result": "pass",
+      "pod": {
+        "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+        "namespace": "acc-gpu-live-20261017",
+        "name": "acc-qualification-shared-iris",
+        "uid": "ccdfd102-fbcb-4d9e-9923-6935b59e03d5",
+        "container_name": "inference"
+      },
+      "binding_id": "0fa84fc0-c9bd-4abe-8fb4-191c458198fb",
+      "physical_device_id": "d406ef95-7255-8b5b-ac1a-7529b5d949ac",
+      "known_free_units": [
+        10,
+        9,
+        10
+      ],
+      "binding_states": [
+        "ACTIVE",
+        "RELEASE_CONFIRMED"
+      ],
+      "release_findings": [
+        "ALLOCATION_STILL_PRESENT",
+        "ALLOCATION_RELEASED"
+      ],
+      "real_cuda_model_sha256": "0e2456b6914834b7be005b0e5e9b62a8fc3f1e6cb5c42e12f1012380b95a0139",
+      "positive_cri_exit": true
+    }
+  },
+  "collection_independence_live": {
+    "result": "pass",
+    "configuration_drift_rejected_new_resolve": "CONFIG_DRIFT",
+    "fresh_active_binding_during_drift": true,
+    "positive_exit_and_release_during_drift": true,
+    "invalid_qualification_capacity_conservative": "incomplete; free=0",
+    "original_config_data_exactly_restored": true,
+    "resolve_recovered": true,
+    "scheduler_uid_and_restart_count_unchanged": true,
+    "raw_fresh_collection": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/drift-fresh-collection.json",
+      "sha256": "8665e3468e27b6d0aca1d58614a7bafbe1bf04b18ec7ac766fed3171eb1311df"
+    },
+    "raw_release_confirmation": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/drift-release-confirmed.json",
+      "sha256": "07c86a3fdb894aa76eebe6105bb902f336ca32dc5d91eb53992a82e2a4738fe7"
+    },
+    "raw_restore_confirmation": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/drift-restored.json",
+      "sha256": "5584d2e2669e59513a9222a1302bed0fd4210f60a1f783047b5596b2f21ba382"
+    }
+  },
+  "validity_tests": {
+    "v2_30_day_clock_advance": "pass; original VerifiedAt preserved; no expires_at",
+    "v1_original_expiry_retained": "pass",
+    "live_24_hour_wait": "not_performed",
+    "qualification_red": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/tests/qualification-red.log",
+      "sha256": "71a17a042351df3455e72c2101f9e2ca2e2920ca40d1961a7a419e71db93b721"
+    },
+    "qualification_green": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/tests/qualification-green.log",
+      "sha256": "fd3ac862003c871791321aa6ec4f5a3d46937c60cc0da53c3d31329c71e51f56"
+    },
+    "collection_red": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/collection-red.log",
+      "sha256": "c094f8f18a7d853dfd5a44b0c490422e1c15501adbef0e17c61741c3c4d1d115"
+    },
+    "collection_green": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/collection-green.log",
+      "sha256": "f5f839c63f52b2457a8fa02d72e700ed34845586d5bf06700eacfeecc6f0cd75"
+    }
+  },
+  "final_state": {
+    "node_name": "ani-03",
+    "node_uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+    "memory_factor_mib": 256,
+    "node_split_count": 10,
+    "shared_admission": "ADMISSION_OPEN",
+    "whole_admission": "ADMISSION_CLOSED",
+    "whole_runtime_final_replicas": 0,
+    "shared_capacity": {
+      "physical_device_count": "1",
+      "nominal_units": "10",
+      "known_committed_units": "0",
+      "known_free_units": "10",
+      "complete": true
+    },
+    "gpu_memory_used_mib": 0,
+    "gpu_compute_process_count": 0,
+    "databases": {
+      "shared": "acc_live_v2",
+      "whole": "acc_whole_v2",
+      "preserved": [
+        "acc_live",
+        "acc_whole"
+      ],
+      "schema_version": 3,
+      "runtime_restricted": true
+    },
+    "service_certificate_not_after": {
+      "whole": "2026-10-30T18:06:55Z",
+      "shared": "2026-10-30T17:34:48Z"
+    }
+  },
+  "original_gpu_experiments_reused": true,
+  "new_training_or_saturation_matrix_run": false,
+  "scope": "single physical T4; Whole and Shared tested sequentially; owner workloads and real mTLS boundary clients",
+  "boundaries": {
+    "governance_quota_usage_projection": "not_verified",
+    "actual_inference_business_api": "not_verified; real operator workload/owner-assertion boundary exercised",
+    "multiple_physical_gpus": "not_verified",
+    "quantization_tail": "not_verified",
+    "host_driver_hami_file_fingerprints": "not_implemented; managed host software changes require requalification",
+    "elapsed_24h_live_wait": "not performed; v2 schema/policy checked at current time and unit clock advanced by 30 days"
+  },
+  "phase_evidence": [
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/phase-empty-capacity.json",
+      "sha256": "18cb8a21f0317abb3566bcb82c0143bbef22bf5c3aafa0ea857bf8f80259f51a"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/phase-active-capacity.json",
+      "sha256": "4f3b53df353504d414addb3513c5db1f27ebea375a97786eb901f9d9af58529c"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/phase-released-capacity.json",
+      "sha256": "a344e0fc603df86ebb9b6b7e479f39e83d1fd7b4dc654af9ff5c7cf542b18d4d"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/phase-active-bindings.json",
+      "sha256": "8317400a391fd18c66e3c470888af4161ba8e35e2c30cea893caec3a814cac95"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/phase-released-bindings.json",
+      "sha256": "f9a3803c32242030b8a0a2bb0d26b6b272fd9ca6bf32320c4cd5f60965329306"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/phase-active-release.json",
+      "sha256": "120e3f359d148c364a54f2eff35bf00b81dc75c1a081098852e2d957efd1fb39"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/phase-released-release.json",
+      "sha256": "edcbcea8db3578730debc1e0195f471a0dd1ef037af4a3e9ea829f386500c4c9"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/positive-cri-exit.json",
+      "sha256": "47416e289bd762b155fdb4e830456865d16bf8397a1f6fc4564f273d8bae8879"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/whole/actual-infer.json",
+      "sha256": "f4f17a299a7ae512599cb72fe88ef8fd9162335fbdf8b595d8032676e410a46e"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/phase-empty-capacity.json",
+      "sha256": "9f47fdbf8a50bd651a6145bc8fc77cfccbf3ec6b3bd449396b99b80006023363"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/phase-active-capacity.json",
+      "sha256": "3bc92b86ccc3a1b6bba22afc46d03449196ee3c5326c9bf0fe87ecb5c4877e2c"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/phase-released-capacity.json",
+      "sha256": "24f15ba39f5ca8cf7f627e9962645c789854edd9018be4ff8de0db87b3ff539c"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/phase-active-bindings.json",
+      "sha256": "72706fd5b75f7749b4766b6fe1af675f253495a55a3c90cbbdd0780e29e339d0"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/phase-released-bindings.json",
+      "sha256": "ace62379eacb1b905dd18fff754ee28cf0817f8e9b2c0785bddc431383f8df9d"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/phase-active-release.json",
+      "sha256": "2d1b33a6d079568ccaa454805815b81b7797c579d9a36ed3d096323e8df26154"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/phase-released-release.json",
+      "sha256": "2ab73ebdeaa24a0dc149887a2977520acf5801c788b7d03df10ae54a43adcfb0"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/positive-cri-exit.json",
+      "sha256": "7131126ff01c585095de9f63905f6a50daa2e3be712b986ce4ca94eb768e20e3"
+    },
+    {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/shared/actual-infer.json",
+      "sha256": "51752230db89935c247b2121a9aba682bf778d930393c7d8417b0a5f4cd9d1e3"
+    }
+  ],
+  "all_final_result_evidence_seals_verified": 71,
+  "generator": {
+    "path": "/home/chabking/acc-gpu-live-20261017/evidence/baseline-qualification-20261017/scripts/qualification_receipt.py",
+    "sha256": "6a0a7abf5925aed1e3de3154e256eb4cade5df7ac36d03c76ab98611a2f63ab6"
+  }
+}

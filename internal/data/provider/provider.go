@@ -94,6 +94,34 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 		return biz.GroupInspection{}, biz.Precondition("QUEUE_UNAVAILABLE")
 	}
 	inspection := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
+	var att *Attestation
+	var physicalInventory []Inventory
+	if g.Baseline.Verification != nil && g.Baseline.Verification.State == biz.Verified {
+		att, err = p.evidence.Load(g.Baseline.Verification.EvidenceRef)
+		if err != nil {
+			return inspection, err
+		}
+		if att.ClusterID != c.ClusterID || att.GroupID != g.GroupID || att.BaselineDigest != g.Baseline.BaselineDigest || g.Baseline.Verification.BaselineDigest != g.Baseline.BaselineDigest {
+			return inspection, biz.Precondition("ATTESTATION_SCOPE_MISMATCH")
+		}
+		wantNodes := map[string]bool{}
+		for _, member := range g.Nodes {
+			wantNodes[member.UID] = true
+		}
+		if len(att.NodeUIDs) != len(wantNodes) {
+			return inspection, biz.Precondition("ATTESTATION_SCOPE_MISMATCH")
+		}
+		for _, uid := range att.NodeUIDs {
+			if !wantNodes[uid] {
+				return inspection, biz.Precondition("ATTESTATION_SCOPE_MISMATCH")
+			}
+			delete(wantNodes, uid)
+		}
+		physicalInventory, err = p.inventory.Read(ctx)
+		if err != nil {
+			return inspection, err
+		}
+	}
 	for _, want := range g.Nodes {
 		var found *node
 		for i := range ns {
@@ -102,7 +130,7 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 				break
 			}
 		}
-		if found == nil || !online(*found, time.Now(), p.freshness) {
+		if found == nil || !k.nodeOnline(ctx, *found, time.Now(), p.freshness) {
 			return inspection, biz.Precondition("NODE_UNKNOWN")
 		}
 		if g.Baseline.VolcanoVersion == "v1.15.2" {
@@ -132,22 +160,33 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 				return inspection, biz.Precondition("CONFIG_DRIFT")
 			}
 		}
-		if g.Baseline.Verification != nil && g.Baseline.Verification.State == biz.Verified {
-			att, err := p.evidence.Load(g.Baseline.Verification.EvidenceRef)
-			if err != nil {
-				return inspection, err
+		if att != nil {
+			// A signed qualification describes concrete physical devices. The
+			// process-local NVML inventory cannot attest a remote node's bytes.
+			if want.UID != k.config.LocalNodeUID {
+				return inspection, biz.Precondition("NVML_UNAVAILABLE")
 			}
-			devices := map[string]bool{}
-			for _, d := range att.Devices {
-				if d.NodeUID == want.UID {
-					devices[d.VendorUUID] = true
+			devices := map[string]HardwareDevice{}
+			for _, device := range att.Devices {
+				if device.NodeUID == want.UID {
+					if _, duplicate := devices[device.VendorUUID]; duplicate || device.ModelKey != g.ModelKey || device.PhysicalBytes == 0 {
+						return inspection, biz.Precondition("ATTESTATION_DEVICE_MISMATCH")
+					}
+					devices[device.VendorUUID] = device
 				}
 			}
-			if len(devices) != len(ds) {
+			if len(devices) != len(ds) || len(physicalInventory) != len(ds) {
 				return inspection, biz.Precondition("ATTESTATION_DEVICE_MISMATCH")
 			}
-			for _, d := range ds {
-				if !devices[d.UUID] {
+			for _, registered := range ds {
+				device, exists := devices[registered.UUID]
+				matched := false
+				for _, physical := range physicalInventory {
+					if exists && physical.UUID == device.VendorUUID && modelKey(physical.Model) == device.ModelKey && physical.Bytes == device.PhysicalBytes {
+						matched = true
+					}
+				}
+				if !matched {
 					return inspection, biz.Precondition("ATTESTATION_DEVICE_MISMATCH")
 				}
 			}
@@ -247,6 +286,11 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			}
 		}
 	}
+	// Admission qualification and physical source availability are independent.
+	// Only known running binaries and explicit plugin F/K can justify decoding
+	// scheduler block units; runtime memory is read directly in MiB otherwise.
+	plugins, pluginErr := k.selectedPods(ctx, k.config.PluginNamespace, k.config.PluginSelector)
+	schedulers, schedulerErr := k.selectedPods(ctx, k.config.SchedulerNamespace, k.config.SchedulerSelector)
 	var inventory []Inventory
 	var inventoryErr error
 	if k.config.LocalNodeUID != "" {
@@ -260,7 +304,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 				break
 			}
 		}
-		nodeOK := ne == nil && pe == nil && n != nil && online(*n, now, p.freshness)
+		nodeOK := ne == nil && pe == nil && n != nil && k.nodeOnline(ctx, *n, now, p.freshness)
 		snapshot := readNode(ctx, source)
 		for _, health := range []struct {
 			name string
@@ -275,20 +319,19 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 				batch.Watermarks[len(batch.Watermarks)-1].PendingByGroup = pending
 			}
 		}
+		// Positive release evidence needs current Node UID + healthy CRI and
+		// PodResources only. Registration, F/K, and admission proofs do not
+		// participate in determining that an old allocation has disappeared.
+		proofs, err := p.releaseProofs(ctx, c.ClusterID, source, snapshot, nodeOK, now)
+		if err != nil {
+			return batch, err
+		}
+		batch.Releases = append(batch.Releases, proofs...)
 		if !nodeOK {
 			continue
 		}
-		registered, err := ParseNodeDevices(n.Metadata.Annotations[NodeRegister])
-		if err != nil {
-			batch.Watermarks[len(batch.Watermarks)-3].Complete = false
-			batch.Watermarks[len(batch.Watermarks)-3].Issue = "PROVIDER_NODE_FORMAT"
-			continue
-		}
-		handshake, err := ParseHandshake(n.Metadata.Annotations[NodeHandshake])
-		if err != nil {
-			batch.Watermarks[len(batch.Watermarks)-3].Complete = false
-			continue
-		}
+		registered, registerErr := ParseNodeDevices(n.Metadata.Annotations[NodeRegister])
+		handshake, handshakeErr := ParseHandshake(n.Metadata.Annotations[NodeHandshake])
 		var group *biz.SupplyGroup
 		for i := range groups {
 			for _, member := range groups[i].Nodes {
@@ -300,10 +343,16 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		if group == nil {
 			continue
 		} // No trusted F exists for an unmanaged supply node.
-		if !inspected[group.GroupID] {
-			batch.Watermarks[len(batch.Watermarks)-3].Complete = false
-			batch.Watermarks[len(batch.Watermarks)-3].Issue = "CONFIG_DRIFT"
-			continue // Never reinterpret old assignments using a drifted factor.
+		unitsTrusted := registerErr == nil && handshakeErr == nil && now.Sub(handshake) <= p.freshness && pluginErr == nil && schedulerErr == nil && collectionUnitsMatch(*group, source, registered, plugins, schedulers, k.config)
+		if registerErr != nil || handshakeErr != nil {
+			// Do not leave a recently complete cached record visible as free
+			// capacity while current registration can no longer be interpreted.
+			stale, err := p.unqualifiedDevices(ctx, c.ClusterID, group.GroupID, source.UID, now)
+			if err != nil {
+				return batch, err
+			}
+			batch.Devices = append(batch.Devices, stale...)
+			registered = nil
 		}
 		for _, rd := range registered {
 			var physical *Inventory
@@ -323,7 +372,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			if rd.Healthy {
 				health = "HEALTHY"
 			}
-			complete := physical != nil && snapshot.ResourcesOK && snapshot.RuntimeOK && now.Sub(handshake) <= p.freshness
+			complete := inspected[group.GroupID] && unitsTrusted && physical != nil && snapshot.ResourcesOK && snapshot.RuntimeOK && now.Sub(handshake) <= p.freshness
 			safe := int64(0)
 			if group.Baseline.Verification != nil && group.Baseline.Verification.State == biz.Verified {
 				if att, err := p.evidence.Load(group.Baseline.Verification.EvidenceRef); err == nil && att.BaselineDigest == group.Baseline.BaselineDigest && att.GroupID == group.GroupID {
@@ -336,8 +385,15 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			}
 			id := PhysicalID(c.ClusterID, source.UID, rd.UUID)
 			issues := []string{}
-			if !complete {
+			if physical == nil || !snapshot.ResourcesOK || !snapshot.RuntimeOK || now.Sub(handshake) > p.freshness {
 				issues = append(issues, "SOURCE_UNKNOWN")
+			}
+			if !inspected[group.GroupID] {
+				issues = append(issues, "QUALIFICATION_UNAVAILABLE")
+			}
+			if !unitsTrusted {
+				rd.MemoryBlocks = 0 // Unknown F is never decoded with the old baseline.
+				issues = append(issues, "MEMORY_UNIT_UNVERIFIED")
 			}
 			if modelKey(rd.Model) != group.ModelKey || rd.SplitCount != group.Baseline.SplitCount {
 				complete = false
@@ -349,7 +405,13 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			if pod.Spec.NodeName != source.Name {
 				continue
 			}
-			claims, err := p.podClaims(c.ClusterID, *group, pod, source, snapshot, registered, now)
+			var claims []biz.Claim
+			var err error
+			if unitsTrusted {
+				claims, err = p.podClaims(c.ClusterID, *group, pod, source, snapshot, registered, now)
+			} else {
+				claims, err = p.runtimeClaims(c.ClusterID, *group, pod, source, snapshot, batch.Devices, now)
+			}
 			if err != nil {
 				batch.Watermarks[len(batch.Watermarks)-3].Complete = false
 				batch.Watermarks[len(batch.Watermarks)-3].Issue = "PROVIDER_POD_INVALID"
@@ -357,15 +419,118 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			}
 			batch.Claims = append(batch.Claims, claims...)
 		}
-		proofs, err := p.releaseProofs(ctx, c.ClusterID, source, snapshot, nodeOK, now)
-		if err != nil {
-			batch.Watermarks[len(batch.Watermarks)-1].Complete = false
-		} else {
-			batch.Releases = append(batch.Releases, proofs...)
-		}
 	}
 	return batch, nil
 }
+
+// collectionUnitsMatch establishes only the unit decoder, not eligibility for
+// new allocations. A changed ConfigMap or expired qualification may invalidate
+// admission while these actual running binaries still emit the known F/K units.
+func collectionUnitsMatch(g biz.SupplyGroup, source NodeSource, registered []RegisteredDevice, plugins, schedulers []pod, config Connection) bool {
+	if len(registered) == 0 {
+		return false
+	}
+	for _, device := range registered {
+		if modelKey(device.Model) != g.ModelKey || device.SplitCount != g.Baseline.SplitCount {
+			return false
+		}
+	}
+	schedulerOK := false
+	for _, scheduler := range schedulers {
+		if imageRunning(scheduler, config.SchedulerContainer, g.Baseline.VolcanoImageDigest) {
+			schedulerOK = true
+		}
+	}
+	if !schedulerOK {
+		return false
+	}
+	for _, plugin := range plugins {
+		if plugin.Spec.NodeName != source.Name || !imageRunning(plugin, config.PluginContainer, g.Baseline.DevicePluginImageDigest) {
+			continue
+		}
+		for _, container := range plugin.Spec.Containers {
+			if container.Name != config.PluginContainer {
+				continue
+			}
+			factor, hasFactor := argument(container.Args, "gpu-memory-factor")
+			split, hasSplit := argument(container.Args, "device-split-count")
+			if hasFactor && hasSplit && factor == strconv.FormatUint(uint64(g.Baseline.MemoryBlockMiB), 10) && split == strconv.FormatUint(uint64(g.Baseline.SplitCount), 10) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+func (p *Provider) unqualifiedDevices(ctx context.Context, cluster, group, nodeUID string, now time.Time) ([]biz.DeviceRecord, error) {
+	var devices []biz.DeviceRecord
+	err := p.repo.View(ctx, func(r biz.Reader) error {
+		after := ""
+		for {
+			page, err := r.Devices(ctx, cluster, group, after, 201)
+			if err != nil {
+				return err
+			}
+			for _, device := range page {
+				if device.Device.Node == nil || device.Device.Node.UID != nodeUID {
+					continue
+				}
+				observed := now.Format(time.RFC3339Nano)
+				if device.Device.Observation != nil {
+					observed = device.Device.Observation.ObservedAt
+				}
+				device.Device.Observation = &biz.Observation{Complete: false, ObservedAt: observed, ReceivedAt: now.Format(time.RFC3339Nano), Issues: []string{"MEMORY_UNIT_UNVERIFIED"}}
+				devices = append(devices, device)
+			}
+			if len(page) < 201 {
+				return nil
+			}
+			after = page[len(page)-1].Device.DeviceID
+		}
+	})
+	return devices, err
+}
+
+// runtimeClaims records current occupancy in CRI's actual MiB units when the
+// scheduler/plugin unit decoder is untrusted. It cannot establish a complete
+// binding or free capacity, and never rewrites scheduler/allocation claims.
+func (p *Provider) runtimeClaims(cluster string, g biz.SupplyGroup, pod pod, node NodeSource, snapshot nodeSnapshot, devices []biz.DeviceRecord, now time.Time) ([]biz.Claim, error) {
+	var claims []biz.Claim
+	for _, container := range pod.Spec.Containers {
+		podRef := biz.PodRef{ClusterID: cluster, Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, UID: pod.Metadata.UID, ContainerName: container.Name}
+		statuses, ok := runtimeFor(snapshot, podRef.UID, podRef.ContainerName)
+		if !ok {
+			continue
+		}
+		for _, status := range statuses {
+			if status.Status.State != cri.ContainerState_CONTAINER_RUNNING {
+				continue
+			}
+			allocation, err := ParseContainerdInfo(status.Info["info"])
+			if err != nil {
+				// Non-GPU containers have no GPU runtime fields.
+				if container.Resources.Limits["volcano.sh/vgpu-number"] == "" {
+					continue
+				}
+				return nil, err
+			}
+			id := PhysicalID(cluster, node.UID, allocation.UUID)
+			known := false
+			for _, device := range devices {
+				if device.Device.DeviceID == id {
+					known = true
+				}
+			}
+			if !known {
+				continue // Never create a claim for an unobserved physical device.
+			}
+			ref, plan := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
+			claims = append(claims, biz.Claim{Pod: podRef, DeviceID: id, NodeUID: node.UID, Source: "runtime", ObservedAt: snapshot.ObservedAt, ReceivedAt: now, State: biz.AllocationUnknown, MemoryMiB: allocation.MemoryMiB, CoreLimitPercent: allocation.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, Cursor: status.Status.Id, EvidenceRef: "cri:" + status.Status.Id, OwnerRef: ref, PlanDigest: plan})
+		}
+	}
+	return claims, nil
+}
+
 func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node NodeSource, snapshot nodeSnapshot, registered []RegisteredDevice, now time.Time) ([]biz.Claim, error) {
 	assignments, err := ParseAssignments(pod.Metadata.Annotations[AssignedIDs])
 	if err != nil {
@@ -374,7 +539,7 @@ func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node No
 	if len(assignments) == 0 {
 		return nil, nil
 	}
-	assigned, err := ParseAssignedTime(pod.Metadata.Annotations[AssignedTime])
+	assigned, err := podAssignedTime(pod.Metadata.Annotations)
 	if err != nil {
 		return nil, err
 	}
@@ -405,7 +570,16 @@ func (p *Provider) podClaims(cluster string, g biz.SupplyGroup, pod pod, node No
 			if err != nil {
 				return nil, err
 			}
-			c := biz.Claim{Pod: podRef, DeviceID: PhysicalID(cluster, node.UID, a.UUID), NodeUID: node.UID, Source: "scheduler", Cursor: pod.Metadata.ResourceVersion, ObservedAt: assigned, ReceivedAt: now, State: biz.Active, MemoryMiB: m, CoreLimitPercent: a.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, EvidenceRef: "scheduler:" + pod.Metadata.UID + ":" + pod.Metadata.ResourceVersion, OwnerRef: ref, PlanDigest: plan}
+			c := biz.Claim{Pod: podRef, DeviceID: PhysicalID(cluster, node.UID, a.UUID), NodeUID: node.UID, Source: "scheduler", ObservedAt: assigned, ReceivedAt: now, State: biz.Active, MemoryMiB: m, CoreLimitPercent: a.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, OwnerRef: ref, PlanDigest: plan}
+			// The revision belongs to this historical allocation fact. Pod
+			// status/resourceVersion and poll reception time may change freely.
+			revision := c
+			revision.ReceivedAt = time.Time{}
+			c.Cursor, err = biz.Hash(revision)
+			if err != nil {
+				return nil, err
+			}
+			c.EvidenceRef = "scheduler:" + pod.Metadata.UID + ":" + c.Cursor
 			claims = append(claims, c)
 			resources, resourcesOK := resourcesFor(snapshot, podRef.Namespace, podRef.Name, podRef.ContainerName)
 			runtime, runtimeOK := runtimeFor(snapshot, podRef.UID, podRef.ContainerName)

@@ -255,12 +255,60 @@ func (k *kubeReader) schedulerConfigDigest(ctx context.Context, namespace, name,
 	}
 	return digest, nil
 }
-func online(n node, now time.Time, ttl time.Duration) bool {
+func (k *kubeReader) nodeOnline(ctx context.Context, n node, now time.Time, ttl time.Duration) bool {
 	for _, c := range n.Status.Conditions {
-		if c.Type == "Ready" && c.Status == "True" {
-			t, err := time.Parse(time.RFC3339Nano, c.LastHeartbeatTime)
-			return err == nil && now.Sub(t) <= ttl && !t.After(now.Add(5*time.Second))
+		if c.Type != "Ready" {
+			continue
 		}
+		if c.Status != "True" || ttl <= 0 || n.Metadata.DeletionTimestamp != "" {
+			return false
+		}
+		t, err := time.Parse(time.RFC3339Nano, c.LastHeartbeatTime)
+		if err != nil || t.After(now.Add(5*time.Second)) {
+			return false
+		}
+		if now.Sub(t) <= ttl {
+			return true
+		}
+		// With Node leases enabled, a healthy kubelet may leave Node status
+		// unchanged for minutes. Bind its newer heartbeat to this exact Node UID.
+		if n.Metadata.Name == "" || n.Metadata.UID == "" {
+			return false
+		}
+		var lease struct {
+			Metadata struct {
+				Name              string `json:"name"`
+				Namespace         string `json:"namespace"`
+				DeletionTimestamp string `json:"deletionTimestamp"`
+				OwnerReferences   []struct {
+					APIVersion string `json:"apiVersion"`
+					Kind       string `json:"kind"`
+					Name       string `json:"name"`
+					UID        string `json:"uid"`
+				} `json:"ownerReferences"`
+			} `json:"metadata"`
+			Spec struct {
+				HolderIdentity       string `json:"holderIdentity"`
+				LeaseDurationSeconds int32  `json:"leaseDurationSeconds"`
+				RenewTime            string `json:"renewTime"`
+			} `json:"spec"`
+		}
+		path := "/apis/coordination.k8s.io/v1/namespaces/kube-node-lease/leases/" + url.PathEscape(n.Metadata.Name)
+		if k.get(ctx, path, &lease) != nil || lease.Metadata.Name != n.Metadata.Name || lease.Metadata.Namespace != "kube-node-lease" || lease.Metadata.DeletionTimestamp != "" || lease.Spec.HolderIdentity != n.Metadata.Name || lease.Spec.LeaseDurationSeconds <= 0 {
+			return false
+		}
+		ownerOK := false
+		for _, owner := range lease.Metadata.OwnerReferences {
+			if owner.APIVersion == "v1" && owner.Kind == "Node" && owner.Name == n.Metadata.Name && owner.UID == n.Metadata.UID {
+				ownerOK = true
+			}
+		}
+		if !ownerOK {
+			return false
+		}
+		renewed, err := time.Parse(time.RFC3339Nano, lease.Spec.RenewTime)
+		leaseTTL := min(ttl, time.Duration(lease.Spec.LeaseDurationSeconds)*time.Second)
+		return err == nil && now.Sub(renewed) <= leaseTTL && !renewed.After(now.Add(5*time.Second))
 	}
 	return false
 }

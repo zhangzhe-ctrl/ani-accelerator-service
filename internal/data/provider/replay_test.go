@@ -52,6 +52,9 @@ type replayResources struct {
 }
 
 func (r *replayResources) List(context.Context, *pr.ListPodResourcesRequest) (*pr.ListPodResourcesResponse, error) {
+	if r.state.getFault() == "podresources" {
+		return nil, status.Error(codes.Unavailable, "controlled source outage")
+	}
 	_, _, absent, _, _ := r.state.snapshot()
 	if absent {
 		return &pr.ListPodResourcesResponse{}, nil
@@ -126,11 +129,11 @@ func unixServer(t *testing.T, name string, register func(*grpc.Server)) string {
 
 func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
 	for _, version := range []string{"v1.12.0", "v1.15.2"} {
-		t.Run(version, func(t *testing.T) { providerControlledSources(t, version) })
+		t.Run(version, func(t *testing.T) { providerControlledSources(t, version, "") })
 	}
 }
 
-func providerControlledSources(t *testing.T, schedulerVersion string) {
+func providerControlledSources(t *testing.T, schedulerVersion, qualificationFault string) {
 	path := os.Getenv("ACC_TEST_DSN_FILE")
 	if path == "" {
 		t.Skip("requires isolated PostgreSQL")
@@ -192,6 +195,9 @@ func providerControlledSources(t *testing.T, schedulerVersion string) {
 		switch {
 		case r.URL.Path == "/api/v1/nodes":
 			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24,NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4,24,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
+			if fault == "registration" {
+				response.(map[string]any)["items"].([]any)[0].(map[string]any)["metadata"].(map[string]any)["annotations"].(map[string]string)[NodeRegister] = "invalid-registration"
+			}
 			status := response.(map[string]any)["items"].([]any)[0].(map[string]any)["status"].(map[string]any)
 			if fault != "allocatable" {
 				status["allocatable"] = map[string]string{"volcano.sh/vgpu-number": "8", "volcano.sh/vgpu-memory": "48", "volcano.sh/vgpu-cores": "200"}
@@ -212,10 +218,21 @@ func providerControlledSources(t *testing.T, schedulerVersion string) {
 			response = map[string]any{"items": items}
 		case strings.Contains(r.URL.Path, "/configmaps/"):
 			response = cm
+			if fault == "scheduler_config" && strings.HasSuffix(r.URL.Path, "/scheduler") {
+				changed := map[string]string{}
+				for key, value := range cmData {
+					changed[key] = value
+				}
+				changed["qualification-test-drift"] = "changed after qualification"
+				response = map[string]any{"data": changed, "binaryData": nil}
+			}
 		case r.URL.Path == "/apis/scheduling.volcano.sh/v1beta1/queues/gpu":
 			response = map[string]any{"metadata": map[string]any{"name": "gpu"}, "status": map[string]any{"state": "Open"}}
 		case r.URL.Path == "/api/v1/namespaces/system/pods":
 			image := b.VolcanoImageDigest
+			if fault == "scheduler_image" {
+				image = "sha256:" + strings.Repeat("c", 64)
+			}
 			containerName := "scheduler"
 			args := []string{}
 			if r.URL.Query().Get("labelSelector") == "app=plugin" {
@@ -326,6 +343,10 @@ func providerControlledSources(t *testing.T, schedulerVersion string) {
 		t.Fatal(v)
 	}
 	owner := biz.WithCaller(ctx, biz.Caller{Service: "ani-inference", Action: "ObserveRelease", TenantID: ref.TenantID})
+	if qualificationFault != "" {
+		qualificationObservation(t, qualificationFault, adapter, evidence, dir, a, state, cluster, g, db, u, owner, ref, podRef, capacity)
+		return
+	}
 	faults := []string{"stale", "offline", "factor"}
 	if schedulerVersion == "v1.15.2" {
 		faults = append(faults, "allocatable", "allocatable_zero", "allocatable_invalid")
@@ -340,8 +361,14 @@ func providerControlledSources(t *testing.T, schedulerVersion string) {
 			t.Fatal("bad source complete", fault)
 		}
 		observation, err := u.ObserveRelease(owner, "replay", ref, biz.NewID(), []biz.PodRef{podRef})
-		if err != nil || observation.Finding != biz.ReleaseUnknown {
-			t.Fatal("bad source released", fault, observation, err)
+		wantFinding := biz.ReleaseUnknown
+		if strings.HasPrefix(fault, "allocatable") {
+			// Admission registration is invalid, but current independent runtime
+			// and allocation probes still positively observe this live binding.
+			wantFinding = biz.StillPresent
+		}
+		if err != nil || observation.Finding != wantFinding {
+			t.Fatal("source/admission failure changed observed allocation", fault, observation, err)
 		}
 		state.setFault("")
 		collect()

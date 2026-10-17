@@ -114,6 +114,21 @@ func ParseAssignedTime(s string) (time.Time, error) {
 	}
 	return time.Unix(n, 0).UTC(), nil
 }
+
+func podAssignedTime(annotations map[string]string) (time.Time, error) {
+	value := annotations[AssignedTime]
+	// Device plugin v1.12.0 replaces vgpu-time with MaxUint64 on both
+	// success and failure. Only its success marker permits using the
+	// scheduler's original bind-time; the marker itself is never a time.
+	if value == "18446744073709551615" {
+		if annotations["volcano.sh/bind-phase"] != "success" {
+			return time.Time{}, biz.Invalid("PROVIDER_TIME_INVALID")
+		}
+		value = annotations["volcano.sh/bind-time"]
+	}
+	return ParseAssignedTime(value)
+}
+
 func PhysicalID(cluster, node, uuid string) string {
 	// Deterministic UUIDv8 bound to cluster, Node UID and actual NVIDIA UUID.
 	h := sha256.Sum256([]byte("acc-physical-v1\x00" + cluster + "\x00" + node + "\x00" + uuid))

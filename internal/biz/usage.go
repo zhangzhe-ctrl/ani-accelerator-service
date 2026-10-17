@@ -298,7 +298,14 @@ func bindingsObservation(bs []Binding, now time.Time, ttl time.Duration) *Observ
 		o.ObservedAt = oldest(o.ObservedAt, b.Observation.ObservedAt)
 		o.ReceivedAt = oldest(o.ReceivedAt, b.Observation.ReceivedAt)
 		t, _ := time.Parse(time.RFC3339Nano, b.Observation.ObservedAt)
-		if !b.Observation.Complete || !fresh(t, now, ttl) {
+		timeKnown := fresh(t, now, ttl)
+		if b.State == ReleaseConfirmed {
+			// Releases are durable historical facts. Keep their original times,
+			// while still rejecting missing, malformed or future evidence.
+			received, _ := time.Parse(time.RFC3339Nano, b.Observation.ReceivedAt)
+			timeKnown = ValidTime(b.Observation.ObservedAt) && ValidTime(b.Observation.ReceivedAt) && !t.After(now.Add(5*time.Second)) && !received.After(now.Add(5*time.Second)) && !received.Before(t.Add(-5*time.Second))
+		}
+		if !b.Observation.Complete || !timeKnown || (b.State != Active && b.State != ReleaseConfirmed) {
 			o.Complete = false
 			o.Issues = append(o.Issues, "SOURCE_UNKNOWN")
 		}

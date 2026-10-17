@@ -16,3 +16,6 @@
 
 # Preserve captured patch context as evidence, including its leading marker.
 docs/evidence/**/comment-only.diff -whitespace
+
+# Unified patches encode empty context lines with one space; preserve evidence bytes.
+docs/evidence/gpu-live-20261017/volcano-percentage-only.patch whitespace=-blank-at-eol

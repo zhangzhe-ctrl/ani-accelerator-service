@@ -2,7 +2,7 @@
 
 2026-10-13 在 `ssh fedora` 上核对固定上游源码，范围是 Acc reader/normalizer 与 Resource 冻结 recipe 的软件合同。结论：现有单容器、单设备、`hami-core`、默认资源名的合同可以限定增加 **scheduler v1.15.2 + 独立 device plugin v1.12.0** 组合；需要修正分配时间单位，并识别 v1.15.2 的 Allocatable 门禁。这是源码兼容性判断，尚不证明该组合在 GPU 节点、驱动、HAMi-core、containerd 或实际部署镜像上运行通过。正式供给 OPEN 仍需已有硬件消费证据。
 
-本文件是一次固定源码比较。当前实现、测试与真实验收进度仍以 Resource 的执行状态为准；本文不建立第二份执行账本。
+本文件是一次固定源码比较。当前实现、测试与真实验收进度以本仓[执行状态](../execution/status.md)为准；本文不建立第二份执行账本。
 
 ## 固定来源
 
@@ -32,9 +32,15 @@ Fedora 私有任务目录：`/home/chabking/workspace/ani-resource-service-runs/
 
 ## 显存单位、recipe 与 Queue
 
+2026-10-17 真实联调修正：原版 `1462fb7` 的 `GetIgnoredDevices()` 返回空列表，通用 `NewResource` 因此把 `volcano.sh/vgpu-memory-percentage` 当作可加容量。节点只宣告 number/memory/cores，正式 Whole 百分比计划在默认 Queue 被 proportion 拒绝为 overused，Pod 一直 Pending。按绝对 `memory=60` 块成功运行的实验不能证明该正式计划可调度。原始失败及后续修复环境的独立结果见 [GPU 联调回执](../evidence/gpu-live-20261017/receipt.json)。
+
+本次受控[最小补丁](../evidence/gpu-live-20261017/volcano-percentage-only.patch)仅让固定 scheduler 从通用 scalar 计量中排除 percentage 参数，保留 memory/cores/number 的计量和设备过滤器中的百分比分配。没有修改 ACC 的 Whole recipe、伪造 Node allocatable 或放宽 Queue 预算。派生 scheduler 必须冻结新的实际镜像 digest，并为新 baseline、新 plan 重新采集、签署硬件证明；不能沿用原版镜像的证明。该结果不能推广为未修补 v1.15.2 的 Whole 支持声明。首轮临时试验曾恢复原版；用户随后明确要求保留修复版，后续部署与双模式验收以[保留版回执](../evidence/gpu-live-20261017/retained-receipt.json)为准，不再回退已知有问题的原版。[原版忽略列表](https://github.com/volcano-sh/volcano/blob/1462fb7b4835970708717456e3aed85e697ec2eb/pkg/scheduler/api/devices/nvidia/vgpu/device_info.go#L139-L141)、[通用资源转换](https://github.com/volcano-sh/volcano/blob/1462fb7b4835970708717456e3aed85e697ec2eb/pkg/scheduler/api/resource_info.go#L94-L110)。
+
+后续 ACC 资格政策迁移没有改变 GPU baseline 或该调度器：当前无时间自动失效的 v2 资格、采集/释放解耦部署和必要真实复核见 [baseline 资格回执](../evidence/gpu-live-20261017/baseline-qualification-receipt.json)。原保留版回执继续作为原始硬件实验的历史证据。
+
 插件 v1.12.0 注册的逐卡内存是 `floor(bytes / 2^20) / F` 的整数结果；runtime 注入的 `CUDA_DEVICE_MEMORY_LIMIT_i` 是 `used_blocks * F` 加 `m`。因此节点注册与 scheduler 分配读数乘一次可信 F 得 MiB，而 CRI 的 runtime 环境已是 MiB，不得再次乘 F。[注册转换](https://github.com/Project-HAMi/volcano-vgpu-device-plugin/blob/afefcc2ff7944e9e68275e83217cf5eb7fb4a585/pkg/plugin/register.go#L78-L89)、[runtime 注入](https://github.com/Project-HAMi/volcano-vgpu-device-plugin/blob/afefcc2ff7944e9e68275e83217cf5eb7fb4a585/pkg/plugin/server.go#L414-L419)。
 
-scheduler 对每个请求容器、每张选中的卡分别使用 `vgpu-memory`；内存百分比存在时覆盖块数，100% cores 要求此前没有使用者。资源单值不能乘 Pod replicas 或设备数量，业务总计另行累加。现有 recipe 的 Shared 使用精确 `MiB/F`，Whole 使用 100% memory、100 cores，与这一限定合同一致。[1.15 逐卡分配](https://github.com/volcano-sh/volcano/blob/1462fb7b4835970708717456e3aed85e697ec2eb/pkg/scheduler/api/devices/nvidia/vgpu/utils.go#L393-L468)、[当前 Render](../../internal/biz/plan.go)。
+scheduler 的设备过滤器对每个请求容器、每张选中的卡分别使用 `vgpu-memory`；内存百分比存在时覆盖块数，100% cores 要求此前没有使用者。资源单值不能乘 Pod replicas 或设备数量，业务总计另行累加。现有 recipe 的 Shared 使用精确 `MiB/F`，Whole 使用 100% memory、100 cores，与设备分配逻辑一致，但仍须通过上述通用资源与 Queue 的真实入口。[1.15 逐卡分配](https://github.com/volcano-sh/volcano/blob/1462fb7b4835970708717456e3aed85e697ec2eb/pkg/scheduler/api/devices/nvidia/vgpu/utils.go#L393-L468)、[当前 Render](../../internal/biz/plan.go)。
 
 resourceCountName、resourceMemoryName、resourceCoreName、resourceMemoryPercentageName 均可被上游配置。当前 ANI recipe 与 reader 使用默认名称，兼容声明只覆盖这些默认名称和 `volcano.sh/vgpu-mode=hami-core`。ConfigMap 固定摘要不能替代实际配置字段相符的核验；继续要求有效 F/K 与已登记 baseline 一致，不引入任意资源名映射。[1.15 配置字段](https://github.com/volcano-sh/volcano/blob/1462fb7b4835970708717456e3aed85e697ec2eb/pkg/scheduler/api/devices/config/vgpu.go#L81-L113)、[插件默认配置](https://github.com/Project-HAMi/volcano-vgpu-device-plugin/blob/afefcc2ff7944e9e68275e83217cf5eb7fb4a585/volcano-vgpu-device-plugin.yml#L23-L36)。
 
@@ -51,4 +57,4 @@ resourceCountName、resourceMemoryName、resourceCoreName、resourceMemoryPercen
 3. v1.15.2 Inspect 为所选组节点读取三个默认 Allocatable 资源键并检查正整数；缺失、零或破损值时拒绝供给就绪。只新增这项来源门禁，不扩大为新供给状态机或资源总量等式。
 4. 在既有 provider replay 中复用真实 reader，覆盖 1.15.2 非零 Allocatable + 插件 Reported + 原有 Node/Pod/CRI 编码的成功路径，以及缺失/零键拒绝；Render 覆盖 Shared 每设备块数与 Whole 100% recipe 未漂移、未知版本拒绝。测试仅在 Fedora 定向执行。
 
-本文记录固定源码比较；随后实现、定向测试与真实验收结果在 Resource 的 `docs/execution/status.md` 维护。该组合的物理 UUID、实际显存/核心限制、共享与整卡互斥、PodResources/CRI 对齐、Queue 可调度性和删除后的硬件容量恢复，都要待 GPU 到位后使用真实节点验证；当前集群未安装设备插件的事实也不被这份来源比较改变。
+本文记录固定源码比较；随后实现、定向测试与真实验收结果在本仓 [执行状态](../execution/status.md) 维护。物理 UUID、实际显存/核心限制、共享与整卡互斥、PodResources/CRI 对齐、Queue 可调度性和删除后的硬件容量恢复，均以相应实际镜像与节点的联调证据为准，不能由源码比较推断通过。
