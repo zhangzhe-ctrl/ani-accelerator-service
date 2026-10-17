@@ -93,6 +93,8 @@ v1 仍使用 `acc-hardware-attestation-v1` 签名域及其原有效期，不会�
 
 已经错过事件且 CRI 已清理的容器，可由 `runtime_journal` 只读查询该确切节点的原始 containerd journal。镜像须包含标准 `journalctl`，只读挂载实际 machine journal 目录，并配置真实 machine ID 和 Node UID。恢复严格核对 root/containerd.service 来源、同一 boot 下的 Pod UID/namespace/name → sandbox → container name/完整 ID → 明确退出时间的完整链；缺失、冲突、未识别格式或超时均不能释放。不导入仓外取证 JSON 冒充实时 CRI，不用 Remove/NotFound 推断退出，也不生成 ACTIVE runtime 分配。恢复事实仅补充释放证明，仍须当前节点在线、CRI/PodResources 健康且 GPU 分配已移除。历史只有 scheduler/allocation Claim 的未知绑定也适用相同正向条件。
 
+journal 恢复默认总预算 20 秒，可用 `runtime_journal.timeout_seconds` 显式设置，硬上限 25 秒，并继续服从采集请求的上游期限。首阶段按 Pod UID 查询完整历史；仅在可信记录属于同一 boot、原始 cursor 与时间元数据一致时，后续阶段使用最早记录的原始 cursor 定位。跨 boot 或 cursor 不可核对时保留完整扫描，不依赖墙钟时间推断退出。
+
 完整有效的 `RELEASE_CONFIRMED` 是已持久化的历史事实，绑定列表及其聚合不能因 120 秒采样窗口过去或当前来源失联而将其降为 UNKNOWN；返回原始 observed_at、received_at 和 release 引用，不刷新证明时间。ACTIVE 仍要求来源健康及实时新鲜度；不完整、未知或时间无效的历史记录仍保守返回不完整。该规则不改变新分配重新计占用的合并逻辑，也不替代 ObserveRelease 对当前解除条件的核验。
 
 ## 构造样本与验收入口

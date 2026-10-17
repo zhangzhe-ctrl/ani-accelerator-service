@@ -173,7 +173,108 @@ func TestJournalCommandArgumentsAndOutputAreBounded(t *testing.T) {
 		t.Fatal("oversized journal response accepted")
 	}
 	cfg.Timeout = time.Hour
-	if journalTimeout(cfg) > 10*time.Second {
+	if journalTimeout(cfg) > 25*time.Second {
 		t.Fatal("journal query timeout not bounded")
+	}
+}
+
+// MESSAGE strings below are unchanged from the original node journal read
+// inside the deployed ACC Pod; only unrelated trusted metadata was omitted.
+func TestJournalDeployedRawMessageNeedsExactlyOneQuotedTokenDecode(t *testing.T) {
+	raw := `{"_UID":"0","__CURSOR":"s=88615490b55c47eea6a6629edb6e75f6;i=2e767;b=6644a471edb642618328f5a5a02fc2f0;m=e647d0175;t=65e0053539903;x=e2cd7d7ec82e1298","_SYSTEMD_UNIT":"containerd.service","__MONOTONIC_TIMESTAMP":"61815456117","_TRANSPORT":"stdout","MESSAGE":"time=\"2026-10-17T10:49:11.260377427+08:00\" level=info msg=\"RunPodSandbox for name:\\\"instance-d6ae5e78-844a-4731-af16-a10b0e384ccd-0\\\"  uid:\\\"481c72aa-da10-4544-ba08-29f090cf6e4d\\\"  namespace:\\\"ani-tenant-92b09b38-ce59-4a4f-9293-f2b33148d799\\\"\"","__REALTIME_TIMESTAMP":"1792205351262467","_COMM":"containerd","_MACHINE_ID":"2e5cc7ce6b9c4666a1943a6fa65c1858","_BOOT_ID":"6644a471edb642618328f5a5a02fc2f0","_EXE":"/usr/local/bin/containerd"}
+{"_TRANSPORT":"stdout","__REALTIME_TIMESTAMP":"1792205351879481","_MACHINE_ID":"2e5cc7ce6b9c4666a1943a6fa65c1858","__CURSOR":"s=88615490b55c47eea6a6629edb6e75f6;i=2e775;b=6644a471edb642618328f5a5a02fc2f0;m=e64866bac;t=65e00535d0339;x=3d913b9d4e37b882","MESSAGE":"time=\"2026-10-17T10:49:11.878947196+08:00\" level=info msg=\"RunPodSandbox for name:\\\"instance-d6ae5e78-844a-4731-af16-a10b0e384ccd-0\\\"  uid:\\\"481c72aa-da10-4544-ba08-29f090cf6e4d\\\"  namespace:\\\"ani-tenant-92b09b38-ce59-4a4f-9293-f2b33148d799\\\" returns sandbox id \\\"dd5a38fedde4838ab5afbb763954ff29fcee2c93e82b2b3d65544a6f01c14d36\\\"\"","_UID":"0","_BOOT_ID":"6644a471edb642618328f5a5a02fc2f0","_COMM":"containerd","_EXE":"/usr/local/bin/containerd","_SYSTEMD_UNIT":"containerd.service","__MONOTONIC_TIMESTAMP":"61816073132"}`
+	records, err := decodeJournalRecords([]byte(raw))
+	if err != nil || len(records) != 2 {
+		t.Fatalf("deployed raw decode: records=%+v error=%v", records, err)
+	}
+	for _, r := range records {
+		match := journalPod.FindStringSubmatch(r.Message)
+		if strings.Contains(r.Message, `\`) || match == nil || match[1] != "instance-d6ae5e78-844a-4731-af16-a10b0e384ccd-0" || match[2] != "481c72aa-da10-4544-ba08-29f090cf6e4d" || match[3] != "ani-tenant-92b09b38-ce59-4a4f-9293-f2b33148d799" {
+			t.Fatalf("actual quoted token decoding mismatch: %q", r.Message)
+		}
+	}
+	if got := journalPod.FindStringSubmatch(records[1].Message)[5]; got != "dd5a38fedde4838ab5afbb763954ff29fcee2c93e82b2b3d65544a6f01c14d36" {
+		t.Fatalf("sandbox identity changed: %q", got)
+	}
+}
+
+func TestJournalRecoveryBudgetCoversDeployedScanWithinParentDeadline(t *testing.T) {
+	if got := journalTimeout(journalRecoveryConfig{}); got < 20*time.Second || got >= 30*time.Second {
+		t.Fatalf("default recovery budget %v cannot cover deployed 6.86s first scan and followup scans inside parent 30s", got)
+	}
+	if got := journalTimeout(journalRecoveryConfig{Timeout: time.Hour}); got != 25*time.Second {
+		t.Fatalf("unbounded recovery timeout: %v", got)
+	}
+	cfg, pod, lines := journalFixture()
+	expectedCursor := makeJournalFixtureCursor(journalTestBoot, 100, 1600000001000000)
+	for i := range lines {
+		var r map[string]string
+		if err := json.Unmarshal(lines[i], &r); err != nil {
+			t.Fatal(err)
+		}
+		r["__CURSOR"] = makeJournalFixtureCursor(r["_BOOT_ID"], int64((i+1)*100), 1600000001000000)
+		lines[i], _ = json.Marshal(r)
+	}
+	calls := 0
+	query := journalQuery(lines)
+	statuses, ok, err := recoverJournalExitWith(context.Background(), cfg, pod, func(ctx context.Context, c journalRecoveryConfig, grep string) ([]journalRecord, error) {
+		args := journalArguments(c, grep)
+		cursor := ""
+		for _, arg := range args {
+			if strings.HasPrefix(arg, "--cursor=") {
+				cursor = strings.TrimPrefix(arg, "--cursor=")
+			}
+		}
+		if calls == 0 && cursor != "" {
+			t.Fatal("initial UID query skipped original history")
+		}
+		if calls > 0 && cursor != expectedCursor {
+			t.Fatalf("followup query did not seek exact earliest trusted cursor: %#v", args)
+		}
+		if deadline, exists := ctx.Deadline(); !exists || time.Until(deadline) < 19*time.Second || time.Until(deadline) > 20*time.Second {
+			t.Fatal("query budget not preserved")
+		}
+		calls++
+		return query(ctx, c, grep)
+	})
+	if err != nil || !ok || len(statuses) != 1 || calls != 3 {
+		t.Fatalf("bounded cursor recovery failed: %+v ok=%v error=%v calls=%d", statuses, ok, err, calls)
+	}
+}
+
+func makeJournalFixtureCursor(boot string, monotonic, realtime int64) string {
+	return "s=88615490b55c47eea6a6629edb6e75f6;i=1;b=" + boot + ";m=" + strconv.FormatInt(monotonic, 16) + ";t=" + strconv.FormatInt(realtime, 16) + ";x=1"
+}
+
+func TestJournalRecoveryCursorUsesSameBootMonotonicOrder(t *testing.T) {
+	first := journalRecord{Boot: journalTestBoot, Monotonic: 100, Realtime: 1600000001000000}
+	first.Cursor = makeJournalFixtureCursor(first.Boot, first.Monotonic, first.Realtime)
+	second := journalRecord{Boot: journalTestBoot, Monotonic: 200, Realtime: 1600000000000000}
+	second.Cursor = makeJournalFixtureCursor(second.Boot, second.Monotonic, second.Realtime)
+	if got := journalRecoveryCursor([]journalRecord{second, first}); got != first.Cursor {
+		t.Fatalf("wall clock rollback changed earliest source location: %q", got)
+	}
+	second.Boot = strings.Repeat("a", 32)
+	if got := journalRecoveryCursor([]journalRecord{first, second}); got != "" {
+		t.Fatalf("cross-boot history was truncated: %q", got)
+	}
+	for _, cursor := range []string{"untrusted-cursor", makeJournalFixtureCursor(strings.Repeat("b", 32), 100, first.Realtime), makeJournalFixtureCursor(first.Boot, 101, first.Realtime), makeJournalFixtureCursor(first.Boot, 100, first.Realtime+1)} {
+		first.Cursor = cursor
+		if got := journalRecoveryCursor([]journalRecord{first}); got != "" {
+			t.Fatalf("cursor conflicted with trusted source metadata: %q", got)
+		}
+	}
+	if journalTimeout(journalRecoveryConfig{TimeoutSeconds: 60}) != 25*time.Second || journalTimeout(journalRecoveryConfig{TimeoutSeconds: 12}) != 12*time.Second {
+		t.Fatal("operator timeout configuration is not bounded")
+	}
+	parent, cancel := context.WithTimeout(context.Background(), time.Millisecond)
+	defer cancel()
+	cfg, pod, _ := journalFixture()
+	_, _, err := recoverJournalExitWith(parent, cfg, pod, func(ctx context.Context, _ journalRecoveryConfig, _ string) ([]journalRecord, error) {
+		<-ctx.Done()
+		return nil, ctx.Err()
+	})
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("recovery exceeded parent deadline: %v", err)
 	}
 }

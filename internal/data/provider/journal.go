@@ -29,21 +29,24 @@ type journalRecoveryConfig struct {
 	MachineID      string        `json:"machine_id"`
 	NodeUID        string        `json:"node_uid"`
 	JournalctlPath string        `json:"journalctl_path"`
+	TimeoutSeconds int           `json:"timeout_seconds,omitempty"`
 	Timeout        time.Duration `json:"-"`
+	cursor         string
 }
 
 const journalMaxOutput = 4 << 20
 const journalMaxAttempts = 16
 
 var (
-	journalHex32 = regexp.MustCompile(`^[a-f0-9]{32}$`)
-	journalUID   = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
-	journalName  = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,251}[a-z0-9]$|^[a-z0-9]$`)
-	journalMsg   = regexp.MustCompile(`(?:^| )msg=("(?:[^"\\]|\\.)*")`)
-	journalPod   = regexp.MustCompile(`^RunPodSandbox for name:"([^"]+)"\s+uid:"([^"]+)"\s+namespace:"([^"]+)"(?:\s+attempt:[0-9]+)?( returns sandbox id "([a-f0-9]{64})")?$`)
-	journalMake  = regexp.MustCompile(`^CreateContainer within sandbox "([a-f0-9]{64})" for (?:container )?name:"([^"]+)"(?:\s+attempt:[0-9]+)?( returns container id "([a-f0-9]{64})")?$`)
-	journalExit  = regexp.MustCompile(`^received container exit event container_id:"([a-f0-9]{64})"\s+id:"([a-f0-9]{64})"(?:\s+pid:[0-9]+)?(?:\s+exit_status:[0-9]+)?\s+exited_at:\{seconds:([0-9]+)(?:\s+nanos:([0-9]+))?\}$`)
-	journalStart = regexp.MustCompile(`^StartContainer for "([a-f0-9]{64})"(?: returns successfully)?$`)
+	journalHex32  = regexp.MustCompile(`^[a-f0-9]{32}$`)
+	journalUID    = regexp.MustCompile(`^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$`)
+	journalName   = regexp.MustCompile(`^[a-z0-9][a-z0-9.-]{0,251}[a-z0-9]$|^[a-z0-9]$`)
+	journalMsg    = regexp.MustCompile(`(?:^| )msg=("(?:[^"\\]|\\.)*")`)
+	journalPod    = regexp.MustCompile(`^RunPodSandbox for name:"([^"]+)"\s+uid:"([^"]+)"\s+namespace:"([^"]+)"(?:\s+attempt:[0-9]+)?( returns sandbox id "([a-f0-9]{64})")?$`)
+	journalMake   = regexp.MustCompile(`^CreateContainer within sandbox "([a-f0-9]{64})" for (?:container )?name:"([^"]+)"(?:\s+attempt:[0-9]+)?( returns container id "([a-f0-9]{64})")?$`)
+	journalExit   = regexp.MustCompile(`^received container exit event container_id:"([a-f0-9]{64})"\s+id:"([a-f0-9]{64})"(?:\s+pid:[0-9]+)?(?:\s+exit_status:[0-9]+)?\s+exited_at:\{seconds:([0-9]+)(?:\s+nanos:([0-9]+))?\}$`)
+	journalStart  = regexp.MustCompile(`^StartContainer for "([a-f0-9]{64})"(?: returns successfully)?$`)
+	journalCursor = regexp.MustCompile(`^s=([a-f0-9]{32});i=([a-f0-9]+);b=([a-f0-9]{32});m=([a-f0-9]+);t=([a-f0-9]+);x=([a-f0-9]+)$`)
 )
 
 type journalRecord struct {
@@ -93,6 +96,7 @@ func recoverJournalExitWith(ctx context.Context, cfg journalRecoveryConfig, pod 
 		return nil, false, err
 	}
 	sandboxes := map[string]journalRecord{}
+	var podRecords []journalRecord
 	starts, returns := 0, 0
 	for _, record := range records {
 		match := journalPod.FindStringSubmatch(record.Message)
@@ -108,6 +112,7 @@ func recoverJournalExitWith(ctx context.Context, cfg journalRecoveryConfig, pod 
 		if match[1] != pod.Name || match[3] != pod.Namespace {
 			return nil, false, nil
 		}
+		podRecords = append(podRecords, record)
 		if match[5] == "" {
 			starts++
 			continue
@@ -121,6 +126,7 @@ func recoverJournalExitWith(ctx context.Context, cfg journalRecoveryConfig, pod 
 	if len(sandboxes) == 0 || len(sandboxes) > journalMaxAttempts || starts > returns {
 		return nil, false, nil
 	}
+	cfg.cursor = journalRecoveryCursor(podRecords)
 	records, err = read(journalKeys(sandboxes))
 	if err != nil {
 		return nil, false, err
@@ -242,14 +248,49 @@ func journalKeys(records map[string]journalRecord) string {
 }
 
 func journalTimeout(cfg journalRecoveryConfig) time.Duration {
-	if cfg.Timeout <= 0 {
-		return 3 * time.Second
+	if cfg.Timeout > 0 {
+		return min(cfg.Timeout, 25*time.Second)
 	}
-	return min(cfg.Timeout, 10*time.Second)
+	if cfg.TimeoutSeconds > 0 {
+		return time.Duration(min(cfg.TimeoutSeconds, 25)) * time.Second
+	}
+	return 20 * time.Second
 }
 
 func journalArguments(cfg journalRecoveryConfig, grep string) []string {
-	return []string{"--directory=" + cfg.Directory, "--unit=containerd.service", "--no-pager", "--output=json", "--all", "--quiet", "--grep=" + grep, "_MACHINE_ID=" + cfg.MachineID}
+	args := []string{"--directory=" + cfg.Directory, "--unit=containerd.service", "--no-pager", "--output=json", "--all", "--quiet", "--grep=" + grep}
+	if cfg.cursor != "" {
+		args = append(args, "--cursor="+cfg.cursor)
+	}
+	return append(args, "_MACHINE_ID="+cfg.MachineID)
+}
+
+// Same-boot journal cursors retain sequence and monotonic positions, so a wall
+// clock adjustment cannot hide later attempts. Across boots, keep the full scan.
+// Only an original cursor whose fields agree with trusted metadata is used.
+func journalRecoveryCursor(records []journalRecord) string {
+	if len(records) == 0 {
+		return ""
+	}
+	earliest := records[0]
+	for _, record := range records[1:] {
+		if record.Boot != earliest.Boot {
+			return ""
+		}
+		if record.Monotonic < earliest.Monotonic {
+			earliest = record
+		}
+	}
+	match := journalCursor.FindStringSubmatch(earliest.Cursor)
+	if match == nil || match[3] != earliest.Boot {
+		return ""
+	}
+	monotonic, e1 := strconv.ParseInt(match[4], 16, 64)
+	realtime, e2 := strconv.ParseInt(match[5], 16, 64)
+	if e1 != nil || e2 != nil || monotonic != earliest.Monotonic || realtime != earliest.Realtime {
+		return ""
+	}
+	return earliest.Cursor
 }
 
 func readJournalRecords(ctx context.Context, cfg journalRecoveryConfig, grep string) ([]journalRecord, error) {
