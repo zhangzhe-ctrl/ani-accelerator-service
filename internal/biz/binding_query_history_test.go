@@ -132,19 +132,19 @@ func TestBindingQueryAggregatesOldReleaseWithCurrentActive(t *testing.T) {
 
 func TestBindingReleaseHistoryDoesNotRetireNewerClaims(t *testing.T) {
 	now := time.Date(2026, 10, 16, 19, 16, 48, 0, time.UTC)
-	baseline := baselineForTest(1024, Shared)
+	baseline := baselineForTest(1, Shared)
 	pod := PodRef{ClusterID: testID, Namespace: "test", Name: "workload", UID: "pod-1", ContainerName: "inference"}
 	proof := &ReleaseProof{Pod: pod, DeviceID: testID, NodeUID: "node-1", ObservedAt: now.Add(-4 * time.Minute), ReceivedAt: now.Add(-4 * time.Minute), EvidenceRef: "release:old", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true}
 	var claims []Claim
 	for _, source := range []string{"runtime", "allocation"} {
-		claims = append(claims, Claim{Pod: pod, DeviceID: testID, NodeUID: "node-1", Source: source, State: Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: baseline.BaselineDigest, MemoryBlockMiB: 1024, ObservedAt: now, ReceivedAt: now, EvidenceRef: source + ":new"})
+		claims = append(claims, Claim{Pod: pod, DeviceID: testID, NodeUID: "node-1", Source: source, State: Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: baseline.BaselineDigest, MemoryBlockMiB: 1, ObservedAt: now, ReceivedAt: now, EvidenceRef: source + ":new"})
 	}
 	binding, err := MergeBinding(testID, claims, proof, nil)
 	if err != nil || binding.State != Active || !binding.Observation.Complete {
 		t.Fatal(binding, err)
 	}
 	spec := testSpec(Shared)
-	device := DeviceRecord{Device: PhysicalDevice{DeviceID: testID, Node: &NodeRef{UID: "node-1", Name: "node"}, ModelKey: spec.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24, MemoryBlockMiB: 1024, SafeMemoryBudgetMiB: 24576, BaselineDigest: baseline.BaselineDigest}
+	device := DeviceRecord{Device: PhysicalDevice{DeviceID: testID, Node: &NodeRef{UID: "node-1", Name: "node"}, ModelKey: spec.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: baseline.BaselineDigest}
 	capacity, err := ComputeDeviceCapacity(device, *spec, *baseline, []Binding{*binding}, now, 120*time.Second, true)
 	if err != nil || !capacity.Complete || capacity.KnownCommittedUnits != 1 || capacity.KnownFreeUnits != 3 {
 		t.Fatal(capacity, err)

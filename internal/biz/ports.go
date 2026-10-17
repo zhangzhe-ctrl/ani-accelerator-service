@@ -34,7 +34,7 @@ type Transaction interface {
 	InsertGroup(context.Context, SupplyGroup) error
 	UpdateGroup(context.Context, SupplyGroup, uint64) error
 	InsertProfile(context.Context, Profile, string) error
-	SharedVector(context.Context, string) (*ProfileSpec, error)
+	UpdateProfile(context.Context, Profile, uint64) error
 	SaveUsage(context.Context, UsageProjection) (*SyncResult, error)
 	SaveObservation(context.Context, ObservationBatch) error
 }
@@ -69,15 +69,10 @@ type InspectedNode struct {
 	ModelKey           string
 	Factor, SplitCount uint32
 	Labels             map[string]string
+	DeviceBudgetsMiB   []int64
 	ConfigDigest       string
 }
 
-// ConsumptionEvidence is a separate trust boundary from configuration reads.
-// Production loads only signed, scope-bound hardware attestations. Tests can
-// inject this interface in their composition, never through a public RPC.
-type ConsumptionEvidence interface {
-	Verify(context.Context, SupplyGroup, *ProfileSpec, string) (*Verification, error)
-}
 type DeviceRecord struct {
 	Device               PhysicalDevice `json:"device"`
 	ProviderMemoryBlocks int64          `json:"provider_memory_blocks"`
@@ -113,8 +108,8 @@ type Claim struct {
 	MemoryBlockMiB   uint32          `json:"memory_block_mib"`
 	EvidenceRef      string          `json:"evidence_ref"`
 	// Only cryptographically verified owner assertions may populate these.
-	OwnerRef   *UsageRef `json:"owner_ref"`
-	PlanDigest string    `json:"plan_digest"`
+	OwnerRef        *UsageRef `json:"owner_ref"`
+	ExecutionDigest string    `json:"execution_digest"`
 }
 
 // ReleaseProof covers one actual Pod/container/device and retires only claims
@@ -130,7 +125,7 @@ type ReleaseProof struct {
 	AllocationAbsent bool      `json:"allocation_absent"`
 	NodeOnline       bool      `json:"node_online"`
 	OwnerRef         *UsageRef `json:"owner_ref"`
-	PlanDigest       string    `json:"plan_digest"`
+	ExecutionDigest  string    `json:"execution_digest"`
 }
 type ObservationBatch struct {
 	ClusterID  string

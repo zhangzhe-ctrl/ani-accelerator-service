@@ -46,7 +46,7 @@ func TestReleaseProofsRetireUnknownAllocationWithPositiveExit(t *testing.T) {
 				t.Fatalf("positive exit did not release historical %s claim: proofs=%+v error=%v", source, proofs, err)
 			}
 			proof := proofs[0]
-			if !proof.RuntimeExited || !proof.AllocationAbsent || !proof.NodeOnline || proof.Pod != *reader.bindings[0].Pod || proof.NodeUID != node.UID || proof.DeviceID != reader.bindings[0].PhysicalDeviceID || proof.OwnerRef != reader.claims[0].OwnerRef || proof.PlanDigest != reader.claims[0].PlanDigest {
+			if !proof.RuntimeExited || !proof.AllocationAbsent || !proof.NodeOnline || proof.Pod != *reader.bindings[0].Pod || proof.NodeUID != node.UID || proof.DeviceID != reader.bindings[0].PhysicalDeviceID || proof.OwnerRef != reader.claims[0].OwnerRef || proof.ExecutionDigest != reader.claims[0].ExecutionDigest {
 				t.Fatalf("release lost the exact allocation scope: %+v", proof)
 			}
 			binding, err := biz.MergeBinding(reader.bindings[0].BindingID, reader.claims, &proof, nil)
@@ -118,7 +118,7 @@ func releaseFixture(source string) (releaseReader, nodeSnapshot, NodeSource, tim
 	now := time.Date(2026, 10, 17, 3, 0, 0, 0, time.UTC)
 	pod := biz.PodRef{ClusterID: "cluster", Namespace: "tenant", Name: "instance-0", UID: "pod-uid", ContainerName: "workspace"}
 	ref := &biz.UsageRef{TenantID: "tenant", OwnerService: "ani-resource-service", ResourceID: "instance", CreateOperationID: "create"}
-	claim := biz.Claim{Pod: pod, DeviceID: "device", NodeUID: "node-uid", Source: source, ObservedAt: now.Add(-time.Minute), ReceivedAt: now.Add(-time.Minute), State: biz.Active, MemoryMiB: 1024, CoreLimitPercent: 10, BaselineDigest: strings.Repeat("a", 64), MemoryBlockMiB: 256, EvidenceRef: "scheduler:allocation", OwnerRef: ref, PlanDigest: strings.Repeat("b", 64)}
+	claim := biz.Claim{Pod: pod, DeviceID: "device", NodeUID: "node-uid", Source: source, ObservedAt: now.Add(-time.Minute), ReceivedAt: now.Add(-time.Minute), State: biz.Active, MemoryMiB: 1024, CoreLimitPercent: 10, BaselineDigest: strings.Repeat("a", 64), MemoryBlockMiB: 1, EvidenceRef: "scheduler:allocation", OwnerRef: ref, ExecutionDigest: strings.Repeat("b", 64)}
 	reader := releaseReader{bindings: []biz.Binding{{BindingID: "binding", Pod: &pod, PhysicalDeviceID: "device", State: biz.AllocationUnknown}}, claims: []biz.Claim{claim}}
 	snapshot := nodeSnapshot{
 		ObservedAt: now, ResourcesOK: true, RuntimeOK: true,

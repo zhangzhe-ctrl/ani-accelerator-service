@@ -18,11 +18,11 @@ const liveGPUUUID = "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878"
 
 func liveAssignedPod() pod {
 	p := pod{Metadata: metadata{UID: "live-pod-uid", Name: "acc-plan-iris", Namespace: "acc-live", ResourceVersion: "100", Annotations: map[string]string{
-		AssignedIDs: "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878,NVIDIA,4,10:", AssignedTime: "18446744073709551615", "volcano.sh/bind-time": "1792173153", "volcano.sh/bind-phase": "success",
+		AssignedIDs: "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878,NVIDIA,4096,10:", AssignedTime: "18446744073709551615", "volcano.sh/bind-time": "1792173153", "volcano.sh/bind-phase": "success",
 	}}}
 	p.Spec.NodeName = "ani-03"
 	c := container{Name: "inference"}
-	c.Resources.Limits = map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "4"}
+	c.Resources.Limits = map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "4096"}
 	p.Spec.Containers = []container{c}
 	return p
 }
@@ -43,20 +43,20 @@ func assignedPodClaimsUsing(t *testing.T, reader *Provider, pod pod, now time.Ti
 		Statuses:   map[string]*cri.ContainerStatusResponse{"live-container": status},
 		Resources:  &pr.ListPodResourcesResponse{PodResources: []*pr.PodResources{{Namespace: "acc-live", Name: "acc-plan-iris", Containers: []*pr.ContainerResources{{Name: "inference", Devices: []*pr.ContainerDevices{{ResourceName: "volcano.sh/vgpu-number", DeviceIds: []string{"NVIDIA-0"}}}}}}}},
 	}
-	group := biz.SupplyGroup{Baseline: &biz.ProviderBaseline{MemoryBlockMiB: 1024, BaselineDigest: strings.Repeat("a", 64)}}
+	group := biz.SupplyGroup{Baseline: &biz.ProviderBaseline{MemoryBlockMiB: 1, BaselineDigest: strings.Repeat("a", 64)}}
 	return reader.podClaims(context.Background(), "cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
 }
 
 func signAssignedOwner(t *testing.T, pod *pod, ref biz.UsageRef, key ed25519.PrivateKey, digest string) {
 	t.Helper()
 	pod.Metadata.Labels = map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}
-	pod.Metadata.Annotations["accelerator.ani.io/plan-digest"] = digest
+	pod.Metadata.Annotations["accelerator.ani.io/execution-digest"] = digest
 	podRef := biz.PodRef{ClusterID: "cluster", Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, UID: pod.Metadata.UID, ContainerName: "inference"}
 	payload, err := biz.Canonical(OwnerAssertion{podRef, ref, digest})
 	if err != nil {
 		t.Fatal(err)
 	}
-	pod.Metadata.Annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	pod.Metadata.Annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v2\n"), payload...)))
 }
 
 func TestSchedulerHistoryDoesNotHideConflictingOrInvalidOwner(t *testing.T) {
@@ -93,11 +93,11 @@ func TestSchedulerHistoryDoesNotHideConflictingOrInvalidOwner(t *testing.T) {
 				t.Fatalf("historical scheduler revision changed: claims=%+v error=%v", current, err)
 			}
 			for _, claim := range current[1:] {
-				if invalid && claim.OwnerRef != nil || !invalid && (claim.OwnerRef == nil || *claim.OwnerRef != lateOwner || claim.PlanDigest != digest) {
+				if invalid && claim.OwnerRef != nil || !invalid && (claim.OwnerRef == nil || *claim.OwnerRef != lateOwner || claim.ExecutionDigest != digest) {
 					t.Fatalf("current owner signature boundary was bypassed: %+v", claim)
 				}
 			}
-			usage := &biz.UsageProjection{Ref: &lateOwner, Plan: &biz.ResolvedPlan{ResolutionDigest: digest, Request: &biz.GpuRequest{ClusterID: "cluster", ContainerName: "inference"}}}
+			usage := &biz.UsageProjection{Ref: &lateOwner, ExecutionDigest: digest, ClusterID: "cluster", ContainerName: "inference"}
 			binding, err := biz.MergeBinding("binding", current, nil, usage)
 			if err != nil || binding.VerifiedUsageRef != nil || !invalid && !strings.Contains(strings.Join(binding.Observation.Issues, ","), "OWNERSHIP_CONFLICT") {
 				t.Fatalf("conflicting/invalid owner acquired attribution: binding=%+v error=%v", binding, err)
@@ -165,7 +165,7 @@ func TestSchedulerClaimStableAcrossPodStatusRevisions(t *testing.T) {
 	if firstDigest != secondDigest {
 		t.Fatalf("unchanged scheduler fact changed with Pod status: first=%+v second=%+v", a, b)
 	}
-	p.Metadata.Annotations[AssignedIDs] = strings.Replace(p.Metadata.Annotations[AssignedIDs], ",4,10:", ",5,10:", 1)
+	p.Metadata.Annotations[AssignedIDs] = strings.Replace(p.Metadata.Annotations[AssignedIDs], ",4096,10:", ",5120,10:", 1)
 	changed, err := assignedPodClaims(t, p, now.Add(2*time.Second))
 	if err != nil {
 		t.Fatal(err)

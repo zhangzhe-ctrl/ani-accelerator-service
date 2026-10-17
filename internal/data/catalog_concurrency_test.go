@@ -11,7 +11,7 @@ import (
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 )
 
-// The provider/evidence gates run against the actual restricted PG adapter.
+// The provider observations run against the actual restricted PG adapter.
 // Before delaying, assert its pool has no acquired connection; this catches
 // read-only transactions too, not just advisory-lock contention.
 type delayedCatalogPorts struct {
@@ -51,12 +51,6 @@ func (p *delayedCatalogPorts) Inspect(ctx context.Context, c biz.Cluster, g biz.
 func (p *delayedCatalogPorts) Collect(ctx context.Context, c biz.Cluster, g []biz.SupplyGroup) (biz.ObservationBatch, error) {
 	return testProvider{}.Collect(ctx, c, g)
 }
-func (p *delayedCatalogPorts) Verify(ctx context.Context, g biz.SupplyGroup, s *biz.ProfileSpec, ref string) (*biz.Verification, error) {
-	if err := p.pause(ctx, "verify"); err != nil {
-		return nil, err
-	}
-	return testEvidence{}.Verify(ctx, g, s, ref)
-}
 func delayedCatalogUsecase(t *testing.T, f *pgFixture, phase string) (*biz.Usecase, *delayedCatalogPorts) {
 	t.Helper()
 	p := &delayedCatalogPorts{db: f.db, phase: phase, entered: make(chan error, 1), release: make(chan struct{})}
@@ -71,7 +65,7 @@ func delayedCatalogUsecase(t *testing.T, f *pgFixture, phase string) (*biz.Useca
 	if e != nil {
 		t.Fatal(e)
 	}
-	u, e := biz.NewUsecase(f.db, p, p, codec, []string{f.cluster.ConnectionRef}, 16, time.Minute)
+	u, e := biz.NewUsecase(f.db, p, codec, []string{f.cluster.ConnectionRef}, 16, time.Minute)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -97,7 +91,6 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 		f := pgSetup(t)
 		slow, p := delayedCatalogUsecase(t, f, "inspect")
 		baseline := *f.group.Baseline
-		baseline.Verification = &biz.Verification{State: biz.NotVerified}
 		in := biz.AdoptInput{PoolID: f.pool.PoolID, DisplayName: "concurrent", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: "node-" + biz.NewID(), Name: "concurrent-node"}}, ModelKey: f.group.ModelKey, Baseline: &baseline, QueueName: f.group.QueueName}
 		m := adminMutation()
 		done := make(chan error, 1)
@@ -122,12 +115,11 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 			t.Fatal("prepared loser did not replay original winner")
 		}
 	})
-	for _, scenario := range []string{"publish_inspect_change", "publish_verify_change", "publish_same_key", "open_change", "resolve_change"} {
+	for _, scenario := range []string{"create_inspect_change", "create_same_key", "open_change", "resolve_change"} {
 		t.Run(scenario, func(t *testing.T) {
 			f := pgSetup(t)
-			if scenario == "publish_same_key" {
+			if scenario == "create_same_key" {
 				baseline := *f.group.Baseline
-				baseline.Verification = &biz.Verification{State: biz.NotVerified}
 				g, err := f.u.AdoptSupplyGroup(adminContext("AdoptSupplyGroup"), adminMutation(), biz.AdoptInput{PoolID: f.pool.PoolID, DisplayName: "unpublished", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: "node-" + biz.NewID(), Name: "unpublished-node"}}, ModelKey: f.group.ModelKey, Baseline: &baseline, QueueName: f.group.QueueName})
 				if err != nil {
 					t.Fatal(err)
@@ -140,12 +132,9 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 				f.profile = &profile
 			}
 			phase := "inspect"
-			if scenario == "publish_verify_change" {
-				phase = "verify"
-			}
 			slow, p := delayedCatalogUsecase(t, f, phase)
 			m := adminMutation()
-			in := biz.PublishInput{DisplayName: "concurrent profile", Spec: f.profile.Spec, ExpectedGroupVersion: f.group.Version, VerificationRef: "test:consumption"}
+			in := biz.CreateProfileInput{DisplayName: "concurrent profile", Spec: f.profile.Spec, ExpectedGroupVersion: f.group.Version}
 			done := make(chan error, 1)
 			var got *biz.Profile
 			go func() {
@@ -156,19 +145,19 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 				case "resolve_change":
 					actor := adminActor
 					ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", TenantID: f.tenant, Actor: actor, Action: "ResolveGpuRequest", ClusterIDs: []string{f.cluster.ClusterID}})
-					_, e = slow.Resolve(ctx, &biz.TenantContext{RequestID: "resolve-race", TenantID: f.tenant, Actor: &actor}, f.plan.Request)
+					_, e = slow.Resolve(ctx, &biz.TenantContext{RequestID: "resolve-race", TenantID: f.tenant, Actor: &actor}, f.request)
 				default:
-					got, e = slow.PublishProfile(adminContext("PublishProfile"), m, in)
+					got, e = slow.CreateProfile(adminContext("CreateProfile"), m, in)
 				}
 				done <- e
 			}()
 			awaitCatalogGate(t, p)
-			if scenario == "publish_same_key" {
-				ctx, cancel := timedCatalogContext("PublishProfile")
+			if scenario == "create_same_key" {
+				ctx, cancel := timedCatalogContext("CreateProfile")
 				defer cancel()
-				winner, e := f.u.PublishProfile(ctx, m, in)
+				winner, e := f.u.CreateProfile(ctx, m, in)
 				if e != nil {
-					t.Fatal("same-key publication blocked by external I/O", e)
+					t.Fatal("same-key creation blocked by external I/O", e)
 				}
 				close(p.release)
 				if e = <-done; e != nil {
@@ -187,7 +176,7 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 				close(p.release)
 				e = <-done
 				if e == nil || !strings.Contains(e.Error(), "VERSION_CONFLICT") {
-					t.Fatal("stale prepared evidence accepted", e)
+					t.Fatal("stale prepared snapshot accepted", e)
 				}
 				if e = f.db.View(context.Background(), func(r biz.Reader) error {
 					g, e := r.Group(context.Background(), f.group.GroupID)
@@ -202,7 +191,7 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 						return e
 					}
 					if len(ps) != 1 {
-						return fmt.Errorf("stale publication left profile")
+						return fmt.Errorf("stale creation left profile")
 					}
 					return nil
 				}); e != nil {
@@ -212,6 +201,6 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 		})
 	}
 	if !t.Failed() {
-		t.Log("SQLC-02 PASS: actual restricted PG, delayed Inspect/Verify with zero acquired connections; same-key winners replayed and changed snapshots rejected across Adopt/Publish/OPEN/Resolve")
+		t.Log("SQLC-02 PASS: actual restricted PG, delayed Inspect with zero acquired connections; same-key winners replayed and changed snapshots rejected across Adopt/Create/OPEN/Resolve")
 	}
 }

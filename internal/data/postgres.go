@@ -1,6 +1,7 @@
 package data
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -51,7 +52,7 @@ func (p *Postgres) CheckRuntime(ctx context.Context) error {
 	if err != nil {
 		return biz.Precondition("MIGRATION_REQUIRED")
 	}
-	if version != 3 {
+	if version != 4 {
 		return biz.Precondition("SCHEMA_VERSION_UNSUPPORTED")
 	}
 	restricted, err := q.RuntimeRestricted(ctx)
@@ -114,7 +115,9 @@ func decodeOne[T any](b []byte, err error) (*T, error) {
 		return nil, cleanError(err)
 	}
 	v := new(T)
-	if json.Unmarshal(b, v) != nil {
+	decoder := json.NewDecoder(bytes.NewReader(b))
+	decoder.DisallowUnknownFields()
+	if decoder.Decode(v) != nil {
 		return nil, biz.Precondition("STORED_DATA_INVALID")
 	}
 	return v, nil
@@ -126,7 +129,9 @@ func decodeMany[T any](rows [][]byte, err error) ([]T, error) {
 	result := make([]T, 0, len(rows))
 	for _, b := range rows {
 		var v T
-		if json.Unmarshal(b, &v) != nil {
+		decoder := json.NewDecoder(bytes.NewReader(b))
+		decoder.DisallowUnknownFields()
+		if decoder.Decode(&v) != nil {
 			return nil, biz.Precondition("STORED_DATA_INVALID")
 		}
 		result = append(result, v)
@@ -228,13 +233,17 @@ func (s *pgStore) InsertProfile(ctx context.Context, p biz.Profile, cluster stri
 	}
 	return cleanError(s.q.InsertProfileWrite1(ctx, p.ProfileID, p.ProfileVersion, cluster, p.Spec.GroupID, int32(p.Spec.Mode), b))
 }
-func (s *pgStore) SharedVector(ctx context.Context, cluster string) (*biz.ProfileSpec, error) {
-	p, e := decodeOne[biz.Profile](s.q.SharedVectorData1(ctx, cluster))
-	if biz.IsNotFound(e) {
-		return nil, nil
-	}
+func (s *pgStore) UpdateProfile(ctx context.Context, p biz.Profile, expected uint64) error {
+	b, e := jsonBytes(p)
 	if e != nil {
-		return nil, e
+		return e
 	}
-	return p.Spec, nil
+	count, e := s.q.UpdateProfileCAS(ctx, b, p.ProfileID, expected)
+	if e != nil {
+		return cleanError(e)
+	}
+	if count != 1 {
+		return biz.Conflict("VERSION_CONFLICT")
+	}
+	return nil
 }

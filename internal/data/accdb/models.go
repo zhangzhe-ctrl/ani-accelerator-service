@@ -126,7 +126,7 @@ type AcceleratorUsage struct {
 	ProfileID         string
 	ProfileVersion    uint64
 	Revision          int32
-	PlanDigest        string
+	ExecutionDigest   string
 	SourceCreatedAt   time.Time
 	Payload           []byte
 }

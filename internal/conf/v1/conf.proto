@@ -43,9 +43,9 @@ message Accelerator {
   google.protobuf.Duration collect_interval = 3;
   // Managed provider connection definitions, not sample/replay data.
   string provider_config_file = 4;
-  // Directory of signed hardware attestations, no private signing keys.
-  string attestations_dir = 5;
-  string attestation_public_key_file = 6;
+  // Test qualification is not runtime configuration.
+  reserved 5, 6;
+  reserved "attestations_dir", "attestation_public_key_file";
   string owner_public_key_file = 7;
   // Optional Resource instance signing key; never reuses the Inference key.
   string resource_owner_public_key_file = 8;

@@ -17,7 +17,6 @@ import (
 type Provider struct {
 	connections      map[string]*kubeReader
 	inventory        inventoryReader
-	evidence         *EvidenceStore
 	ownerKey         ed25519.PublicKey
 	resourceOwnerKey ed25519.PublicKey
 	repo             biz.Repository
@@ -36,8 +35,8 @@ func (p *Provider) ConfigureResourceOwnerKey(key ed25519.PublicKey) error {
 	return nil
 }
 
-func New(config Config, evidence *EvidenceStore, ownerKey ed25519.PublicKey, repo biz.Repository, freshness time.Duration) (*Provider, error) {
-	p := &Provider{connections: map[string]*kubeReader{}, inventory: nvmlInventory{}, evidence: evidence, ownerKey: ownerKey, repo: repo, freshness: freshness}
+func New(config Config, ownerKey ed25519.PublicKey, repo biz.Repository, freshness time.Duration) (*Provider, error) {
+	p := &Provider{connections: map[string]*kubeReader{}, inventory: nvmlInventory{}, ownerKey: ownerKey, repo: repo, freshness: freshness}
 	if config.RuntimeEventsDirectory != "" {
 		p.runtimeEvents = newRuntimeEvents(config.RuntimeEventsDirectory)
 	}
@@ -55,6 +54,9 @@ func New(config Config, evidence *EvidenceStore, ownerKey ed25519.PublicKey, rep
 	return p, nil
 }
 func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup) (biz.GroupInspection, error) {
+	if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 {
+		return biz.GroupInspection{}, biz.Precondition("MEMORY_UNIT_MISMATCH")
+	}
 	k := p.connections[c.ConnectionRef]
 	if k == nil {
 		return biz.GroupInspection{}, biz.Precondition("CONNECTION_UNAVAILABLE")
@@ -101,33 +103,9 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 		return biz.GroupInspection{}, biz.Precondition("QUEUE_UNAVAILABLE")
 	}
 	inspection := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
-	var att *Attestation
-	var physicalInventory []Inventory
-	if g.Baseline.Verification != nil && g.Baseline.Verification.State == biz.Verified {
-		att, err = p.evidence.Load(g.Baseline.Verification.EvidenceRef)
-		if err != nil {
-			return inspection, err
-		}
-		if att.ClusterID != c.ClusterID || att.GroupID != g.GroupID || att.BaselineDigest != g.Baseline.BaselineDigest || g.Baseline.Verification.BaselineDigest != g.Baseline.BaselineDigest {
-			return inspection, biz.Precondition("ATTESTATION_SCOPE_MISMATCH")
-		}
-		wantNodes := map[string]bool{}
-		for _, member := range g.Nodes {
-			wantNodes[member.UID] = true
-		}
-		if len(att.NodeUIDs) != len(wantNodes) {
-			return inspection, biz.Precondition("ATTESTATION_SCOPE_MISMATCH")
-		}
-		for _, uid := range att.NodeUIDs {
-			if !wantNodes[uid] {
-				return inspection, biz.Precondition("ATTESTATION_SCOPE_MISMATCH")
-			}
-			delete(wantNodes, uid)
-		}
-		physicalInventory, err = p.inventory.Read(ctx)
-		if err != nil {
-			return inspection, err
-		}
+	physicalInventory, err := p.inventory.Read(ctx)
+	if err != nil {
+		return inspection, err
 	}
 	for _, want := range g.Nodes {
 		var found *node
@@ -156,7 +134,7 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 			return inspection, err
 		}
 		t, err := ParseHandshake(found.Metadata.Annotations[NodeHandshake])
-		if err != nil || time.Since(t) > p.freshness {
+		if err != nil || !sourceFresh(time.Now(), t, p.freshness) {
 			return inspection, biz.Precondition("SOURCE_STALE")
 		}
 		if t.Before(inspection.ObservedAt) {
@@ -167,36 +145,33 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 				return inspection, biz.Precondition("CONFIG_DRIFT")
 			}
 		}
-		if att != nil {
-			// A signed qualification describes concrete physical devices. The
-			// process-local NVML inventory cannot attest a remote node's bytes.
-			if want.UID != k.config.LocalNodeUID {
-				return inspection, biz.Precondition("NVML_UNAVAILABLE")
-			}
-			devices := map[string]HardwareDevice{}
-			for _, device := range att.Devices {
-				if device.NodeUID == want.UID {
-					if _, duplicate := devices[device.VendorUUID]; duplicate || device.ModelKey != g.ModelKey || device.PhysicalBytes == 0 {
-						return inspection, biz.Precondition("ATTESTATION_DEVICE_MISMATCH")
+		if want.UID != k.config.LocalNodeUID {
+			return inspection, biz.Precondition("NVML_UNAVAILABLE")
+		}
+		budgets := make([]int64, 0, len(ds))
+		seen := map[string]bool{}
+		for _, registered := range ds {
+			var physical *Inventory
+			for i := range physicalInventory {
+				if physicalInventory[i].UUID == registered.UUID {
+					if physical != nil {
+						return inspection, biz.Precondition("NVML_DEVICE_CONFLICT")
 					}
-					devices[device.VendorUUID] = device
+					physical = &physicalInventory[i]
 				}
 			}
-			if len(devices) != len(ds) || len(physicalInventory) != len(ds) {
-				return inspection, biz.Precondition("ATTESTATION_DEVICE_MISMATCH")
+			if physical == nil || modelKey(physical.Model) != g.ModelKey || !registered.Healthy {
+				return inspection, biz.Precondition("NVML_DEVICE_MISMATCH")
 			}
-			for _, registered := range ds {
-				device, exists := devices[registered.UUID]
-				matched := false
-				for _, physical := range physicalInventory {
-					if exists && physical.UUID == device.VendorUUID && modelKey(physical.Model) == device.ModelKey && physical.Bytes == device.PhysicalBytes {
-						matched = true
-					}
-				}
-				if !matched {
-					return inspection, biz.Precondition("ATTESTATION_DEVICE_MISMATCH")
-				}
+			seen[registered.UUID] = true
+			budget, err := deviceMemoryBudget(registered.MemoryBlocks, g.Baseline.MemoryBlockMiB, physical.Bytes)
+			if err != nil || budget <= 0 {
+				return inspection, biz.Precondition("CAPACITY_UNKNOWN")
 			}
+			budgets = append(budgets, budget)
+		}
+		if len(seen) != len(physicalInventory) {
+			return inspection, biz.Precondition("NVML_DEVICE_MISMATCH")
 		}
 		loaded := false
 		for _, plugin := range plugins {
@@ -215,9 +190,9 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 			}
 		}
 		if !loaded {
-			return inspection, biz.Precondition("MEMORY_UNIT_UNVERIFIED")
+			return inspection, biz.Precondition("MEMORY_UNIT_MISMATCH")
 		}
-		inspection.Nodes = append(inspection.Nodes, biz.InspectedNode{Node: want, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, Labels: found.Metadata.Labels, ConfigDigest: nodeDigest})
+		inspection.Nodes = append(inspection.Nodes, biz.InspectedNode{Node: want, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, Labels: found.Metadata.Labels, ConfigDigest: nodeDigest, DeviceBudgetsMiB: budgets})
 	}
 	return inspection, nil
 }
@@ -293,7 +268,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			}
 		}
 	}
-	// Admission qualification and physical source availability are independent.
+	// Configuration identity and physical source availability are independent.
 	// Only known running binaries and explicit plugin F/K can justify decoding
 	// scheduler block units; runtime memory is read directly in MiB otherwise.
 	plugins, pluginErr := k.selectedPods(ctx, k.config.PluginNamespace, k.config.PluginSelector)
@@ -332,7 +307,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			}
 		}
 		// Positive release evidence needs current Node UID + healthy CRI and
-		// PodResources only. Registration, F/K, and admission proofs do not
+		// PodResources only. Registration, F/K, and configuration identity do not
 		// participate in determining that an old allocation has disappeared.
 		proofs, err := p.releaseProofs(ctx, c.ClusterID, source, releaseSnapshot, nodeOK, now)
 		if err != nil {
@@ -355,11 +330,11 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		if group == nil {
 			continue
 		} // No trusted F exists for an unmanaged supply node.
-		unitsTrusted := registerErr == nil && handshakeErr == nil && now.Sub(handshake) <= p.freshness && pluginErr == nil && schedulerErr == nil && collectionUnitsMatch(*group, source, registered, plugins, schedulers, k.config)
+		unitsTrusted := registerErr == nil && handshakeErr == nil && sourceFresh(now, handshake, p.freshness) && pluginErr == nil && schedulerErr == nil && collectionUnitsMatch(*group, source, registered, plugins, schedulers, k.config)
 		if registerErr != nil || handshakeErr != nil {
 			// Do not leave a recently complete cached record visible as free
 			// capacity while current registration can no longer be interpreted.
-			stale, err := p.unqualifiedDevices(ctx, c.ClusterID, group.GroupID, source.UID, now)
+			stale, err := p.unknownDevices(ctx, c.ClusterID, group.GroupID, source.UID, now)
 			if err != nil {
 				return batch, err
 			}
@@ -370,7 +345,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			var physical *Inventory
 			if source.UID == k.config.LocalNodeUID && inventoryErr == nil {
 				for i := range inventory {
-					if inventory[i].UUID == rd.UUID && inventory[i].Model == rd.Model {
+					if inventory[i].UUID == rd.UUID && modelKey(inventory[i].Model) == modelKey(rd.Model) {
 						physical = &inventory[i]
 						break
 					}
@@ -384,28 +359,25 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			if rd.Healthy {
 				health = "HEALTHY"
 			}
-			complete := inspected[group.GroupID] && unitsTrusted && physical != nil && snapshot.ResourcesOK && snapshot.RuntimeOK && now.Sub(handshake) <= p.freshness
+			complete := inspected[group.GroupID] && unitsTrusted && physical != nil && snapshot.ResourcesOK && snapshot.RuntimeOK && sourceFresh(now, handshake, p.freshness)
 			safe := int64(0)
-			if group.Baseline.Verification != nil && group.Baseline.Verification.State == biz.Verified {
-				if att, err := p.evidence.Load(group.Baseline.Verification.EvidenceRef); err == nil && att.BaselineDigest == group.Baseline.BaselineDigest && att.GroupID == group.GroupID {
-					for _, v := range att.Devices {
-						if v.NodeUID == source.UID && v.VendorUUID == rd.UUID && v.PhysicalBytes == bytes {
-							safe = v.SafeMemoryMiB
-						}
-					}
+			if unitsTrusted && physical != nil {
+				safe, err = deviceMemoryBudget(rd.MemoryBlocks, group.Baseline.MemoryBlockMiB, physical.Bytes)
+				if err != nil || safe <= 0 {
+					complete = false
 				}
 			}
 			id := PhysicalID(c.ClusterID, source.UID, rd.UUID)
 			issues := []string{}
-			if physical == nil || !snapshot.ResourcesOK || !snapshot.RuntimeOK || now.Sub(handshake) > p.freshness {
+			if physical == nil || safe <= 0 || !snapshot.ResourcesOK || !snapshot.RuntimeOK || !sourceFresh(now, handshake, p.freshness) {
 				issues = append(issues, "SOURCE_UNKNOWN")
 			}
 			if !inspected[group.GroupID] {
-				issues = append(issues, "QUALIFICATION_UNAVAILABLE")
+				issues = append(issues, "CONFIGURATION_UNAVAILABLE")
 			}
 			if !unitsTrusted {
 				rd.MemoryBlocks = 0 // Unknown F is never decoded with the old baseline.
-				issues = append(issues, "MEMORY_UNIT_UNVERIFIED")
+				issues = append(issues, "MEMORY_UNIT_MISMATCH")
 			}
 			if modelKey(rd.Model) != group.ModelKey || rd.SplitCount != group.Baseline.SplitCount {
 				complete = false
@@ -435,11 +407,10 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 	return batch, nil
 }
 
-// collectionUnitsMatch establishes only the unit decoder, not eligibility for
-// new allocations. A changed ConfigMap or expired qualification may invalidate
-// admission while these actual running binaries still emit the known F/K units.
+// collectionUnitsMatch checks actual running binaries and plugin F/K. Configuration
+// identity never grants permission to decode a different memory unit.
 func collectionUnitsMatch(g biz.SupplyGroup, source NodeSource, registered []RegisteredDevice, plugins, schedulers []pod, config Connection) bool {
-	if len(registered) == 0 {
+	if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 || len(registered) == 0 {
 		return false
 	}
 	for _, device := range registered {
@@ -474,7 +445,7 @@ func collectionUnitsMatch(g biz.SupplyGroup, source NodeSource, registered []Reg
 	return false
 }
 
-func (p *Provider) unqualifiedDevices(ctx context.Context, cluster, group, nodeUID string, now time.Time) ([]biz.DeviceRecord, error) {
+func (p *Provider) unknownDevices(ctx context.Context, cluster, group, nodeUID string, now time.Time) ([]biz.DeviceRecord, error) {
 	var devices []biz.DeviceRecord
 	err := p.repo.View(ctx, func(r biz.Reader) error {
 		after := ""
@@ -491,7 +462,7 @@ func (p *Provider) unqualifiedDevices(ctx context.Context, cluster, group, nodeU
 				if device.Device.Observation != nil {
 					observed = device.Device.Observation.ObservedAt
 				}
-				device.Device.Observation = &biz.Observation{Complete: false, ObservedAt: observed, ReceivedAt: now.Format(time.RFC3339Nano), Issues: []string{"MEMORY_UNIT_UNVERIFIED"}}
+				device.Device.Observation = &biz.Observation{Complete: false, ObservedAt: observed, ReceivedAt: now.Format(time.RFC3339Nano), Issues: []string{"MEMORY_UNIT_MISMATCH"}}
 				devices = append(devices, device)
 			}
 			if len(page) < 201 {
@@ -536,8 +507,8 @@ func (p *Provider) runtimeClaims(cluster string, g biz.SupplyGroup, pod pod, nod
 			if !known {
 				continue // Never create a claim for an unobserved physical device.
 			}
-			ref, plan := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
-			claims = append(claims, biz.Claim{Pod: podRef, DeviceID: id, NodeUID: node.UID, Source: "runtime", ObservedAt: snapshot.ObservedAt, ReceivedAt: now, State: biz.AllocationUnknown, MemoryMiB: allocation.MemoryMiB, CoreLimitPercent: allocation.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, Cursor: status.Status.Id, EvidenceRef: "cri:" + status.Status.Id, OwnerRef: ref, PlanDigest: plan})
+			ref, execution := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
+			claims = append(claims, biz.Claim{Pod: podRef, DeviceID: id, NodeUID: node.UID, Source: "runtime", ObservedAt: snapshot.ObservedAt, ReceivedAt: now, State: biz.AllocationUnknown, MemoryMiB: allocation.MemoryMiB, CoreLimitPercent: allocation.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, Cursor: status.Status.Id, EvidenceRef: "cri:" + status.Status.Id, OwnerRef: ref, ExecutionDigest: execution})
 		}
 	}
 	return claims, nil
@@ -587,18 +558,18 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 			if !known {
 				return nil, biz.Invalid("PROVIDER_DEVICE_IDENTITY")
 			}
-			ref, plan := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
-			m, err := biz.NormalizeMemory(a.MemoryBlocks, "BLOCKS", g.Baseline.MemoryBlockMiB)
-			if err != nil {
-				return nil, err
+			ref, execution := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
+			if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 {
+				return nil, biz.Precondition("MEMORY_UNIT_MISMATCH")
 			}
-			c := biz.Claim{Pod: podRef, DeviceID: PhysicalID(cluster, node.UID, a.UUID), NodeUID: node.UID, Source: "scheduler", ObservedAt: assigned, ReceivedAt: now, State: biz.Active, MemoryMiB: m, CoreLimitPercent: a.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, OwnerRef: ref, PlanDigest: plan}
+			m := a.MemoryBlocks
+			c := biz.Claim{Pod: podRef, DeviceID: PhysicalID(cluster, node.UID, a.UUID), NodeUID: node.UID, Source: "scheduler", ObservedAt: assigned, ReceivedAt: now, State: biz.Active, MemoryMiB: m, CoreLimitPercent: a.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, OwnerRef: ref, ExecutionDigest: execution}
 			// Owner signing follows Pod UID creation and may arrive after the
 			// scheduler fact was saved. Preserve that fact's original ownership;
 			// current verified ownership belongs to fresh runtime/allocation facts.
 			for _, prior := range previous {
 				if prior.Source == "scheduler" && prior.Pod == podRef && prior.DeviceID == c.DeviceID && prior.NodeUID == c.NodeUID && prior.ObservedAt.Equal(assigned) {
-					c.OwnerRef, c.PlanDigest = prior.OwnerRef, prior.PlanDigest
+					c.OwnerRef, c.ExecutionDigest = prior.OwnerRef, prior.ExecutionDigest
 					break
 				}
 			}
@@ -625,7 +596,7 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 				if alloc.UUID != a.UUID {
 					return nil, biz.Invalid("PROVIDER_DEVICE_CONFLICT")
 				}
-				c.OwnerRef, c.PlanDigest = ref, plan
+				c.OwnerRef, c.ExecutionDigest = ref, execution
 				c.Source = "runtime"
 				c.ObservedAt = snapshot.ObservedAt
 				c.Cursor = status.Status.Id
@@ -734,7 +705,7 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 				}
 				sort.Strings(ids)
 				digest, _ := biz.Hash(ids)
-				result = append(result, biz.ReleaseProof{Pod: *binding.Pod, DeviceID: binding.PhysicalDeviceID, NodeUID: node.UID, ObservedAt: snapshot.ObservedAt, ReceivedAt: now, EvidenceRef: "release:" + digest, RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: claim.OwnerRef, PlanDigest: claim.PlanDigest})
+				result = append(result, biz.ReleaseProof{Pod: *binding.Pod, DeviceID: binding.PhysicalDeviceID, NodeUID: node.UID, ObservedAt: snapshot.ObservedAt, ReceivedAt: now, EvidenceRef: "release:" + digest, RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: claim.OwnerRef, ExecutionDigest: claim.ExecutionDigest})
 			}
 			if len(bindings) < 201 {
 				return nil
@@ -778,5 +749,30 @@ func mergeJournalExits(current, recovered []*cri.ContainerStatusResponse, histor
 	return result
 }
 func (p *Provider) String() string {
-	return fmt.Sprintf("volcano-hami-factor-v1 (%d managed connections)", len(p.connections))
+	return fmt.Sprintf("volcano-hami-mib-v1 (%d managed connections)", len(p.connections))
+}
+
+// The registration and NVML inventory are independent limits on each physical
+// card. F is observed from the running plugin before this calculation is used.
+func deviceMemoryBudget(blocks int64, observedF uint32, physicalBytes uint64) (int64, error) {
+	if observedF != 1 || blocks <= 0 || physicalBytes == 0 {
+		return 0, biz.Precondition("MEMORY_UNIT_MISMATCH")
+	}
+	registered, err := biz.Multiply(blocks, int64(observedF))
+	if err != nil {
+		return 0, err
+	}
+	quantized, err := biz.QuantizedBlocks([]uint64{physicalBytes}, observedF)
+	if err != nil {
+		return 0, err
+	}
+	physical, err := biz.Multiply(quantized, int64(observedF))
+	if err != nil {
+		return 0, err
+	}
+	return min(registered, physical), nil
+}
+
+func sourceFresh(now, observed time.Time, freshness time.Duration) bool {
+	return !observed.IsZero() && !observed.After(now.Add(5*time.Second)) && now.Sub(observed) <= freshness
 }

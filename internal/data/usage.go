@@ -19,7 +19,7 @@ func (s *pgStore) SaveUsage(ctx context.Context, p biz.UsageProjection) (*biz.Sy
 	// Observation writes acquire device/FK locks before binding locks. Take
 	// the same cluster lock before usage/FK writes to keep one global order:
 	// cluster -> usage -> binding. This also prevents missed associations.
-	if err := s.Lock(ctx, "observation:"+p.Plan.Request.ClusterID); err != nil {
+	if err := s.Lock(ctx, "observation:"+p.ClusterID); err != nil {
 		return nil, err
 	}
 	if err := s.Lock(ctx, "usage:"+r.TenantID+":"+r.OwnerService+":"+r.ResourceID); err != nil {
@@ -39,9 +39,9 @@ func (s *pgStore) SaveUsage(ctx context.Context, p biz.UsageProjection) (*biz.Sy
 		return nil, biz.Invalid("SOURCE_TIME_INVALID")
 	}
 	if prior == nil {
-		err = cleanError(s.q.SaveUsageWrite2(ctx, r.TenantID, r.OwnerService, r.ResourceID, r.CreateOperationID, p.Plan.Request.ProfileID, p.Plan.Request.ProfileVersion, int32(p.Revision), p.Plan.ResolutionDigest, createdAt, b))
+		err = cleanError(s.q.SaveUsageWrite2(ctx, r.TenantID, r.OwnerService, r.ResourceID, r.CreateOperationID, p.ProfileID, p.ProfileVersion, int32(p.Revision), p.ExecutionDigest, createdAt, b))
 	} else {
-		if *prior.Ref != *p.Ref || prior.Plan.ResolutionDigest != p.Plan.ResolutionDigest || prior.SourceOperationCreatedAt != p.SourceOperationCreatedAt {
+		if *prior.Ref != *p.Ref || prior.ExecutionDigest != p.ExecutionDigest || prior.SourceOperationCreatedAt != p.SourceOperationCreatedAt || prior.ProfileID != p.ProfileID || prior.ProfileVersion != p.ProfileVersion || prior.GroupID != p.GroupID || prior.BaselineID != p.BaselineID || prior.ClusterID != p.ClusterID || prior.ContainerName != p.ContainerName {
 			return nil, biz.Conflict("USAGE_PROJECTION_CONFLICT")
 		}
 		digest, e := s.q.UsageRevisionDigest(ctx, r.TenantID, r.OwnerService, r.ResourceID, int32(p.Revision))
@@ -67,7 +67,7 @@ func (s *pgStore) SaveUsage(ctx context.Context, p biz.UsageProjection) (*biz.Sy
 	}
 	// A binding that arrived first becomes tenant-visible only after both the
 	// signed owner assertion and the persisted immutable plan match.
-	claims, err := decodeMany[biz.Claim](s.q.SaveUsageData5(ctx, &r.TenantID, &r.OwnerService, &r.ResourceID, &r.CreateOperationID, p.Plan.Request.ClusterID))
+	claims, err := decodeMany[biz.Claim](s.q.SaveUsageData5(ctx, &r.TenantID, &r.OwnerService, &r.ResourceID, &r.CreateOperationID, p.ClusterID))
 	if err != nil {
 		return nil, err
 	}

@@ -1,73 +1,71 @@
 package provider
 
 import (
-	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
-	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
-	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 )
 
-func TestAttestationAndOwnerTrustBoundaries(t *testing.T) {
+func TestOwnerTrustBoundaries(t *testing.T) {
 	pub, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	dir := t.TempDir()
-	path := filepath.Join(dir, "public")
-	testkit.Write(t, path, []byte(base64.StdEncoding.EncodeToString(pub)))
-	store, err := NewEvidenceStore(dir, path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), BaselineDigest: strings.Repeat("b", 64), MemoryBlockMiB: 1024, SplitCount: 4, CoreBudgetAdditive: true}
-	g := biz.SupplyGroup{GroupID: biz.NewID(), ClusterID: biz.NewID(), ModelKey: "nvidia-test", Nodes: []biz.NodeRef{{UID: "node-1", Name: "node"}}, Baseline: baseline}
-	spec := &biz.ProfileSpec{GroupID: g.GroupID, Mode: biz.Shared, ModelKey: g.ModelKey, SharedMemoryMiB: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}
-	digest, _ := biz.SpecDigest(spec, baseline.BaselineID)
-	a := Attestation{SchemaVersion: 1, Kind: "gpu-hardware-consumption-v1", EvidenceRef: "test:signed", ClusterID: g.ClusterID, GroupID: g.GroupID, BaselineDigest: baseline.BaselineDigest, SpecDigest: digest, NodeUIDs: []string{"node-1"}, Devices: []HardwareDevice{{"node-1", gpuUUID, g.ModelKey, 24576 << 20, 24576}}, VerifiedAt: time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), ExperimentManifestDigest: strings.Repeat("e", 64)}
-	write := func(a Attestation) {
-		payload, _ := biz.Canonical(a)
-		signed := SignedAttestation{a, base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-hardware-attestation-v1\n"), payload...)))}
-		b, _ := json.Marshal(signed)
-		testkit.Write(t, filepath.Join(dir, EvidenceFilename(a.EvidenceRef)), b)
-	}
-	write(a)
-	if _, err = store.Verify(context.Background(), g, spec, a.EvidenceRef); err != nil {
-		t.Fatal(err)
-	}
-	for _, mutate := range []func(*Attestation){func(a *Attestation) { a.ExpiresAt = a.VerifiedAt }, func(a *Attestation) { a.GroupID = biz.NewID() }, func(a *Attestation) { a.NodeUIDs = []string{"rebuilt-node"} }, func(a *Attestation) {
-		a.Devices = []HardwareDevice{{"node-1", gpuUUID, g.ModelKey, 24576 << 20, 24577}}
-	}} {
-		copy := a
-		mutate(&copy)
-		write(copy)
-		if _, err = store.Verify(context.Background(), g, spec, a.EvidenceRef); err == nil {
-			t.Fatal("bad hardware attestation accepted")
-		}
-	}
-	write(a)
-	store.public = make(ed25519.PublicKey, 32)
-	if _, err = store.Load(a.EvidenceRef); err == nil {
-		t.Fatal("wrong signature accepted")
-	}
-	pod := biz.PodRef{ClusterID: g.ClusterID, Namespace: "test", Name: "pod", UID: "pod-1", ContainerName: "inference"}
+	digest := strings.Repeat("a", 64)
+	clusterID := biz.NewID()
+	pod := biz.PodRef{ClusterID: clusterID, Namespace: "test", Name: "pod", UID: "pod-1", ContainerName: "inference"}
 	ref := biz.UsageRef{TenantID: biz.NewID(), OwnerService: "ani-inference", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
 	labels := map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}
-	annotations := map[string]string{"accelerator.ani.io/plan-digest": digest}
+	annotations := map[string]string{"accelerator.ani.io/execution-digest": digest}
 	if got, _ := VerifyOwnerAssertion(pod, labels, annotations, pub); got != nil {
 		t.Fatal("ordinary labels trusted")
 	}
 	payload, _ := biz.Canonical(OwnerAssertion{pod, ref, digest})
-	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v2\n"), payload...)))
 	if got, _ := VerifyOwnerAssertion(pod, labels, annotations, pub); got == nil || *got != ref {
 		t.Fatal("valid owner assertion failed")
+	}
+	for _, change := range []func(*biz.PodRef, map[string]string, map[string]string){
+		func(p *biz.PodRef, _ map[string]string, _ map[string]string) { p.ClusterID = biz.NewID() },
+		func(p *biz.PodRef, _ map[string]string, _ map[string]string) { p.Namespace = "other" },
+		func(p *biz.PodRef, _ map[string]string, _ map[string]string) { p.ContainerName = "sidecar" },
+		func(_ *biz.PodRef, l map[string]string, _ map[string]string) {
+			l["accelerator.ani.io/resource-tenant-id"] = biz.NewID()
+		},
+		func(_ *biz.PodRef, l map[string]string, _ map[string]string) {
+			l["accelerator.ani.io/resource-id"] = biz.NewID()
+		},
+		func(_ *biz.PodRef, l map[string]string, _ map[string]string) {
+			l["accelerator.ani.io/create-operation-id"] = biz.NewID()
+		},
+		func(_ *biz.PodRef, _ map[string]string, a map[string]string) {
+			a["accelerator.ani.io/execution-digest"] = strings.Repeat("b", 64)
+		},
+		func(_ *biz.PodRef, _ map[string]string, a map[string]string) {
+			a["accelerator.ani.io/plan-digest"] = a["accelerator.ani.io/execution-digest"]
+			delete(a, "accelerator.ani.io/execution-digest")
+		},
+	} {
+		changedPod := pod
+		changedLabels, changedAnnotations := map[string]string{}, map[string]string{}
+		for k, v := range labels {
+			changedLabels[k] = v
+		}
+		for k, v := range annotations {
+			changedAnnotations[k] = v
+		}
+		change(&changedPod, changedLabels, changedAnnotations)
+		if got, _ := VerifyOwnerAssertion(changedPod, changedLabels, changedAnnotations, pub); got != nil {
+			t.Fatal("signature accepted for changed scope or removed contract")
+		}
+	}
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	if got, _ := VerifyOwnerAssertion(pod, labels, annotations, pub); got != nil {
+		t.Fatal("old signature domain accepted")
 	}
 	resourcePub, resourceKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
@@ -77,7 +75,7 @@ func TestAttestationAndOwnerTrustBoundaries(t *testing.T) {
 	ref.OwnerService = "ani-resource-service"
 	labels["accelerator.ani.io/owner-service"] = ref.OwnerService
 	payload, _ = biz.Canonical(OwnerAssertion{pod, ref, digest})
-	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(resourceKey, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(resourceKey, append([]byte("acc-owner-pod-v2\n"), payload...)))
 	if got, _ := provider.verifyOwner(pod, labels, annotations); got != nil {
 		t.Fatal("missing Resource key trusted")
 	}
@@ -87,11 +85,11 @@ func TestAttestationAndOwnerTrustBoundaries(t *testing.T) {
 	if got, _ := provider.verifyOwner(pod, labels, annotations); got == nil || *got != ref {
 		t.Fatal("Resource owner assertion failed")
 	}
-	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v2\n"), payload...)))
 	if got, _ := provider.verifyOwner(pod, labels, annotations); got != nil {
 		t.Fatal("Inference key authorized Resource owner")
 	}
-	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(resourceKey, append([]byte("acc-owner-pod-v1\n"), payload...)))
+	annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(resourceKey, append([]byte("acc-owner-pod-v2\n"), payload...)))
 	pod.UID = "recreated-pod"
 	if got, _ := provider.verifyOwner(pod, labels, annotations); got != nil {
 		t.Fatal("Pod UID replay accepted")

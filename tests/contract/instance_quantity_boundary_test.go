@@ -2,8 +2,8 @@ package contract_test
 
 // This explicitly started test process substitutes only the external GPU
 // catalog/Resolve and usage destination. It uses the production mTLS/delegation
-// guard and real BuildPlan/ValidatePlan. It has no PostgreSQL connection and
-// cannot write supply verification, real usage, binding or release facts.
+// guard and real BuildResolution. It has no PostgreSQL connection and
+// cannot write actual supply, real usage, binding or release facts.
 
 import (
 	"context"
@@ -12,6 +12,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
@@ -69,22 +70,22 @@ func newInstanceQuantityBoundary(c instanceBoundaryConfig) (*instanceQuantityBou
 		return nil, err
 	}
 	for _, mode := range []biz.SupplyMode{biz.Whole, biz.Shared} {
-		split, maximum, cores, memory, isolation := uint32(1), uint32(2), uint32(100), int64(0), "WHOLE_DEVICE_EXCLUSIVE"
+		split, maximum, cores, memory, isolation := uint32(1), uint32(2), uint32(100), int64(24576), "WHOLE_DEVICE_EXCLUSIVE"
 		if mode == biz.Shared {
 			split, maximum, cores, memory, isolation = 4, 1, 25, 6144, "SOFTWARE_COOPERATIVE"
 		}
-		baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.15.2", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "CF03-external-boundary", MemoryBlockMiB: 1024, FactorEvidenceRef: "boundary:software-only", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: split, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-v1"}
+		baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-mib-v1", VolcanoVersion: "v1.15.2", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "CF03-external-boundary", MemoryBlockMiB: 1, MemoryEncoding: "MIB", SplitCount: split, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-mib-v1", RuntimeClassName: "nvidia"}
 		baseline.BaselineDigest, err = biz.BaselineDigest(baseline)
 		if err != nil {
 			return nil, err
 		}
 		group := &biz.SupplyGroup{GroupID: biz.NewID(), PoolID: b.pool.PoolID, ClusterID: c.ClusterID, DisplayName: fmt.Sprintf("CF03 external mode %d", mode), Mode: mode, ModelKey: "nvidia-test", Baseline: baseline, Admission: biz.Open, QueueName: c.QueueName, Version: 1}
-		spec := &biz.ProfileSpec{GroupID: group.GroupID, Mode: mode, ModelKey: group.ModelKey, SharedMemoryMiB: memory, CoreLimitPercent: cores, MaxDevicesPerReplica: maximum, IsolationClass: isolation}
+		spec := &biz.ProfileSpec{GroupID: group.GroupID, Mode: mode, ModelKey: group.ModelKey, MemoryMiBPerDevice: memory, CoreLimitPercent: cores, MaxDevicesPerReplica: maximum, IsolationClass: isolation}
 		specDigest, err := biz.SpecDigest(spec, baseline.BaselineID)
 		if err != nil {
 			return nil, err
 		}
-		profile := &biz.Profile{ProfileID: biz.NewID(), ProfileVersion: 1, DisplayName: group.DisplayName, Spec: spec, BaselineID: baseline.BaselineID, SpecDigest: specDigest, Published: true}
+		profile := &biz.Profile{ProfileID: biz.NewID(), ProfileVersion: 1, DisplayName: group.DisplayName, Spec: spec, BaselineID: baseline.BaselineID, SpecDigest: specDigest, State: biz.ProfileActive, Revision: 1}
 		b.groups[group.GroupID], b.profiles = group, append(b.profiles, profile)
 	}
 	return b, nil
@@ -232,18 +233,15 @@ func (b *instanceQuantityBoundary) ListSupplyGroups(ctx context.Context, in *pb.
 	}
 	return out, nil
 }
-func (b *instanceQuantityBoundary) build(request *biz.GpuRequest) (*biz.ResolvedPlan, error) {
+func (b *instanceQuantityBoundary) build(request *biz.GpuRequest) (*biz.ResolvedGpuRequest, error) {
 	if request == nil || request.Replicas != 1 || request.ContainerName != "workspace" {
 		return nil, status.Error(codes.InvalidArgument, "instance requires one workspace Pod")
 	}
 	for _, profile := range b.profiles {
 		if profile.ProfileID == request.ProfileID {
 			group := b.groups[profile.Spec.GroupID]
-			plan, err := biz.BuildPlan(request, profile, group, 16)
+			plan, err := biz.BuildResolution(request, profile, group, 16)
 			if err != nil {
-				return nil, status.Error(codes.InvalidArgument, err.Error())
-			}
-			if err := biz.ValidatePlan(plan, profile, group, 16); err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
 			return plan, nil
@@ -251,7 +249,7 @@ func (b *instanceQuantityBoundary) build(request *biz.GpuRequest) (*biz.Resolved
 	}
 	return nil, status.Error(codes.NotFound, "profile not found")
 }
-func (b *instanceQuantityBoundary) ResolveGpuRequest(ctx context.Context, in *pb.ResolveGpuRequestRequest) (*pb.ResolvedGpuPlan, error) {
+func (b *instanceQuantityBoundary) ResolveGpuRequest(ctx context.Context, in *pb.ResolveGpuRequestRequest) (*pb.ResolvedGpuRequest, error) {
 	if in == nil {
 		return nil, status.Error(codes.InvalidArgument, "request required")
 	}
@@ -266,7 +264,7 @@ func (b *instanceQuantityBoundary) ResolveGpuRequest(ctx context.Context, in *pb
 	if err != nil {
 		return nil, err
 	}
-	return boundaryCopy[pb.ResolvedGpuPlan](plan)
+	return boundaryCopy[pb.ResolvedGpuRequest](plan)
 }
 func (b *instanceQuantityBoundary) SyncGpuUsage(ctx context.Context, in *pb.SyncGpuUsageRequest) (*pb.SyncGpuUsageResponse, error) {
 	caller, ok := biz.CurrentCaller(ctx)
@@ -286,15 +284,8 @@ func (b *instanceQuantityBoundary) SyncGpuUsage(ctx context.Context, in *pb.Sync
 	if err := biz.ValidateProjection(projection); err != nil {
 		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
-	if projection.Plan == nil {
-		return nil, status.Error(codes.InvalidArgument, "complete plan required")
-	}
-	expected, err := b.build(projection.Plan.Request)
-	if err != nil {
-		return nil, err
-	}
-	if err := biz.ValidatePlan(projection.Plan, expected.Profile, b.groups[expected.Profile.Spec.GroupID], 16); err != nil {
-		return nil, status.Error(codes.InvalidArgument, err.Error())
+	if projection.ClusterID != b.config.ClusterID || projection.ContainerName != "workspace" {
+		return nil, status.Error(codes.PermissionDenied, "projection scope denied")
 	}
 	b.mu.Lock()
 	defer b.mu.Unlock()
@@ -305,7 +296,7 @@ func (b *instanceQuantityBoundary) SyncGpuUsage(ctx context.Context, in *pb.Sync
 	if prior != nil && prior.Revision >= projection.Revision {
 		return &pb.SyncGpuUsageResponse{Ref: in.Projection.Ref, AppliedRevision: prior.Revision, State: pb.UsageState(prior.State), Replayed: true}, nil
 	}
-	if prior != nil && (prior.Plan.ResolutionDigest != projection.Plan.ResolutionDigest || prior.SourceOperationCreatedAt != projection.SourceOperationCreatedAt) {
+	if prior != nil && (prior.ExecutionDigest != projection.ExecutionDigest || prior.SourceOperationCreatedAt != projection.SourceOperationCreatedAt) {
 		return nil, status.Error(codes.AlreadyExists, "original projection context changed")
 	}
 	file, err := os.OpenFile(filepath.Join(b.config.Root, "usage-projections.jsonl"), os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0600)
@@ -365,7 +356,7 @@ func TestInstanceQuantityBoundaryRuntime(t *testing.T) {
 	go func() { done <- srv.Serve(listener) }()
 	defer srv.Stop()
 	requests := map[string]*biz.GpuRequest{}
-	plans := map[string]*biz.ResolvedPlan{}
+	plans := map[string]*biz.ResolvedGpuRequest{}
 	for _, profile := range b.profiles {
 		for n := uint32(1); n <= profile.Spec.MaxDevicesPerReplica; n++ {
 			name := fmt.Sprintf("Whole%d", n)
@@ -380,9 +371,9 @@ func TestInstanceQuantityBoundaryRuntime(t *testing.T) {
 			requests[name], plans[name] = req, plan
 		}
 	}
-	writeJointJSON(t, filepath.Join(c.Root, "public.json"), map[string]any{"cluster_id": c.ClusterID, "tenant_id": c.TenantID, "pool": b.pool, "profiles": b.profiles, "requests": requests, "plans": plans, "scope": "external candidate/Resolve/usage boundary only; no real ACC database, Verified, binding or hardware claim"})
+	writeJointJSON(t, filepath.Join(c.Root, "public.json"), map[string]any{"cluster_id": c.ClusterID, "tenant_id": c.TenantID, "pool": b.pool, "profiles": b.profiles, "requests": requests, "plans": plans, "scope": "external candidate/Resolve/usage boundary only; no real ACC database, binding or hardware claim"})
 	writeJointJSON(t, filepath.Join(c.Root, "ready.json"), map[string]any{"address": listener.Addr().String(), "public_file": filepath.Join(c.Root, "public.json"), "usage_file": filepath.Join(c.Root, "usage-projections.jsonl"), "stop_file": filepath.Join(c.Root, "stop"), "cluster_id": c.ClusterID, "tenant_id": c.TenantID, "scope": "CF03 external GPU dependency only"})
-	t.Log("CF03 external GPU dependency ready; real BuildPlan/ValidatePlan, managed mTLS, no ACC database")
+	t.Log("CF03 external GPU dependency ready; real BuildResolution, managed mTLS, no ACC database")
 	ticker := time.NewTicker(250 * time.Millisecond)
 	defer ticker.Stop()
 	for {
@@ -407,21 +398,14 @@ func TestInstanceQuantityBoundaryBuilderAndScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, profile := range b.profiles {
-		group := b.groups[profile.Spec.GroupID]
-		if group.Baseline.Verification != nil {
-			t.Fatal("boundary fabricated verification")
-		}
 		for n := uint32(1); n <= profile.Spec.MaxDevicesPerReplica; n++ {
 			req := &biz.GpuRequest{ClusterID: c.ClusterID, PoolID: b.pool.PoolID, ProfileID: profile.ProfileID, ProfileVersion: 1, Replicas: 1, DevicesPerReplica: n, ContainerName: "workspace"}
 			plan, err := b.build(req)
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err := biz.ValidatePlan(plan, profile, group, 16); err != nil {
-				t.Fatal(err)
-			}
-			if plan.Request.Replicas != 1 || plan.Request.ContainerName != "workspace" {
-				t.Fatal("boundary changed topology")
+			if plan.Execution.Resources["volcano.sh/vgpu-number"] != strconv.FormatUint(uint64(n), 10) {
+				t.Fatal("boundary changed device topology")
 			}
 		}
 		req := &biz.GpuRequest{ClusterID: c.ClusterID, PoolID: b.pool.PoolID, ProfileID: profile.ProfileID, ProfileVersion: 1, Replicas: 1, DevicesPerReplica: profile.Spec.MaxDevicesPerReplica + 1, ContainerName: "workspace"}

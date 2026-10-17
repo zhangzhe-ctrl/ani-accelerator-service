@@ -164,8 +164,8 @@ func ComputeDeviceCapacity(d DeviceRecord, s ProfileSpec, b ProviderBaseline, bi
 	}
 	if s.Mode == Whole {
 		c.NominalUnits = 1
-	} else if s.SharedMemoryMiB > 0 {
-		c.NominalUnits = min(int64(b.SplitCount), d.SafeMemoryBudgetMiB/s.SharedMemoryMiB)
+	} else if s.MemoryMiBPerDevice > 0 {
+		c.NominalUnits = min(int64(b.SplitCount), d.SafeMemoryBudgetMiB/s.MemoryMiBPerDevice)
 		if b.CoreBudgetAdditive && s.CoreLimitPercent > 0 {
 			c.NominalUnits = min(c.NominalUnits, 100/int64(s.CoreLimitPercent))
 		}
@@ -215,7 +215,7 @@ func ComputeDeviceCapacity(d DeviceRecord, s ProfileSpec, b ProviderBaseline, bi
 		if s.Mode == Whole {
 			c.KnownFreeUnits = 1 - c.KnownCommittedUnits
 		} else {
-			c.KnownFreeUnits = min(int64(b.SplitCount)-c.KnownCommittedUnits, (d.SafeMemoryBudgetMiB-c.CommittedMemoryMiB)/s.SharedMemoryMiB)
+			c.KnownFreeUnits = min(int64(b.SplitCount)-c.KnownCommittedUnits, (d.SafeMemoryBudgetMiB-c.CommittedMemoryMiB)/s.MemoryMiBPerDevice)
 			if b.CoreBudgetAdditive {
 				c.KnownFreeUnits = min(c.KnownFreeUnits, (100-cores)/int64(s.CoreLimitPercent))
 			}

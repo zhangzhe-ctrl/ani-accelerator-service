@@ -16,7 +16,7 @@ func TestPostgresProfileCatalogScopesMatchEachPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	baseline := *f.group.Baseline
-	baseline.BaselineID, baseline.Verification = biz.NewID(), nil
+	baseline.BaselineID = biz.NewID()
 	baseline.BaselineDigest, err = biz.BaselineDigest(&baseline)
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +27,7 @@ func TestPostgresProfileCatalogScopesMatchEachPage(t *testing.T) {
 	}
 	spec := *f.profile.Spec
 	spec.GroupID = group.GroupID
-	second, err := f.u.PublishProfile(adminContext("PublishProfile"), adminMutation(), biz.PublishInput{DisplayName: "another profile", Spec: &spec, ExpectedGroupVersion: group.Version, VerificationRef: "test:consumption"})
+	second, err := f.u.CreateProfile(adminContext("CreateProfile"), adminMutation(), biz.CreateProfileInput{DisplayName: "another profile", Spec: &spec, ExpectedGroupVersion: group.Version})
 	if err != nil {
 		t.Fatal(err)
 	}

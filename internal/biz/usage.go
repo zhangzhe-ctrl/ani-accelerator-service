@@ -19,22 +19,24 @@ func (u *Usecase) SyncUsage(ctx context.Context, requestID string, p *UsageProje
 	}
 	var result *SyncResult
 	err := u.repo.Transact(ctx, func(tx Transaction) error {
-		if p.Plan == nil || p.Plan.Request == nil {
-			return Invalid("INVALID_PLAN")
-		}
-		if err := ValidateRequest(p.Plan.Request, u.maxReplicas); err != nil {
-			return err
-		}
-		profile, err := tx.Profile(ctx, p.Plan.Request.ProfileID, p.Plan.Request.ProfileVersion)
+		// A trusted thin projection is immutable lifecycle data, independent
+		// of today's directory availability or admission state.
+		// The authenticated Governance fact writer has no delegated user
+		// grant. Verify immutable relation identity without checking current
+		// catalog state or recalculating any accepted resource quantities.
+		profile, err := tx.Profile(ctx, p.ProfileID, p.ProfileVersion)
 		if err != nil {
 			return err
 		}
-		group, err := tx.Group(ctx, profile.Spec.GroupID)
+		if profile.Spec == nil || profile.Spec.GroupID != p.GroupID || profile.BaselineID != p.BaselineID {
+			return Invalid("PROFILE_SCOPE_MISMATCH")
+		}
+		group, err := tx.Group(ctx, p.GroupID)
 		if err != nil {
 			return err
 		}
-		if err = ValidatePlan(p.Plan, profile, group, u.maxReplicas); err != nil {
-			return err
+		if group.ClusterID != p.ClusterID {
+			return Invalid("PROFILE_SCOPE_MISMATCH")
 		}
 		result, err = tx.SaveUsage(ctx, *p)
 		return err

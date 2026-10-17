@@ -140,7 +140,7 @@ func TestProviderLateOwnerPreservesHistoricalSchedulerAndAssociatesRuntime(t *te
 	providerControlledSources(t, "v1.15.2", "late_owner")
 }
 
-func providerControlledSources(t *testing.T, schedulerVersion, qualificationFault string) {
+func providerControlledSources(t *testing.T, schedulerVersion, configurationFault string) {
 	path := os.Getenv("ACC_TEST_DSN_FILE")
 	if path == "" {
 		t.Skip("requires isolated PostgreSQL")
@@ -163,27 +163,24 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-replay", MemoryBlockMiB: 1024, FactorEvidenceRef: "replay:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: configDigest, SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-v1"}
+	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-mib-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-replay", MemoryBlockMiB: 1, MemoryEncoding: "MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: configDigest, SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-mib-v1", RuntimeClassName: "nvidia"}
 	b.VolcanoVersion = schedulerVersion
 	b.BaselineDigest, _ = biz.BaselineDigest(b)
 	g := biz.SupplyGroup{GroupID: groupID, PoolID: pool.PoolID, ClusterID: cluster.ClusterID, DisplayName: "replay", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: nodeUID, Name: "replay-node"}}, ModelKey: "nvidia-test", Baseline: b, Admission: biz.Closed, QueueName: "gpu", Version: 1, AdoptedAt: time.Now().UTC().Format(time.RFC3339Nano)}
-	spec := &biz.ProfileSpec{GroupID: groupID, Mode: biz.Shared, ModelKey: g.ModelKey, SharedMemoryMiB: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}
+	spec := &biz.ProfileSpec{GroupID: groupID, Mode: biz.Shared, ModelKey: g.ModelKey, MemoryMiBPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}
 	sd, _ := biz.SpecDigest(spec, b.BaselineID)
-	profile := biz.Profile{ProfileID: biz.NewID(), ProfileVersion: 1, DisplayName: "replay", Spec: spec, BaselineID: b.BaselineID, SpecDigest: sd, Published: true}
+	profile := biz.Profile{ProfileID: biz.NewID(), ProfileVersion: 1, DisplayName: "replay", Spec: spec, BaselineID: b.BaselineID, SpecDigest: sd, State: biz.ProfileActive, Revision: 1}
 	ownerPub, ownerKey, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
 	ref := &biz.UsageRef{TenantID: biz.NewID(), OwnerService: "ani-inference", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
-	plan, err := biz.BuildPlan(&biz.GpuRequest{ClusterID: cluster.ClusterID, PoolID: pool.PoolID, ProfileID: profile.ProfileID, ProfileVersion: 1, Replicas: 1, DevicesPerReplica: 1, ContainerName: "inference"}, &profile, &g, 16)
-	if err != nil {
-		t.Fatal(err)
-	}
+	executionDigest := strings.Repeat("d", 64)
 	podRef := biz.PodRef{ClusterID: cluster.ClusterID, Namespace: "replay", Name: "workload", UID: podUID, ContainerName: "inference"}
-	assertion, _ := biz.Canonical(OwnerAssertion{podRef, *ref, plan.ResolutionDigest})
-	signature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v1\n"), assertion...)))
+	assertion, _ := biz.Canonical(OwnerAssertion{podRef, *ref, executionDigest})
+	signature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v2\n"), assertion...)))
 	state := &replayState{memory: 6144}
-	if qualificationFault == "late_owner" {
+	if configurationFault == "late_owner" {
 		state.setFault("pending_owner")
 	}
 	assignmentTime := time.Now().UTC()
@@ -198,9 +195,9 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		if fault == "pending_owner" {
 			currentSignature = ""
 		}
-		assignmentValue := gpuUUID + ",NVIDIA,6,25:"
+		assignmentValue := gpuUUID + ",NVIDIA,6144,25:"
 		if fault == "scheduler_memory" {
-			assignmentValue = gpuUUID + ",NVIDIA,7,25:"
+			assignmentValue = gpuUUID + ",NVIDIA,7168,25:"
 		}
 		if fault == "stale" {
 			now = now.Add(-time.Hour)
@@ -212,13 +209,13 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		var response any
 		switch {
 		case r.URL.Path == "/api/v1/nodes":
-			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24,NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4,24,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
+			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24576,NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4,24576,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
 			if fault == "registration" {
 				response.(map[string]any)["items"].([]any)[0].(map[string]any)["metadata"].(map[string]any)["annotations"].(map[string]string)[NodeRegister] = "invalid-registration"
 			}
 			status := response.(map[string]any)["items"].([]any)[0].(map[string]any)["status"].(map[string]any)
 			if fault != "allocatable" {
-				status["allocatable"] = map[string]string{"volcano.sh/vgpu-number": "8", "volcano.sh/vgpu-memory": "48", "volcano.sh/vgpu-cores": "200"}
+				status["allocatable"] = map[string]string{"volcano.sh/vgpu-number": "8", "volcano.sh/vgpu-memory": "49152", "volcano.sh/vgpu-cores": "200"}
 			}
 			if fault == "allocatable_zero" {
 				status["allocatable"].(map[string]string)["volcano.sh/vgpu-cores"] = "0"
@@ -231,7 +228,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 			items := []any{}
 			items = append(items, map[string]any{"metadata": map[string]any{"uid": "pending-1", "name": "pending", "namespace": "replay"}, "spec": map[string]any{"nodeSelector": map[string]string{biz.GroupLabel: g.GroupID}, "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1"}}}}}, "status": map[string]string{"phase": "Pending"}})
 			if !deleted {
-				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: assignmentValue, AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/plan-digest": plan.ResolutionDigest, "accelerator.ani.io/owner-signature": currentSignature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6"}}}}}})
+				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: assignmentValue, AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/execution-digest": executionDigest, "accelerator.ani.io/owner-signature": currentSignature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6144"}}}}}})
 			}
 			response = map[string]any{"items": items}
 		case strings.Contains(r.URL.Path, "/configmaps/"):
@@ -241,7 +238,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 				for key, value := range cmData {
 					changed[key] = value
 				}
-				changed["qualification-test-drift"] = "changed after qualification"
+				changed["configuration-test-drift"] = "changed configuration"
 				response = map[string]any{"data": changed, "binaryData": nil}
 			}
 		case r.URL.Path == "/apis/scheduling.volcano.sh/v1beta1/queues/gpu":
@@ -256,7 +253,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 			if r.URL.Query().Get("labelSelector") == "app=plugin" {
 				image = b.DevicePluginImageDigest
 				containerName = "plugin"
-				args = []string{"--gpu-memory-factor=1024", "--device-split-count=4"}
+				args = []string{"--gpu-memory-factor=1", "--device-split-count=4"}
 				if fault == "factor" {
 					args = []string{"--gpu-memory-factor=256", "--device-split-count=4"}
 				}
@@ -280,28 +277,8 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 	criSocket := unixServer(t, "cri", func(s *grpc.Server) {
 		cri.RegisterRuntimeServiceServer(s, &replayRuntime{state: state, podUID: podUID})
 	})
-	attPub, attKey, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		t.Fatal(err)
-	}
-	dir := t.TempDir()
-	pubFile := filepath.Join(dir, "hardware.pub")
-	testkit.Write(t, pubFile, []byte(base64.StdEncoding.EncodeToString(attPub)))
-	evidence, err := NewEvidenceStore(dir, pubFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a := Attestation{SchemaVersion: 1, Kind: "gpu-hardware-consumption-v1", EvidenceRef: "replay:consumption", ClusterID: cluster.ClusterID, GroupID: g.GroupID, BaselineDigest: b.BaselineDigest, SpecDigest: sd, NodeUIDs: []string{nodeUID}, Devices: []HardwareDevice{{nodeUID, gpuUUID, g.ModelKey, 24576 << 20, 24576}, {nodeUID, gpuUUID2, g.ModelKey, 24576 << 20, 24576}}, VerifiedAt: time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano), ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano), ExperimentManifestDigest: strings.Repeat("e", 64)}
-	canonical, _ := biz.Canonical(a)
-	signed := SignedAttestation{Payload: a, Signature: base64.StdEncoding.EncodeToString(ed25519.Sign(attKey, append([]byte("acc-hardware-attestation-v1\n"), canonical...)))}
-	bytes, _ := json.Marshal(signed)
-	testkit.Write(t, filepath.Join(dir, EvidenceFilename(a.EvidenceRef)), bytes)
-	b.Verification, err = evidence.Verify(ctx, g, spec, a.EvidenceRef)
-	if err != nil {
-		t.Fatal(err)
-	}
 	config := Connection{Ref: cluster.ConnectionRef, APIServer: api.URL, ServerName: "accelerator.test", CAFile: pki.CAFile, CertFile: cert, KeyFile: key, PluginNamespace: "system", PluginSelector: "app=plugin", PluginContainer: "plugin", PluginConfigMap: "plugin", SchedulerNamespace: "system", SchedulerSelector: "app=scheduler", SchedulerContainer: "scheduler", SchedulerConfigMap: "scheduler", LocalNodeUID: nodeUID, Nodes: []NodeSource{{nodeUID, "replay-node", prSocket, criSocket}}}
-	adapter, err := New(Config{Connections: []Connection{config}}, evidence, ownerPub, db, time.Minute)
+	adapter, err := New(Config{Connections: []Connection{config}}, ownerPub, db, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +305,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 	rebuilt := g
 	rebuilt.Nodes = []biz.NodeRef{{UID: "replacement-node-uid", Name: g.Nodes[0].Name}}
 	if _, err := adapter.Inspect(ctx, cluster, rebuilt); err == nil {
-		t.Fatal("node name inherited old UID qualification")
+		t.Fatal("node name inherited old UID identity")
 	}
 	collect := func() {
 		t.Helper()
@@ -341,14 +318,14 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		}
 	}
 	collect()
-	if qualificationFault == "late_owner" {
+	if configurationFault == "late_owner" {
 		var first biz.Claim
 		if err := db.View(ctx, func(r biz.Reader) error {
 			claims, _, err := r.PodEvidence(ctx, podRef)
 			if err != nil {
 				return err
 			}
-			if len(claims) != 1 || claims[0].Source != "scheduler" || claims[0].OwnerRef != nil || claims[0].PlanDigest != "" {
+			if len(claims) != 1 || claims[0].Source != "scheduler" || claims[0].OwnerRef != nil || claims[0].ExecutionDigest != "" {
 				t.Fatalf("expected pre-signature scheduler-only observation: %+v", claims)
 			}
 			first = claims[0]
@@ -361,7 +338,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		collect() // Reception time changes do not create a new scheduler revision.
 		// Owner operation times originate in PostgreSQL at microsecond precision.
 		createdAt := time.Now().UTC().Truncate(time.Microsecond)
-		projection := biz.UsageProjection{Ref: ref, Revision: 1, State: biz.Declared, Plan: plan, SourceOperationCreatedAt: createdAt.Format(time.RFC3339Nano), SourceFactRef: "quota-operation:" + ref.CreateOperationID + ":accepted"}
+		projection := biz.UsageProjection{Ref: ref, Revision: 1, State: biz.Declared, ProfileID: profile.ProfileID, ProfileVersion: profile.ProfileVersion, GroupID: g.GroupID, BaselineID: b.BaselineID, ClusterID: cluster.ClusterID, ContainerName: "inference", ExecutionDigest: executionDigest, SourceOperationCreatedAt: createdAt.Format(time.RFC3339Nano), SourceFactRef: "quota-operation:" + ref.CreateOperationID + ":accepted"}
 		projection.PayloadDigest, _ = biz.ProjectionDigest(&projection)
 		if err := db.Transact(ctx, func(tx biz.Transaction) error { _, err := tx.SaveUsage(ctx, projection); return err }); err != nil {
 			t.Fatal(err)
@@ -383,7 +360,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 					if a != b || claim.OwnerRef != nil {
 						t.Fatal("late owner rewrote the original scheduler fact")
 					}
-				} else if claim.OwnerRef == nil || *claim.OwnerRef != *ref || claim.PlanDigest != plan.ResolutionDigest {
+				} else if claim.OwnerRef == nil || *claim.OwnerRef != *ref || claim.ExecutionDigest != executionDigest {
 					t.Fatalf("fresh actual allocation lost verified owner: %+v", claim)
 				}
 			}
@@ -407,7 +384,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		return
 	}
 	codec, _ := biz.NewCursorCodec([]byte(strings.Repeat("k", 32)))
-	u, err := biz.NewUsecase(db, adapter, evidence, codec, []string{cluster.ConnectionRef}, 16, time.Minute)
+	u, err := biz.NewUsecase(db, adapter, codec, []string{cluster.ConnectionRef}, 16, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -426,8 +403,8 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		t.Fatal(v)
 	}
 	owner := biz.WithCaller(ctx, biz.Caller{Service: "ani-inference", Action: "ObserveRelease", TenantID: ref.TenantID})
-	if qualificationFault != "" {
-		qualificationObservation(t, qualificationFault, adapter, evidence, dir, a, state, cluster, g, db, u, owner, ref, podRef, capacity)
+	if configurationFault != "" {
+		configurationObservation(t, configurationFault, adapter, state, cluster, g, db, u, owner, ref, podRef, capacity)
 		return
 	}
 	faults := []string{"stale", "offline", "factor"}
@@ -477,7 +454,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, qualificationFaul
 		t.Fatal("source outage considered complete")
 	}
 	// Reconstruct adapter; persisted facts survive source/API object absence.
-	adapter, err = New(Config{Connections: []Connection{config}}, evidence, ownerPub, db, time.Minute)
+	adapter, err = New(Config{Connections: []Connection{config}}, ownerPub, db, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}

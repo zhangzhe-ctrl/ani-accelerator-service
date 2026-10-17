@@ -185,7 +185,7 @@ func ParseContainerdInfo(raw string) (RuntimeAllocation, error) {
 	}
 	text := env["CUDA_DEVICE_MEMORY_LIMIT_0"]
 	if !strings.HasSuffix(text, "m") {
-		return RuntimeAllocation{}, biz.Invalid("MEMORY_UNIT_UNVERIFIED")
+		return RuntimeAllocation{}, biz.Invalid("MEMORY_UNIT_MISMATCH")
 	}
 	m, e1 := strconv.ParseInt(strings.TrimSuffix(text, "m"), 10, 64)
 	cores, e2 := strconv.ParseUint(env["CUDA_DEVICE_SM_LIMIT"], 10, 32)

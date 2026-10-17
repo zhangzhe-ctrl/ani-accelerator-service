@@ -119,58 +119,6 @@ func (AdmissionState) EnumDescriptor() ([]byte, []int) {
 	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{1}
 }
 
-type VerificationState int32
-
-const (
-	VerificationState_VERIFICATION_UNSPECIFIED VerificationState = 0 // 缺少验证
-	VerificationState_NOT_VERIFIED             VerificationState = 1 // 不得发布消费能力
-	VerificationState_VERIFIED                 VerificationState = 2 // 有对应基线实际证据
-	VerificationState_UNSUPPORTED              VerificationState = 3 // 当前能力不支持
-)
-
-// Enum value maps for VerificationState.
-var (
-	VerificationState_name = map[int32]string{
-		0: "VERIFICATION_UNSPECIFIED",
-		1: "NOT_VERIFIED",
-		2: "VERIFIED",
-		3: "UNSUPPORTED",
-	}
-	VerificationState_value = map[string]int32{
-		"VERIFICATION_UNSPECIFIED": 0,
-		"NOT_VERIFIED":             1,
-		"VERIFIED":                 2,
-		"UNSUPPORTED":              3,
-	}
-)
-
-func (x VerificationState) Enum() *VerificationState {
-	p := new(VerificationState)
-	*p = x
-	return p
-}
-
-func (x VerificationState) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (VerificationState) Descriptor() protoreflect.EnumDescriptor {
-	return file_accelerator_v1_accelerator_proto_enumTypes[2].Descriptor()
-}
-
-func (VerificationState) Type() protoreflect.EnumType {
-	return &file_accelerator_v1_accelerator_proto_enumTypes[2]
-}
-
-func (x VerificationState) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use VerificationState.Descriptor instead.
-func (VerificationState) EnumDescriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{2}
-}
-
 type UsageState int32
 
 const (
@@ -204,11 +152,11 @@ func (x UsageState) String() string {
 }
 
 func (UsageState) Descriptor() protoreflect.EnumDescriptor {
-	return file_accelerator_v1_accelerator_proto_enumTypes[3].Descriptor()
+	return file_accelerator_v1_accelerator_proto_enumTypes[2].Descriptor()
 }
 
 func (UsageState) Type() protoreflect.EnumType {
-	return &file_accelerator_v1_accelerator_proto_enumTypes[3]
+	return &file_accelerator_v1_accelerator_proto_enumTypes[2]
 }
 
 func (x UsageState) Number() protoreflect.EnumNumber {
@@ -217,7 +165,7 @@ func (x UsageState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UsageState.Descriptor instead.
 func (UsageState) EnumDescriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{3}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{2}
 }
 
 type UsageEndReason int32
@@ -253,11 +201,11 @@ func (x UsageEndReason) String() string {
 }
 
 func (UsageEndReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_accelerator_v1_accelerator_proto_enumTypes[4].Descriptor()
+	return file_accelerator_v1_accelerator_proto_enumTypes[3].Descriptor()
 }
 
 func (UsageEndReason) Type() protoreflect.EnumType {
-	return &file_accelerator_v1_accelerator_proto_enumTypes[4]
+	return &file_accelerator_v1_accelerator_proto_enumTypes[3]
 }
 
 func (x UsageEndReason) Number() protoreflect.EnumNumber {
@@ -266,7 +214,7 @@ func (x UsageEndReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use UsageEndReason.Descriptor instead.
 func (UsageEndReason) EnumDescriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{4}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{3}
 }
 
 type AllocationState int32
@@ -305,11 +253,11 @@ func (x AllocationState) String() string {
 }
 
 func (AllocationState) Descriptor() protoreflect.EnumDescriptor {
-	return file_accelerator_v1_accelerator_proto_enumTypes[5].Descriptor()
+	return file_accelerator_v1_accelerator_proto_enumTypes[4].Descriptor()
 }
 
 func (AllocationState) Type() protoreflect.EnumType {
-	return &file_accelerator_v1_accelerator_proto_enumTypes[5]
+	return &file_accelerator_v1_accelerator_proto_enumTypes[4]
 }
 
 func (x AllocationState) Number() protoreflect.EnumNumber {
@@ -318,7 +266,7 @@ func (x AllocationState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AllocationState.Descriptor instead.
 func (AllocationState) EnumDescriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{5}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{4}
 }
 
 type FitStatus int32
@@ -360,11 +308,11 @@ func (x FitStatus) String() string {
 }
 
 func (FitStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_accelerator_v1_accelerator_proto_enumTypes[6].Descriptor()
+	return file_accelerator_v1_accelerator_proto_enumTypes[5].Descriptor()
 }
 
 func (FitStatus) Type() protoreflect.EnumType {
-	return &file_accelerator_v1_accelerator_proto_enumTypes[6]
+	return &file_accelerator_v1_accelerator_proto_enumTypes[5]
 }
 
 func (x FitStatus) Number() protoreflect.EnumNumber {
@@ -373,7 +321,7 @@ func (x FitStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FitStatus.Descriptor instead.
 func (FitStatus) EnumDescriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{6}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{5}
 }
 
 type ReleaseFinding int32
@@ -412,11 +360,11 @@ func (x ReleaseFinding) String() string {
 }
 
 func (ReleaseFinding) Descriptor() protoreflect.EnumDescriptor {
-	return file_accelerator_v1_accelerator_proto_enumTypes[7].Descriptor()
+	return file_accelerator_v1_accelerator_proto_enumTypes[6].Descriptor()
 }
 
 func (ReleaseFinding) Type() protoreflect.EnumType {
-	return &file_accelerator_v1_accelerator_proto_enumTypes[7]
+	return &file_accelerator_v1_accelerator_proto_enumTypes[6]
 }
 
 func (x ReleaseFinding) Number() protoreflect.EnumNumber {
@@ -425,6 +373,58 @@ func (x ReleaseFinding) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ReleaseFinding.Descriptor instead.
 func (ReleaseFinding) EnumDescriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{6}
+}
+
+type ProfileState int32
+
+const (
+	ProfileState_PROFILE_STATE_UNSPECIFIED ProfileState = 0
+	ProfileState_PROFILE_ACTIVE            ProfileState = 1
+	ProfileState_PROFILE_DISABLED          ProfileState = 2
+	ProfileState_PROFILE_DELETED           ProfileState = 3
+)
+
+// Enum value maps for ProfileState.
+var (
+	ProfileState_name = map[int32]string{
+		0: "PROFILE_STATE_UNSPECIFIED",
+		1: "PROFILE_ACTIVE",
+		2: "PROFILE_DISABLED",
+		3: "PROFILE_DELETED",
+	}
+	ProfileState_value = map[string]int32{
+		"PROFILE_STATE_UNSPECIFIED": 0,
+		"PROFILE_ACTIVE":            1,
+		"PROFILE_DISABLED":          2,
+		"PROFILE_DELETED":           3,
+	}
+)
+
+func (x ProfileState) Enum() *ProfileState {
+	p := new(ProfileState)
+	*p = x
+	return p
+}
+
+func (x ProfileState) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ProfileState) Descriptor() protoreflect.EnumDescriptor {
+	return file_accelerator_v1_accelerator_proto_enumTypes[7].Descriptor()
+}
+
+func (ProfileState) Type() protoreflect.EnumType {
+	return &file_accelerator_v1_accelerator_proto_enumTypes[7]
+}
+
+func (x ProfileState) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ProfileState.Descriptor instead.
+func (ProfileState) EnumDescriptor() ([]byte, []int) {
 	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{7}
 }
 
@@ -487,9 +487,9 @@ func (x *Actor) GetId() string {
 type TenantContext struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 必填；日志关联，非幂等键。
-	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,proto3" json:"request_id,omitempty"`
 	// 必填；Gov持久resource_tenant_id UUID，不是内部uint32主键。
-	TenantId string `protobuf:"bytes,2,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId string `protobuf:"bytes,2,opt,name=tenant_id,proto3" json:"tenant_id,omitempty"`
 	// 必填；来自已验证入口。
 	Actor         *Actor `protobuf:"bytes,3,opt,name=actor,proto3" json:"actor,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -551,7 +551,7 @@ func (x *TenantContext) GetActor() *Actor {
 type AdminRead struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 必填。
-	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,proto3" json:"request_id,omitempty"`
 	// 必填；Gov已验证的管理员，GPU侧再查允许动作。
 	Actor         *Actor `protobuf:"bytes,2,opt,name=actor,proto3" json:"actor,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -608,7 +608,7 @@ type AdminMutation struct {
 	// 必填；平台管理员委托。
 	Context *AdminRead `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填UUID；actor+方法内去重，同键异报文拒绝。
-	IdempotencyKey string `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	IdempotencyKey string `protobuf:"bytes,2,opt,name=idempotency_key,proto3" json:"idempotency_key,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -773,13 +773,13 @@ type Observation struct {
 	// 是否覆盖本次查询所需全部来源；false不能显示资源耗尽。
 	Complete bool `protobuf:"varint,1,opt,name=complete,proto3" json:"complete,omitempty"`
 	// 最后可信来源时间；无数据时空，不用收到时间冒充。
-	ObservedAt string `protobuf:"bytes,2,opt,name=observed_at,json=observedAt,proto3" json:"observed_at,omitempty"`
+	ObservedAt string `protobuf:"bytes,2,opt,name=observed_at,proto3" json:"observed_at,omitempty"`
 	// GPU服务接收时间；无数据可空。
-	ReceivedAt string `protobuf:"bytes,3,opt,name=received_at,json=receivedAt,proto3" json:"received_at,omitempty"`
+	ReceivedAt string `protobuf:"bytes,3,opt,name=received_at,proto3" json:"received_at,omitempty"`
 	// 稳定原因码，如SOURCE_UNKNOWN、BINDING_EVIDENCE_CONFLICT。
 	Issues []string `protobuf:"bytes,4,rep,name=issues,proto3" json:"issues,omitempty"`
 	// 本次观测摘要/水位引用，可空；不是容量锁。
-	SnapshotRef   string `protobuf:"bytes,5,opt,name=snapshot_ref,json=snapshotRef,proto3" json:"snapshot_ref,omitempty"`
+	SnapshotRef   string `protobuf:"bytes,5,opt,name=snapshot_ref,proto3" json:"snapshot_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -849,127 +849,51 @@ func (x *Observation) GetSnapshotRef() string {
 	return ""
 }
 
-// 验收范围绑定硬件、运行时、配置组合。
-type Verification struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// 只读；初始化受控核对产生，不允许任意请求置VERIFIED。
-	State VerificationState `protobuf:"varint,1,opt,name=state,proto3,enum=accelerator.v1.VerificationState" json:"state,omitempty"`
-	// VERIFIED时必填；实际测试记录引用，不含凭据。
-	EvidenceRef string `protobuf:"bytes,2,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
-	// VERIFIED时必填。
-	VerifiedAt string `protobuf:"bytes,3,opt,name=verified_at,json=verifiedAt,proto3" json:"verified_at,omitempty"`
-	// VERIFIED时必填，SHA256小写hex64。
-	BaselineDigest string `protobuf:"bytes,4,opt,name=baseline_digest,json=baselineDigest,proto3" json:"baseline_digest,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *Verification) Reset() {
-	*x = Verification{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[7]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *Verification) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*Verification) ProtoMessage() {}
-
-func (x *Verification) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[7]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use Verification.ProtoReflect.Descriptor instead.
-func (*Verification) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{7}
-}
-
-func (x *Verification) GetState() VerificationState {
-	if x != nil {
-		return x.State
-	}
-	return VerificationState_VERIFICATION_UNSPECIFIED
-}
-
-func (x *Verification) GetEvidenceRef() string {
-	if x != nil {
-		return x.EvidenceRef
-	}
-	return ""
-}
-
-func (x *Verification) GetVerifiedAt() string {
-	if x != nil {
-		return x.VerifiedAt
-	}
-	return ""
-}
-
-func (x *Verification) GetBaselineDigest() string {
-	if x != nil {
-		return x.BaselineDigest
-	}
-	return ""
-}
-
 // factor是单位换算，不是超配参数；开启后冻结。同一供给组所有节点必须一致。
 type ProviderBaseline struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 平台UUID，稳定身份；也可作为受管节点label值。
-	BaselineId string `protobuf:"bytes,1,opt,name=baseline_id,json=baselineId,proto3" json:"baseline_id,omitempty"`
+	BaselineId string `protobuf:"bytes,1,opt,name=baseline_id,proto3" json:"baseline_id,omitempty"`
 	// 首期固定volcano-hami-factor-v1。
-	AdapterId string `protobuf:"bytes,2,opt,name=adapter_id,json=adapterId,proto3" json:"adapter_id,omitempty"`
+	AdapterId string `protobuf:"bytes,2,opt,name=adapter_id,proto3" json:"adapter_id,omitempty"`
 	// 实际部署版本，禁止latest。
-	VolcanoVersion string `protobuf:"bytes,3,opt,name=volcano_version,json=volcanoVersion,proto3" json:"volcano_version,omitempty"`
+	VolcanoVersion string `protobuf:"bytes,3,opt,name=volcano_version,proto3" json:"volcano_version,omitempty"`
 	// 实际镜像sha256引用。
-	VolcanoImageDigest string `protobuf:"bytes,4,opt,name=volcano_image_digest,json=volcanoImageDigest,proto3" json:"volcano_image_digest,omitempty"`
+	VolcanoImageDigest string `protobuf:"bytes,4,opt,name=volcano_image_digest,proto3" json:"volcano_image_digest,omitempty"`
 	// 实际版本；不默认等于文档核查v1.12.0。
-	DevicePluginVersion string `protobuf:"bytes,5,opt,name=device_plugin_version,json=devicePluginVersion,proto3" json:"device_plugin_version,omitempty"`
+	DevicePluginVersion string `protobuf:"bytes,5,opt,name=device_plugin_version,proto3" json:"device_plugin_version,omitempty"`
 	// 实际镜像sha256引用。
-	DevicePluginImageDigest string `protobuf:"bytes,6,opt,name=device_plugin_image_digest,json=devicePluginImageDigest,proto3" json:"device_plugin_image_digest,omitempty"`
+	DevicePluginImageDigest string `protobuf:"bytes,6,opt,name=device_plugin_image_digest,proto3" json:"device_plugin_image_digest,omitempty"`
 	// 镜像可追溯的HAMi-core版本/提交。
-	HamiCoreRevision string `protobuf:"bytes,7,opt,name=hami_core_revision,json=hamiCoreRevision,proto3" json:"hami_core_revision,omitempty"`
-	// F，有效gpu-memory-factor；>0且<=2147483647。
-	MemoryBlockMib uint32 `protobuf:"varint,8,opt,name=memory_block_mib,json=memoryBlockMib,proto3" json:"memory_block_mib,omitempty"`
-	// 实际进程参数/加载配置及运行换算核对依据。
-	FactorEvidenceRef string `protobuf:"bytes,9,opt,name=factor_evidence_ref,json=factorEvidenceRef,proto3" json:"factor_evidence_ref,omitempty"`
+	HamiCoreRevision string `protobuf:"bytes,7,opt,name=hami_core_revision,proto3" json:"hami_core_revision,omitempty"`
+	// 实际 gpu-memory-factor，唯一支持值为1。
+	MemoryBlockMib uint32 `protobuf:"varint,8,opt,name=memory_block_mib,proto3" json:"memory_block_mib,omitempty"`
 	// 首期固定VOLCANO_BLOCKS_TO_MIB；只有验证过才开放。
-	MemoryEncoding string `protobuf:"bytes,10,opt,name=memory_encoding,json=memoryEncoding,proto3" json:"memory_encoding,omitempty"`
+	MemoryEncoding string `protobuf:"bytes,10,opt,name=memory_encoding,proto3" json:"memory_encoding,omitempty"`
 	// 整卡1，共享>=2；实际devicesplitcount；同组节点一致。
-	SplitCount uint32 `protobuf:"varint,11,opt,name=split_count,json=splitCount,proto3" json:"split_count,omitempty"`
+	SplitCount uint32 `protobuf:"varint,11,opt,name=split_count,proto3" json:"split_count,omitempty"`
 	// 首期100，即1倍，无超配。
-	MemoryScalePercent uint32 `protobuf:"varint,12,opt,name=memory_scale_percent,json=memoryScalePercent,proto3" json:"memory_scale_percent,omitempty"`
+	MemoryScalePercent uint32 `protobuf:"varint,12,opt,name=memory_scale_percent,proto3" json:"memory_scale_percent,omitempty"`
 	// 首期100。
-	CoreScalePercent uint32 `protobuf:"varint,13,opt,name=core_scale_percent,json=coreScalePercent,proto3" json:"core_scale_percent,omitempty"`
+	CoreScalePercent uint32 `protobuf:"varint,13,opt,name=core_scale_percent,proto3" json:"core_scale_percent,omitempty"`
 	// 只有该后端已验证可按硬预算相加时true；不能由界面随意勾选。
-	CoreBudgetAdditive bool `protobuf:"varint,14,opt,name=core_budget_additive,json=coreBudgetAdditive,proto3" json:"core_budget_additive,omitempty"`
+	CoreBudgetAdditive bool `protobuf:"varint,14,opt,name=core_budget_additive,proto3" json:"core_budget_additive,omitempty"`
 	// 已加载节点配置摘要。
-	NodeConfigDigest string `protobuf:"bytes,15,opt,name=node_config_digest,json=nodeConfigDigest,proto3" json:"node_config_digest,omitempty"`
+	NodeConfigDigest string `protobuf:"bytes,15,opt,name=node_config_digest,proto3" json:"node_config_digest,omitempty"`
 	// 实际调度配置摘要。
-	SchedulerConfigDigest string `protobuf:"bytes,16,opt,name=scheduler_config_digest,json=schedulerConfigDigest,proto3" json:"scheduler_config_digest,omitempty"`
+	SchedulerConfigDigest string `protobuf:"bytes,16,opt,name=scheduler_config_digest,proto3" json:"scheduler_config_digest,omitempty"`
 	// 服务端注册的不可变渲染规则版本。
-	RecipeVersion string `protobuf:"bytes,17,opt,name=recipe_version,json=recipeVersion,proto3" json:"recipe_version,omitempty"`
+	RecipeVersion string `protobuf:"bytes,17,opt,name=recipe_version,proto3" json:"recipe_version,omitempty"`
 	// 规范化上述静态配置及硬件验证范围的SHA256；不含观测时间。
-	BaselineDigest string `protobuf:"bytes,18,opt,name=baseline_digest,json=baselineDigest,proto3" json:"baseline_digest,omitempty"`
-	// 发布前必须VERIFIED，证据与baseline_digest一致。
-	Verification  *Verification `protobuf:"bytes,19,opt,name=verification,proto3" json:"verification,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	BaselineDigest   string `protobuf:"bytes,18,opt,name=baseline_digest,proto3" json:"baseline_digest,omitempty"`
+	RuntimeClassName string `protobuf:"bytes,20,opt,name=runtime_class_name,proto3" json:"runtime_class_name,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ProviderBaseline) Reset() {
 	*x = ProviderBaseline{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[8]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -981,7 +905,7 @@ func (x *ProviderBaseline) String() string {
 func (*ProviderBaseline) ProtoMessage() {}
 
 func (x *ProviderBaseline) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[8]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -994,7 +918,7 @@ func (x *ProviderBaseline) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProviderBaseline.ProtoReflect.Descriptor instead.
 func (*ProviderBaseline) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{8}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ProviderBaseline) GetBaselineId() string {
@@ -1051,13 +975,6 @@ func (x *ProviderBaseline) GetMemoryBlockMib() uint32 {
 		return x.MemoryBlockMib
 	}
 	return 0
-}
-
-func (x *ProviderBaseline) GetFactorEvidenceRef() string {
-	if x != nil {
-		return x.FactorEvidenceRef
-	}
-	return ""
 }
 
 func (x *ProviderBaseline) GetMemoryEncoding() string {
@@ -1123,11 +1040,11 @@ func (x *ProviderBaseline) GetBaselineDigest() string {
 	return ""
 }
 
-func (x *ProviderBaseline) GetVerification() *Verification {
+func (x *ProviderBaseline) GetRuntimeClassName() string {
 	if x != nil {
-		return x.Verification
+		return x.RuntimeClassName
 	}
-	return nil
+	return ""
 }
 
 // Node重建不得自动继承旧供给归属。
@@ -1143,7 +1060,7 @@ type NodeRef struct {
 
 func (x *NodeRef) Reset() {
 	*x = NodeRef{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[9]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1155,7 +1072,7 @@ func (x *NodeRef) String() string {
 func (*NodeRef) ProtoMessage() {}
 
 func (x *NodeRef) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[9]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1168,7 +1085,7 @@ func (x *NodeRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeRef.ProtoReflect.Descriptor instead.
 func (*NodeRef) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{9}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *NodeRef) GetUid() string {
@@ -1189,11 +1106,11 @@ func (x *NodeRef) GetName() string {
 type Cluster struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 平台UUID。
-	ClusterId string `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,1,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 1..64字符。
-	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName string `protobuf:"bytes,2,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	// 受管凭据引用，仅管理员可见，不返回secret。
-	ConnectionRef string `protobuf:"bytes,3,opt,name=connection_ref,json=connectionRef,proto3" json:"connection_ref,omitempty"`
+	ConnectionRef string `protobuf:"bytes,3,opt,name=connection_ref,proto3" json:"connection_ref,omitempty"`
 	// 从1递增，防止覆盖。
 	Version       uint64 `protobuf:"varint,4,opt,name=version,proto3" json:"version,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1202,7 +1119,7 @@ type Cluster struct {
 
 func (x *Cluster) Reset() {
 	*x = Cluster{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[10]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1214,7 +1131,7 @@ func (x *Cluster) String() string {
 func (*Cluster) ProtoMessage() {}
 
 func (x *Cluster) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[10]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1227,7 +1144,7 @@ func (x *Cluster) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Cluster.ProtoReflect.Descriptor instead.
 func (*Cluster) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{10}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *Cluster) GetClusterId() string {
@@ -1264,16 +1181,16 @@ type RegisterClusterRequest struct {
 	// 必填。
 	Mutation *AdminMutation `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
 	// 必填1..64。
-	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName string `protobuf:"bytes,2,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	// 必填，命中受管凭据引用范围。
-	ConnectionRef string `protobuf:"bytes,3,opt,name=connection_ref,json=connectionRef,proto3" json:"connection_ref,omitempty"`
+	ConnectionRef string `protobuf:"bytes,3,opt,name=connection_ref,proto3" json:"connection_ref,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RegisterClusterRequest) Reset() {
 	*x = RegisterClusterRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[11]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1285,7 +1202,7 @@ func (x *RegisterClusterRequest) String() string {
 func (*RegisterClusterRequest) ProtoMessage() {}
 
 func (x *RegisterClusterRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[11]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1298,7 +1215,7 @@ func (x *RegisterClusterRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterClusterRequest.ProtoReflect.Descriptor instead.
 func (*RegisterClusterRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{11}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *RegisterClusterRequest) GetMutation() *AdminMutation {
@@ -1335,7 +1252,7 @@ type ListClustersRequest struct {
 
 func (x *ListClustersRequest) Reset() {
 	*x = ListClustersRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[12]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1347,7 +1264,7 @@ func (x *ListClustersRequest) String() string {
 func (*ListClustersRequest) ProtoMessage() {}
 
 func (x *ListClustersRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[12]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1360,7 +1277,7 @@ func (x *ListClustersRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListClustersRequest.ProtoReflect.Descriptor instead.
 func (*ListClustersRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{12}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ListClustersRequest) GetContext() *AdminRead {
@@ -1383,14 +1300,14 @@ type ListClustersResponse struct {
 	// 只读列表。
 	Items []*Cluster `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 空表示结束。
-	NextToken     string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken     string `protobuf:"bytes,2,opt,name=next_token,proto3" json:"next_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListClustersResponse) Reset() {
 	*x = ListClustersResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[13]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1402,7 +1319,7 @@ func (x *ListClustersResponse) String() string {
 func (*ListClustersResponse) ProtoMessage() {}
 
 func (x *ListClustersResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[13]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1415,7 +1332,7 @@ func (x *ListClustersResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListClustersResponse.ProtoReflect.Descriptor instead.
 func (*ListClustersResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{13}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ListClustersResponse) GetItems() []*Cluster {
@@ -1436,18 +1353,18 @@ func (x *ListClustersResponse) GetNextToken() string {
 type Pool struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 平台UUID。
-	PoolId string `protobuf:"bytes,1,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty"`
+	PoolId string `protobuf:"bytes,1,opt,name=pool_id,proto3" json:"pool_id,omitempty"`
 	// 平台集群UUID。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 1..64字符。
-	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Pool) Reset() {
 	*x = Pool{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[14]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1459,7 +1376,7 @@ func (x *Pool) String() string {
 func (*Pool) ProtoMessage() {}
 
 func (x *Pool) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[14]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1472,7 +1389,7 @@ func (x *Pool) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pool.ProtoReflect.Descriptor instead.
 func (*Pool) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{14}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *Pool) GetPoolId() string {
@@ -1502,16 +1419,16 @@ type CreatePoolRequest struct {
 	// 必填。
 	Mutation *AdminMutation `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
 	// 必填；已有受管集群。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 必填1..64。
-	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreatePoolRequest) Reset() {
 	*x = CreatePoolRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[15]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1523,7 +1440,7 @@ func (x *CreatePoolRequest) String() string {
 func (*CreatePoolRequest) ProtoMessage() {}
 
 func (x *CreatePoolRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[15]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1536,7 +1453,7 @@ func (x *CreatePoolRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreatePoolRequest.ProtoReflect.Descriptor instead.
 func (*CreatePoolRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{15}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreatePoolRequest) GetMutation() *AdminMutation {
@@ -1566,7 +1483,7 @@ type ListPoolsRequest struct {
 	// 必填。
 	Context *AdminRead `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 默认分页。
 	Page          *Page `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1575,7 +1492,7 @@ type ListPoolsRequest struct {
 
 func (x *ListPoolsRequest) Reset() {
 	*x = ListPoolsRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[16]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1587,7 +1504,7 @@ func (x *ListPoolsRequest) String() string {
 func (*ListPoolsRequest) ProtoMessage() {}
 
 func (x *ListPoolsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[16]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1600,7 +1517,7 @@ func (x *ListPoolsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPoolsRequest.ProtoReflect.Descriptor instead.
 func (*ListPoolsRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{16}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListPoolsRequest) GetContext() *AdminRead {
@@ -1630,14 +1547,14 @@ type ListPoolsResponse struct {
 	// 池列表。
 	Items []*Pool `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 分页标记。
-	NextToken     string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken     string `protobuf:"bytes,2,opt,name=next_token,proto3" json:"next_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListPoolsResponse) Reset() {
 	*x = ListPoolsResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[17]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1649,7 +1566,7 @@ func (x *ListPoolsResponse) String() string {
 func (*ListPoolsResponse) ProtoMessage() {}
 
 func (x *ListPoolsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[17]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1662,7 +1579,7 @@ func (x *ListPoolsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListPoolsResponse.ProtoReflect.Descriptor instead.
 func (*ListPoolsResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{17}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListPoolsResponse) GetItems() []*Pool {
@@ -1683,36 +1600,36 @@ func (x *ListPoolsResponse) GetNextToken() string {
 type SupplyGroup struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UUID。
-	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupId string `protobuf:"bytes,1,opt,name=group_id,proto3" json:"group_id,omitempty"`
 	// 所属池UUID。
-	PoolId string `protobuf:"bytes,2,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty"`
+	PoolId string `protobuf:"bytes,2,opt,name=pool_id,proto3" json:"pool_id,omitempty"`
 	// 与池一致。
-	ClusterId string `protobuf:"bytes,3,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,3,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 1..64。
-	DisplayName string `protobuf:"bytes,4,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName string `protobuf:"bytes,4,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	// 整卡或固定共享，不动态转换。
 	Mode SupplyMode `protobuf:"varint,5,opt,name=mode,proto3,enum=accelerator.v1.SupplyMode" json:"mode,omitempty"`
 	// 非空；节点不能同时属于两组。
 	Nodes []*NodeRef `protobuf:"bytes,6,rep,name=nodes,proto3" json:"nodes,omitempty"`
 	// 该组支持的已核验型号类别；全部节点匹配。
-	ModelKey string `protobuf:"bytes,7,opt,name=model_key,json=modelKey,proto3" json:"model_key,omitempty"`
+	ModelKey string `protobuf:"bytes,7,opt,name=model_key,proto3" json:"model_key,omitempty"`
 	// 冻结运行基线。
 	Baseline *ProviderBaseline `protobuf:"bytes,8,opt,name=baseline,proto3" json:"baseline,omitempty"`
 	// 只影响新解析。
 	Admission AdmissionState `protobuf:"varint,9,opt,name=admission,proto3,enum=accelerator.v1.AdmissionState" json:"admission,omitempty"`
 	// 现有受管Queue，验证真实路由，非套餐限额。
-	QueueName string `protobuf:"bytes,10,opt,name=queue_name,json=queueName,proto3" json:"queue_name,omitempty"`
+	QueueName string `protobuf:"bytes,10,opt,name=queue_name,proto3" json:"queue_name,omitempty"`
 	// 从1开始；每次允许的元数据变更递增。
 	Version uint64 `protobuf:"varint,11,opt,name=version,proto3" json:"version,omitempty"`
 	// 首次核对时间。
-	AdoptedAt     string `protobuf:"bytes,12,opt,name=adopted_at,json=adoptedAt,proto3" json:"adopted_at,omitempty"`
+	AdoptedAt     string `protobuf:"bytes,12,opt,name=adopted_at,proto3" json:"adopted_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SupplyGroup) Reset() {
 	*x = SupplyGroup{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[18]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1724,7 +1641,7 @@ func (x *SupplyGroup) String() string {
 func (*SupplyGroup) ProtoMessage() {}
 
 func (x *SupplyGroup) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[18]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1737,7 +1654,7 @@ func (x *SupplyGroup) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SupplyGroup.ProtoReflect.Descriptor instead.
 func (*SupplyGroup) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{18}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *SupplyGroup) GetGroupId() string {
@@ -1830,26 +1747,26 @@ type AdoptSupplyGroupRequest struct {
 	// 必填。
 	Mutation *AdminMutation `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
 	// 已有池UUID。
-	PoolId string `protobuf:"bytes,2,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty"`
+	PoolId string `protobuf:"bytes,2,opt,name=pool_id,proto3" json:"pool_id,omitempty"`
 	// 1..64。
-	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName string `protobuf:"bytes,3,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	// 必填。
 	Mode SupplyMode `protobuf:"varint,4,opt,name=mode,proto3,enum=accelerator.v1.SupplyMode" json:"mode,omitempty"`
 	// 1..1024，去重，同型号且未属于其他组。
 	Nodes []*NodeRef `protobuf:"bytes,5,rep,name=nodes,proto3" json:"nodes,omitempty"`
 	// 必填，与实际发现一致。
-	ModelKey string `protobuf:"bytes,6,opt,name=model_key,json=modelKey,proto3" json:"model_key,omitempty"`
+	ModelKey string `protobuf:"bytes,6,opt,name=model_key,proto3" json:"model_key,omitempty"`
 	// 必填；服务端从实际配置及初始化证据复核，不能相信自报验证结果。
 	Baseline *ProviderBaseline `protobuf:"bytes,7,opt,name=baseline,proto3" json:"baseline,omitempty"`
 	// 必填受管队列。
-	QueueName     string `protobuf:"bytes,8,opt,name=queue_name,json=queueName,proto3" json:"queue_name,omitempty"`
+	QueueName     string `protobuf:"bytes,8,opt,name=queue_name,proto3" json:"queue_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AdoptSupplyGroupRequest) Reset() {
 	*x = AdoptSupplyGroupRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[19]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1861,7 +1778,7 @@ func (x *AdoptSupplyGroupRequest) String() string {
 func (*AdoptSupplyGroupRequest) ProtoMessage() {}
 
 func (x *AdoptSupplyGroupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[19]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1874,7 +1791,7 @@ func (x *AdoptSupplyGroupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdoptSupplyGroupRequest.ProtoReflect.Descriptor instead.
 func (*AdoptSupplyGroupRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{19}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *AdoptSupplyGroupRequest) GetMutation() *AdminMutation {
@@ -1939,7 +1856,7 @@ type ListSupplyGroupsRequest struct {
 	// 必填。
 	Context *AdminRead `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填。
-	PoolId string `protobuf:"bytes,2,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty"`
+	PoolId string `protobuf:"bytes,2,opt,name=pool_id,proto3" json:"pool_id,omitempty"`
 	// 默认分页。
 	Page          *Page `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1948,7 +1865,7 @@ type ListSupplyGroupsRequest struct {
 
 func (x *ListSupplyGroupsRequest) Reset() {
 	*x = ListSupplyGroupsRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[20]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1960,7 +1877,7 @@ func (x *ListSupplyGroupsRequest) String() string {
 func (*ListSupplyGroupsRequest) ProtoMessage() {}
 
 func (x *ListSupplyGroupsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[20]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1973,7 +1890,7 @@ func (x *ListSupplyGroupsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSupplyGroupsRequest.ProtoReflect.Descriptor instead.
 func (*ListSupplyGroupsRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{20}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *ListSupplyGroupsRequest) GetContext() *AdminRead {
@@ -2003,14 +1920,14 @@ type ListSupplyGroupsResponse struct {
 	// 静态组列表。
 	Items []*SupplyGroup `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 分页。
-	NextToken     string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken     string `protobuf:"bytes,2,opt,name=next_token,proto3" json:"next_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListSupplyGroupsResponse) Reset() {
 	*x = ListSupplyGroupsResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[21]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2022,7 +1939,7 @@ func (x *ListSupplyGroupsResponse) String() string {
 func (*ListSupplyGroupsResponse) ProtoMessage() {}
 
 func (x *ListSupplyGroupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[21]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2035,7 +1952,7 @@ func (x *ListSupplyGroupsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSupplyGroupsResponse.ProtoReflect.Descriptor instead.
 func (*ListSupplyGroupsResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{21}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListSupplyGroupsResponse) GetItems() []*SupplyGroup {
@@ -2058,9 +1975,9 @@ type SetAdmissionRequest struct {
 	// 必填。
 	Mutation *AdminMutation `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
 	// 必填UUID。
-	GroupId string `protobuf:"bytes,2,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupId string `protobuf:"bytes,2,opt,name=group_id,proto3" json:"group_id,omitempty"`
 	// 必填>0。
-	ExpectedVersion uint64 `protobuf:"varint,3,opt,name=expected_version,json=expectedVersion,proto3" json:"expected_version,omitempty"`
+	ExpectedVersion uint64 `protobuf:"varint,3,opt,name=expected_version,proto3" json:"expected_version,omitempty"`
 	// OPEN需验证配置和规格；CLOSED不等于设备隔离。
 	Desired AdmissionState `protobuf:"varint,4,opt,name=desired,proto3,enum=accelerator.v1.AdmissionState" json:"desired,omitempty"`
 	// 必填1..512，审计。
@@ -2071,7 +1988,7 @@ type SetAdmissionRequest struct {
 
 func (x *SetAdmissionRequest) Reset() {
 	*x = SetAdmissionRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[22]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2083,7 +2000,7 @@ func (x *SetAdmissionRequest) String() string {
 func (*SetAdmissionRequest) ProtoMessage() {}
 
 func (x *SetAdmissionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[22]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2096,7 +2013,7 @@ func (x *SetAdmissionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SetAdmissionRequest.ProtoReflect.Descriptor instead.
 func (*SetAdmissionRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{22}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *SetAdmissionRequest) GetMutation() *AdminMutation {
@@ -2138,26 +2055,25 @@ func (x *SetAdmissionRequest) GetReason() string {
 type ProfileSpec struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 静态组UUID。
-	GroupId string `protobuf:"bytes,1,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupId string `protobuf:"bytes,1,opt,name=group_id,proto3" json:"group_id,omitempty"`
 	// 与组一致。
 	Mode SupplyMode `protobuf:"varint,2,opt,name=mode,proto3,enum=accelerator.v1.SupplyMode" json:"mode,omitempty"`
 	// 与组核对。
-	ModelKey string `protobuf:"bytes,3,opt,name=model_key,json=modelKey,proto3" json:"model_key,omitempty"`
-	// 共享>0且整除F；整卡必须0。
-	SharedMemoryMib int64 `protobuf:"varint,4,opt,name=shared_memory_mib,json=sharedMemoryMib,proto3" json:"shared_memory_mib,omitempty"`
+	ModelKey           string `protobuf:"bytes,3,opt,name=model_key,proto3" json:"model_key,omitempty"`
+	MemoryMibPerDevice int64  `protobuf:"varint,8,opt,name=memory_mib_per_device,proto3" json:"memory_mib_per_device,omitempty"`
 	// 共享1..99；整卡100。
-	CoreLimitPercent uint32 `protobuf:"varint,5,opt,name=core_limit_percent,json=coreLimitPercent,proto3" json:"core_limit_percent,omitempty"`
+	CoreLimitPercent uint32 `protobuf:"varint,5,opt,name=core_limit_percent,proto3" json:"core_limit_percent,omitempty"`
 	// 整卡能力为正整数上限；共享固定1。申请数量不得超过此值。
-	MaxDevicesPerReplica uint32 `protobuf:"varint,6,opt,name=max_devices_per_replica,json=maxDevicesPerReplica,proto3" json:"max_devices_per_replica,omitempty"`
+	MaxDevicesPerReplica uint32 `protobuf:"varint,6,opt,name=max_devices_per_replica,proto3" json:"max_devices_per_replica,omitempty"`
 	// 整卡WHOLE_DEVICE_EXCLUSIVE；软件共享SOFTWARE_COOPERATIVE。
-	IsolationClass string `protobuf:"bytes,7,opt,name=isolation_class,json=isolationClass,proto3" json:"isolation_class,omitempty"`
+	IsolationClass string `protobuf:"bytes,7,opt,name=isolation_class,proto3" json:"isolation_class,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ProfileSpec) Reset() {
 	*x = ProfileSpec{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[23]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2169,7 +2085,7 @@ func (x *ProfileSpec) String() string {
 func (*ProfileSpec) ProtoMessage() {}
 
 func (x *ProfileSpec) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[23]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2182,7 +2098,7 @@ func (x *ProfileSpec) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileSpec.ProtoReflect.Descriptor instead.
 func (*ProfileSpec) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{23}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *ProfileSpec) GetGroupId() string {
@@ -2206,9 +2122,9 @@ func (x *ProfileSpec) GetModelKey() string {
 	return ""
 }
 
-func (x *ProfileSpec) GetSharedMemoryMib() int64 {
+func (x *ProfileSpec) GetMemoryMibPerDevice() int64 {
 	if x != nil {
-		return x.SharedMemoryMib
+		return x.MemoryMibPerDevice
 	}
 	return 0
 }
@@ -2238,26 +2154,26 @@ func (x *ProfileSpec) GetIsolationClass() string {
 type GpuProfile struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UUID。
-	ProfileId string `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileId string `protobuf:"bytes,1,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
 	// 首期1，不使用latest。
-	ProfileVersion uint64 `protobuf:"varint,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ProfileVersion uint64 `protobuf:"varint,2,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
 	// 1..128，允许显示一张逻辑GPU。
-	DisplayName string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName string `protobuf:"bytes,3,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	// 不可变规范参数。
 	Spec *ProfileSpec `protobuf:"bytes,4,opt,name=spec,proto3" json:"spec,omitempty"`
 	// 对应已验证组基线。
-	BaselineId string `protobuf:"bytes,5,opt,name=baseline_id,json=baselineId,proto3" json:"baseline_id,omitempty"`
+	BaselineId string `protobuf:"bytes,5,opt,name=baseline_id,proto3" json:"baseline_id,omitempty"`
 	// 规范静态内容SHA256，排除观测时间/当前状态。
-	SpecDigest string `protobuf:"bytes,6,opt,name=spec_digest,json=specDigest,proto3" json:"spec_digest,omitempty"`
-	// 只读；发布不等于在线切卡。
-	Published     bool `protobuf:"varint,7,opt,name=published,proto3" json:"published,omitempty"`
+	SpecDigest    string       `protobuf:"bytes,6,opt,name=spec_digest,proto3" json:"spec_digest,omitempty"`
+	State         ProfileState `protobuf:"varint,8,opt,name=state,proto3,enum=accelerator.v1.ProfileState" json:"state,omitempty"`
+	Revision      uint64       `protobuf:"varint,9,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GpuProfile) Reset() {
 	*x = GpuProfile{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[24]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2269,7 +2185,7 @@ func (x *GpuProfile) String() string {
 func (*GpuProfile) ProtoMessage() {}
 
 func (x *GpuProfile) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[24]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2282,7 +2198,7 @@ func (x *GpuProfile) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuProfile.ProtoReflect.Descriptor instead.
 func (*GpuProfile) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{24}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *GpuProfile) GetProfileId() string {
@@ -2327,45 +2243,50 @@ func (x *GpuProfile) GetSpecDigest() string {
 	return ""
 }
 
-func (x *GpuProfile) GetPublished() bool {
+func (x *GpuProfile) GetState() ProfileState {
 	if x != nil {
-		return x.Published
+		return x.State
 	}
-	return false
+	return ProfileState_PROFILE_STATE_UNSPECIFIED
 }
 
-// 首期首次发布，服务生成ID/version；同集群仅一共享向量。配置验证不是普通管理员布尔开关。
-type PublishProfileRequest struct {
+func (x *GpuProfile) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+// 创建不可变资源参数；同组可并存多个规格。
+type CreateProfileRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 必填。
 	Mutation *AdminMutation `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
 	// 必填1..128。
-	DisplayName string `protobuf:"bytes,2,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
+	DisplayName string `protobuf:"bytes,2,opt,name=display_name,proto3" json:"display_name,omitempty"`
 	// 必填。
 	Spec *ProfileSpec `protobuf:"bytes,3,opt,name=spec,proto3" json:"spec,omitempty"`
 	// 必填>0。
-	ExpectedGroupVersion uint64 `protobuf:"varint,4,opt,name=expected_group_version,json=expectedGroupVersion,proto3" json:"expected_group_version,omitempty"`
-	// 固定规格+组+基线真实消费验收引用。
-	VerificationRef string `protobuf:"bytes,5,opt,name=verification_ref,json=verificationRef,proto3" json:"verification_ref,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	ExpectedGroupVersion uint64 `protobuf:"varint,4,opt,name=expected_group_version,proto3" json:"expected_group_version,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
-func (x *PublishProfileRequest) Reset() {
-	*x = PublishProfileRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[25]
+func (x *CreateProfileRequest) Reset() {
+	*x = CreateProfileRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *PublishProfileRequest) String() string {
+func (x *CreateProfileRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*PublishProfileRequest) ProtoMessage() {}
+func (*CreateProfileRequest) ProtoMessage() {}
 
-func (x *PublishProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[25]
+func (x *CreateProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2376,44 +2297,37 @@ func (x *PublishProfileRequest) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use PublishProfileRequest.ProtoReflect.Descriptor instead.
-func (*PublishProfileRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{25}
+// Deprecated: Use CreateProfileRequest.ProtoReflect.Descriptor instead.
+func (*CreateProfileRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{24}
 }
 
-func (x *PublishProfileRequest) GetMutation() *AdminMutation {
+func (x *CreateProfileRequest) GetMutation() *AdminMutation {
 	if x != nil {
 		return x.Mutation
 	}
 	return nil
 }
 
-func (x *PublishProfileRequest) GetDisplayName() string {
+func (x *CreateProfileRequest) GetDisplayName() string {
 	if x != nil {
 		return x.DisplayName
 	}
 	return ""
 }
 
-func (x *PublishProfileRequest) GetSpec() *ProfileSpec {
+func (x *CreateProfileRequest) GetSpec() *ProfileSpec {
 	if x != nil {
 		return x.Spec
 	}
 	return nil
 }
 
-func (x *PublishProfileRequest) GetExpectedGroupVersion() uint64 {
+func (x *CreateProfileRequest) GetExpectedGroupVersion() uint64 {
 	if x != nil {
 		return x.ExpectedGroupVersion
 	}
 	return 0
-}
-
-func (x *PublishProfileRequest) GetVerificationRef() string {
-	if x != nil {
-		return x.VerificationRef
-	}
-	return ""
 }
 
 // Gov租户委托读取。
@@ -2422,7 +2336,7 @@ type ListProfilesRequest struct {
 	// 必填；只列授权已发布项。
 	Context *TenantContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填UUID。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 可UNSPECIFIED表示两种，返回仍不含未支持项。
 	Mode SupplyMode `protobuf:"varint,3,opt,name=mode,proto3,enum=accelerator.v1.SupplyMode" json:"mode,omitempty"`
 	// 默认分页。
@@ -2433,7 +2347,7 @@ type ListProfilesRequest struct {
 
 func (x *ListProfilesRequest) Reset() {
 	*x = ListProfilesRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[26]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2445,7 +2359,7 @@ func (x *ListProfilesRequest) String() string {
 func (*ListProfilesRequest) ProtoMessage() {}
 
 func (x *ListProfilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[26]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2458,7 +2372,7 @@ func (x *ListProfilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProfilesRequest.ProtoReflect.Descriptor instead.
 func (*ListProfilesRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{26}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *ListProfilesRequest) GetContext() *TenantContext {
@@ -2495,7 +2409,7 @@ type ListProfilesResponse struct {
 	// 脱敏目录，不包括原始节点与配置证据。
 	Items []*GpuProfile `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 分页。
-	NextToken string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken string `protobuf:"bytes,2,opt,name=next_token,proto3" json:"next_token,omitempty"`
 	// 与本页items按顺序一一对应；只读目录归属，不进入GPU plan。
 	Scopes        []*ProfileScope `protobuf:"bytes,3,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2504,7 +2418,7 @@ type ListProfilesResponse struct {
 
 func (x *ListProfilesResponse) Reset() {
 	*x = ListProfilesResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[27]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2516,7 +2430,7 @@ func (x *ListProfilesResponse) String() string {
 func (*ListProfilesResponse) ProtoMessage() {}
 
 func (x *ListProfilesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[27]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2529,7 +2443,7 @@ func (x *ListProfilesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListProfilesResponse.ProtoReflect.Descriptor instead.
 func (*ListProfilesResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{27}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *ListProfilesResponse) GetItems() []*GpuProfile {
@@ -2556,18 +2470,18 @@ func (x *ListProfilesResponse) GetScopes() []*ProfileScope {
 // 由Profile所属Group/Pool的同一只读快照确定，不由调用者填写。
 type ProfileScope struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ProfileId      string                 `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
-	ProfileVersion uint64                 `protobuf:"varint,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
-	SpecDigest     string                 `protobuf:"bytes,3,opt,name=spec_digest,json=specDigest,proto3" json:"spec_digest,omitempty"`
-	ClusterId      string                 `protobuf:"bytes,4,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
-	PoolId         string                 `protobuf:"bytes,5,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty"`
+	ProfileId      string                 `protobuf:"bytes,1,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
+	ProfileVersion uint64                 `protobuf:"varint,2,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
+	SpecDigest     string                 `protobuf:"bytes,3,opt,name=spec_digest,proto3" json:"spec_digest,omitempty"`
+	ClusterId      string                 `protobuf:"bytes,4,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
+	PoolId         string                 `protobuf:"bytes,5,opt,name=pool_id,proto3" json:"pool_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ProfileScope) Reset() {
 	*x = ProfileScope{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2579,7 +2493,7 @@ func (x *ProfileScope) String() string {
 func (*ProfileScope) ProtoMessage() {}
 
 func (x *ProfileScope) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2592,7 +2506,7 @@ func (x *ProfileScope) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProfileScope.ProtoReflect.Descriptor instead.
 func (*ProfileScope) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{28}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *ProfileScope) GetProfileId() string {
@@ -2636,7 +2550,7 @@ type AdminListProfilesRequest struct {
 	// 必填平台上下文。
 	Context *AdminRead `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填UUID。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 默认分页。
 	Page          *Page `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2645,7 +2559,7 @@ type AdminListProfilesRequest struct {
 
 func (x *AdminListProfilesRequest) Reset() {
 	*x = AdminListProfilesRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2657,7 +2571,7 @@ func (x *AdminListProfilesRequest) String() string {
 func (*AdminListProfilesRequest) ProtoMessage() {}
 
 func (x *AdminListProfilesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2670,7 +2584,7 @@ func (x *AdminListProfilesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListProfilesRequest.ProtoReflect.Descriptor instead.
 func (*AdminListProfilesRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{29}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *AdminListProfilesRequest) GetContext() *AdminRead {
@@ -2700,16 +2614,16 @@ type GetProfileRequest struct {
 	// 必填。
 	Context *TenantContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填。
-	ProfileId string `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileId string `protobuf:"bytes,2,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
 	// 必填>0。
-	ProfileVersion uint64 `protobuf:"varint,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ProfileVersion uint64 `protobuf:"varint,3,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetProfileRequest) Reset() {
 	*x = GetProfileRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2721,7 +2635,7 @@ func (x *GetProfileRequest) String() string {
 func (*GetProfileRequest) ProtoMessage() {}
 
 func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2734,7 +2648,7 @@ func (x *GetProfileRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetProfileRequest.ProtoReflect.Descriptor instead.
 func (*GetProfileRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{30}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *GetProfileRequest) GetContext() *TenantContext {
@@ -2762,26 +2676,26 @@ func (x *GetProfileRequest) GetProfileVersion() uint64 {
 type GpuRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 必填UUID。
-	ClusterId string `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,1,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 必填UUID；与集群一致。
-	PoolId string `protobuf:"bytes,2,opt,name=pool_id,json=poolId,proto3" json:"pool_id,omitempty"`
+	PoolId string `protobuf:"bytes,2,opt,name=pool_id,proto3" json:"pool_id,omitempty"`
 	// 必填UUID。
-	ProfileId string `protobuf:"bytes,3,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileId string `protobuf:"bytes,3,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
 	// 必填具体版本。
-	ProfileVersion uint64 `protobuf:"varint,4,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ProfileVersion uint64 `protobuf:"varint,4,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
 	// 首期固定1..16；真实owner仍须验收对应副本上限。
 	Replicas uint32 `protobuf:"varint,5,opt,name=replicas,proto3" json:"replicas,omitempty"`
 	// 每Pod设备数：整卡正整数且不超过Profile上限，共享固定1。
-	DevicesPerReplica uint32 `protobuf:"varint,6,opt,name=devices_per_replica,json=devicesPerReplica,proto3" json:"devices_per_replica,omitempty"`
+	DevicesPerReplica uint32 `protobuf:"varint,6,opt,name=devices_per_replica,proto3" json:"devices_per_replica,omitempty"`
 	// 必填合法K8s容器名；每Pod只有这一GPU容器。
-	ContainerName string `protobuf:"bytes,7,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	ContainerName string `protobuf:"bytes,7,opt,name=container_name,proto3" json:"container_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GpuRequest) Reset() {
 	*x = GpuRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2793,7 +2707,7 @@ func (x *GpuRequest) String() string {
 func (*GpuRequest) ProtoMessage() {}
 
 func (x *GpuRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2806,7 +2720,7 @@ func (x *GpuRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuRequest.ProtoReflect.Descriptor instead.
 func (*GpuRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{31}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *GpuRequest) GetClusterId() string {
@@ -2858,38 +2772,34 @@ func (x *GpuRequest) GetContainerName() string {
 	return ""
 }
 
-// 仅适配器转换一次。provider的int32换算界限也必须校验。
-type MemoryEncoding struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// F必填>0，来自冻结组基线。
-	MemoryBlockMib uint32 `protobuf:"varint,1,opt,name=memory_block_mib,json=memoryBlockMib,proto3" json:"memory_block_mib,omitempty"`
-	// 共享q=m/F>0；整卡0，改用百分比。
-	MemoryBlocksPerDevice int64 `protobuf:"varint,2,opt,name=memory_blocks_per_device,json=memoryBlocksPerDevice,proto3" json:"memory_blocks_per_device,omitempty"`
-	// 共享m=q*F；整卡0，不计共享额度。
-	SharedMemoryMib int64 `protobuf:"varint,3,opt,name=shared_memory_mib,json=sharedMemoryMib,proto3" json:"shared_memory_mib,omitempty"`
-	// 共享0；整卡100。
-	MemoryPercentage uint32 `protobuf:"varint,4,opt,name=memory_percentage,json=memoryPercentage,proto3" json:"memory_percentage,omitempty"`
-	// 首期EXACT；不隐式向上/向下取整。
-	Policy        string `protobuf:"bytes,5,opt,name=policy,proto3" json:"policy,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+type GpuExecution struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	SchedulerName    string                 `protobuf:"bytes,1,opt,name=scheduler_name,proto3" json:"scheduler_name,omitempty"`
+	QueueName        string                 `protobuf:"bytes,2,opt,name=queue_name,proto3" json:"queue_name,omitempty"`
+	RuntimeClassName string                 `protobuf:"bytes,3,opt,name=runtime_class_name,proto3" json:"runtime_class_name,omitempty"`
+	NodeSelector     map[string]string      `protobuf:"bytes,4,rep,name=node_selector,proto3" json:"node_selector,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	PodAnnotations   map[string]string      `protobuf:"bytes,5,rep,name=pod_annotations,proto3" json:"pod_annotations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	Resources        map[string]string      `protobuf:"bytes,6,rep,name=resources,proto3" json:"resources,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"`
+	ExecutionDigest  string                 `protobuf:"bytes,7,opt,name=execution_digest,proto3" json:"execution_digest,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
-func (x *MemoryEncoding) Reset() {
-	*x = MemoryEncoding{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
+func (x *GpuExecution) Reset() {
+	*x = GpuExecution{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *MemoryEncoding) String() string {
+func (x *GpuExecution) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*MemoryEncoding) ProtoMessage() {}
+func (*GpuExecution) ProtoMessage() {}
 
-func (x *MemoryEncoding) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
+func (x *GpuExecution) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2900,247 +2810,271 @@ func (x *MemoryEncoding) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use MemoryEncoding.ProtoReflect.Descriptor instead.
-func (*MemoryEncoding) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{32}
+// Deprecated: Use GpuExecution.ProtoReflect.Descriptor instead.
+func (*GpuExecution) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{31}
 }
 
-func (x *MemoryEncoding) GetMemoryBlockMib() uint32 {
-	if x != nil {
-		return x.MemoryBlockMib
-	}
-	return 0
-}
-
-func (x *MemoryEncoding) GetMemoryBlocksPerDevice() int64 {
-	if x != nil {
-		return x.MemoryBlocksPerDevice
-	}
-	return 0
-}
-
-func (x *MemoryEncoding) GetSharedMemoryMib() int64 {
-	if x != nil {
-		return x.SharedMemoryMib
-	}
-	return 0
-}
-
-func (x *MemoryEncoding) GetMemoryPercentage() uint32 {
-	if x != nil {
-		return x.MemoryPercentage
-	}
-	return 0
-}
-
-func (x *MemoryEncoding) GetPolicy() string {
-	if x != nil {
-		return x.Policy
-	}
-	return ""
-}
-
-// 给Gov业务适配器使用的请求向量；不是运行指标。
-type ResourceTotals struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// 共享replicas*devices；整卡0。
-	LogicalDeviceCount int64 `protobuf:"varint,1,opt,name=logical_device_count,json=logicalDeviceCount,proto3" json:"logical_device_count,omitempty"`
-	// 整卡replicas*devices；共享0。
-	ExclusiveDeviceCount int64 `protobuf:"varint,2,opt,name=exclusive_device_count,json=exclusiveDeviceCount,proto3" json:"exclusive_device_count,omitempty"`
-	// 共享全部副本m总量；不含整卡显存。
-	SharedMemoryMib int64 `protobuf:"varint,3,opt,name=shared_memory_mib,json=sharedMemoryMib,proto3" json:"shared_memory_mib,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
-}
-
-func (x *ResourceTotals) Reset() {
-	*x = ResourceTotals{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ResourceTotals) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ResourceTotals) ProtoMessage() {}
-
-func (x *ResourceTotals) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ResourceTotals.ProtoReflect.Descriptor instead.
-func (*ResourceTotals) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{33}
-}
-
-func (x *ResourceTotals) GetLogicalDeviceCount() int64 {
-	if x != nil {
-		return x.LogicalDeviceCount
-	}
-	return 0
-}
-
-func (x *ResourceTotals) GetExclusiveDeviceCount() int64 {
-	if x != nil {
-		return x.ExclusiveDeviceCount
-	}
-	return 0
-}
-
-func (x *ResourceTotals) GetSharedMemoryMib() int64 {
-	if x != nil {
-		return x.SharedMemoryMib
-	}
-	return 0
-}
-
-// 不含资源ID/PodUID或强制ordinal；保持Inference自身控制器与重启策略。
-type RuntimeFragment struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// 首期volcano。
-	SchedulerName string `protobuf:"bytes,1,opt,name=scheduler_name,json=schedulerName,proto3" json:"scheduler_name,omitempty"`
-	// 冻结设施路由；owner映射现有PodGroup。
-	QueueName string `protobuf:"bytes,2,opt,name=queue_name,json=queueName,proto3" json:"queue_name,omitempty"`
-	// 必需静态组/型号/基线选择；只能收紧，不能删改范围。
-	NodeLabels []*KeyValue `protobuf:"bytes,3,rep,name=node_labels,json=nodeLabels,proto3" json:"node_labels,omitempty"`
-	// 受管静态模式注解，运行身份随后注入。
-	PodAnnotations []*KeyValue `protobuf:"bytes,4,rep,name=pod_annotations,json=podAnnotations,proto3" json:"pod_annotations,omitempty"`
-	// 每个副本的GPU限制；共享memory为块数。
-	LimitsPerContainer []*KeyValue `protobuf:"bytes,5,rep,name=limits_per_container,json=limitsPerContainer,proto3" json:"limits_per_container,omitempty"`
-	// 如基线不需要可空。
-	RuntimeClassName string `protobuf:"bytes,6,opt,name=runtime_class_name,json=runtimeClassName,proto3" json:"runtime_class_name,omitempty"`
-	// 冻结渲染版本。
-	RecipeVersion string `protobuf:"bytes,7,opt,name=recipe_version,json=recipeVersion,proto3" json:"recipe_version,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *RuntimeFragment) Reset() {
-	*x = RuntimeFragment{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *RuntimeFragment) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*RuntimeFragment) ProtoMessage() {}
-
-func (x *RuntimeFragment) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use RuntimeFragment.ProtoReflect.Descriptor instead.
-func (*RuntimeFragment) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{34}
-}
-
-func (x *RuntimeFragment) GetSchedulerName() string {
+func (x *GpuExecution) GetSchedulerName() string {
 	if x != nil {
 		return x.SchedulerName
 	}
 	return ""
 }
 
-func (x *RuntimeFragment) GetQueueName() string {
+func (x *GpuExecution) GetQueueName() string {
 	if x != nil {
 		return x.QueueName
 	}
 	return ""
 }
 
-func (x *RuntimeFragment) GetNodeLabels() []*KeyValue {
-	if x != nil {
-		return x.NodeLabels
-	}
-	return nil
-}
-
-func (x *RuntimeFragment) GetPodAnnotations() []*KeyValue {
-	if x != nil {
-		return x.PodAnnotations
-	}
-	return nil
-}
-
-func (x *RuntimeFragment) GetLimitsPerContainer() []*KeyValue {
-	if x != nil {
-		return x.LimitsPerContainer
-	}
-	return nil
-}
-
-func (x *RuntimeFragment) GetRuntimeClassName() string {
+func (x *GpuExecution) GetRuntimeClassName() string {
 	if x != nil {
 		return x.RuntimeClassName
 	}
 	return ""
 }
 
-func (x *RuntimeFragment) GetRecipeVersion() string {
+func (x *GpuExecution) GetNodeSelector() map[string]string {
 	if x != nil {
-		return x.RecipeVersion
+		return x.NodeSelector
+	}
+	return nil
+}
+
+func (x *GpuExecution) GetPodAnnotations() map[string]string {
+	if x != nil {
+		return x.PodAnnotations
+	}
+	return nil
+}
+
+func (x *GpuExecution) GetResources() map[string]string {
+	if x != nil {
+		return x.Resources
+	}
+	return nil
+}
+
+func (x *GpuExecution) GetExecutionDigest() string {
+	if x != nil {
+		return x.ExecutionDigest
 	}
 	return ""
 }
 
-// 历史重试直接使用，不按最新factor重算。
-type ResolvedGpuPlan struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// 固定1。
-	SchemaVersion uint32 `protobuf:"varint,1,opt,name=schema_version,json=schemaVersion,proto3" json:"schema_version,omitempty"`
-	// 已规范化的GPU原请求。
-	Request *GpuRequest `protobuf:"bytes,2,opt,name=request,proto3" json:"request,omitempty"`
-	// 不可变规格快照；哈希只取静态字段。
-	Profile *GpuProfile `protobuf:"bytes,3,opt,name=profile,proto3" json:"profile,omitempty"`
-	// 冻结F/q/m。
-	Encoding *MemoryEncoding `protobuf:"bytes,4,opt,name=encoding,proto3" json:"encoding,omitempty"`
-	// 按安全整数计算。
-	Totals *ResourceTotals `protobuf:"bytes,5,opt,name=totals,proto3" json:"totals,omitempty"`
-	// 已冻结受管字段。
-	Runtime *RuntimeFragment `protobuf:"bytes,6,opt,name=runtime,proto3" json:"runtime,omitempty"`
-	// 真实运行基线SHA256。
-	BaselineDigest string `protobuf:"bytes,7,opt,name=baseline_digest,json=baselineDigest,proto3" json:"baseline_digest,omitempty"`
-	// 规范不可变计划SHA256；不含时间、临时身份、当前容量或published状态；不是鉴权令牌。
-	ResolutionDigest string `protobuf:"bytes,8,opt,name=resolution_digest,json=resolutionDigest,proto3" json:"resolution_digest,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+type GpuDisplay struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	ProfileId      string                 `protobuf:"bytes,1,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
+	ProfileVersion uint64                 `protobuf:"varint,2,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
+	ProfileName    string                 `protobuf:"bytes,3,opt,name=profile_name,proto3" json:"profile_name,omitempty"`
+	ModelKey       string                 `protobuf:"bytes,4,opt,name=model_key,proto3" json:"model_key,omitempty"`
+	Mode           SupplyMode             `protobuf:"varint,5,opt,name=mode,proto3,enum=accelerator.v1.SupplyMode" json:"mode,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
-func (x *ResolvedGpuPlan) Reset() {
-	*x = ResolvedGpuPlan{}
+func (x *GpuDisplay) Reset() {
+	*x = GpuDisplay{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GpuDisplay) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GpuDisplay) ProtoMessage() {}
+
+func (x *GpuDisplay) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[32]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GpuDisplay.ProtoReflect.Descriptor instead.
+func (*GpuDisplay) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{32}
+}
+
+func (x *GpuDisplay) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *GpuDisplay) GetProfileVersion() uint64 {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return 0
+}
+
+func (x *GpuDisplay) GetProfileName() string {
+	if x != nil {
+		return x.ProfileName
+	}
+	return ""
+}
+
+func (x *GpuDisplay) GetModelKey() string {
+	if x != nil {
+		return x.ModelKey
+	}
+	return ""
+}
+
+func (x *GpuDisplay) GetMode() SupplyMode {
+	if x != nil {
+		return x.Mode
+	}
+	return SupplyMode_SUPPLY_MODE_UNSPECIFIED
+}
+
+type GpuQuotaItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	QuotaCode     string                 `protobuf:"bytes,1,opt,name=quota_code,proto3" json:"quota_code,omitempty"`
+	Units         int64                  `protobuf:"varint,2,opt,name=units,proto3" json:"units,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GpuQuotaItem) Reset() {
+	*x = GpuQuotaItem{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GpuQuotaItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GpuQuotaItem) ProtoMessage() {}
+
+func (x *GpuQuotaItem) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GpuQuotaItem.ProtoReflect.Descriptor instead.
+func (*GpuQuotaItem) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{33}
+}
+
+func (x *GpuQuotaItem) GetQuotaCode() string {
+	if x != nil {
+		return x.QuotaCode
+	}
+	return ""
+}
+
+func (x *GpuQuotaItem) GetUnits() int64 {
+	if x != nil {
+		return x.Units
+	}
+	return 0
+}
+
+type ResolvedGpuRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Execution     *GpuExecution          `protobuf:"bytes,1,opt,name=execution,proto3" json:"execution,omitempty"`
+	QuotaItems    []*GpuQuotaItem        `protobuf:"bytes,2,rep,name=quota_items,proto3" json:"quota_items,omitempty"`
+	Selection     *GpuDisplay            `protobuf:"bytes,3,opt,name=selection,proto3" json:"selection,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ResolvedGpuRequest) Reset() {
+	*x = ResolvedGpuRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ResolvedGpuRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ResolvedGpuRequest) ProtoMessage() {}
+
+func (x *ResolvedGpuRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[34]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ResolvedGpuRequest.ProtoReflect.Descriptor instead.
+func (*ResolvedGpuRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{34}
+}
+
+func (x *ResolvedGpuRequest) GetExecution() *GpuExecution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *ResolvedGpuRequest) GetQuotaItems() []*GpuQuotaItem {
+	if x != nil {
+		return x.QuotaItems
+	}
+	return nil
+}
+
+func (x *ResolvedGpuRequest) GetSelection() *GpuDisplay {
+	if x != nil {
+		return x.Selection
+	}
+	return nil
+}
+
+type PreviewProfileRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *AdminRead             `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	GroupId       string                 `protobuf:"bytes,2,opt,name=group_id,proto3" json:"group_id,omitempty"`
+	Parts         uint32                 `protobuf:"varint,3,opt,name=parts,proto3" json:"parts,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PreviewProfileRequest) Reset() {
+	*x = PreviewProfileRequest{}
 	mi := &file_accelerator_v1_accelerator_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ResolvedGpuPlan) String() string {
+func (x *PreviewProfileRequest) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ResolvedGpuPlan) ProtoMessage() {}
+func (*PreviewProfileRequest) ProtoMessage() {}
 
-func (x *ResolvedGpuPlan) ProtoReflect() protoreflect.Message {
+func (x *PreviewProfileRequest) ProtoReflect() protoreflect.Message {
 	mi := &file_accelerator_v1_accelerator_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -3152,65 +3086,218 @@ func (x *ResolvedGpuPlan) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ResolvedGpuPlan.ProtoReflect.Descriptor instead.
-func (*ResolvedGpuPlan) Descriptor() ([]byte, []int) {
+// Deprecated: Use PreviewProfileRequest.ProtoReflect.Descriptor instead.
+func (*PreviewProfileRequest) Descriptor() ([]byte, []int) {
 	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{35}
 }
 
-func (x *ResolvedGpuPlan) GetSchemaVersion() uint32 {
+func (x *PreviewProfileRequest) GetContext() *AdminRead {
 	if x != nil {
-		return x.SchemaVersion
+		return x.Context
+	}
+	return nil
+}
+
+func (x *PreviewProfileRequest) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *PreviewProfileRequest) GetParts() uint32 {
+	if x != nil {
+		return x.Parts
 	}
 	return 0
 }
 
-func (x *ResolvedGpuPlan) GetRequest() *GpuRequest {
+type ProfilePreview struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Spec            *ProfileSpec           `protobuf:"bytes,1,opt,name=spec,proto3" json:"spec,omitempty"`
+	UnusedMemoryMib int64                  `protobuf:"varint,2,opt,name=unused_memory_mib,proto3" json:"unused_memory_mib,omitempty"`
+	UnusedCoreUnits uint32                 `protobuf:"varint,3,opt,name=unused_core_units,proto3" json:"unused_core_units,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *ProfilePreview) Reset() {
+	*x = ProfilePreview{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ProfilePreview) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ProfilePreview) ProtoMessage() {}
+
+func (x *ProfilePreview) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
 	if x != nil {
-		return x.Request
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ProfilePreview.ProtoReflect.Descriptor instead.
+func (*ProfilePreview) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ProfilePreview) GetSpec() *ProfileSpec {
+	if x != nil {
+		return x.Spec
 	}
 	return nil
 }
 
-func (x *ResolvedGpuPlan) GetProfile() *GpuProfile {
+func (x *ProfilePreview) GetUnusedMemoryMib() int64 {
 	if x != nil {
-		return x.Profile
+		return x.UnusedMemoryMib
+	}
+	return 0
+}
+
+func (x *ProfilePreview) GetUnusedCoreUnits() uint32 {
+	if x != nil {
+		return x.UnusedCoreUnits
+	}
+	return 0
+}
+
+type SetProfileStateRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Mutation         *AdminMutation         `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
+	ProfileId        string                 `protobuf:"bytes,2,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,3,opt,name=expected_revision,proto3" json:"expected_revision,omitempty"`
+	Desired          ProfileState           `protobuf:"varint,4,opt,name=desired,proto3,enum=accelerator.v1.ProfileState" json:"desired,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *SetProfileStateRequest) Reset() {
+	*x = SetProfileStateRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetProfileStateRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetProfileStateRequest) ProtoMessage() {}
+
+func (x *SetProfileStateRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetProfileStateRequest.ProtoReflect.Descriptor instead.
+func (*SetProfileStateRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *SetProfileStateRequest) GetMutation() *AdminMutation {
+	if x != nil {
+		return x.Mutation
 	}
 	return nil
 }
 
-func (x *ResolvedGpuPlan) GetEncoding() *MemoryEncoding {
+func (x *SetProfileStateRequest) GetProfileId() string {
 	if x != nil {
-		return x.Encoding
-	}
-	return nil
-}
-
-func (x *ResolvedGpuPlan) GetTotals() *ResourceTotals {
-	if x != nil {
-		return x.Totals
-	}
-	return nil
-}
-
-func (x *ResolvedGpuPlan) GetRuntime() *RuntimeFragment {
-	if x != nil {
-		return x.Runtime
-	}
-	return nil
-}
-
-func (x *ResolvedGpuPlan) GetBaselineDigest() string {
-	if x != nil {
-		return x.BaselineDigest
+		return x.ProfileId
 	}
 	return ""
 }
 
-func (x *ResolvedGpuPlan) GetResolutionDigest() string {
+func (x *SetProfileStateRequest) GetExpectedRevision() uint64 {
 	if x != nil {
-		return x.ResolutionDigest
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *SetProfileStateRequest) GetDesired() ProfileState {
+	if x != nil {
+		return x.Desired
+	}
+	return ProfileState_PROFILE_STATE_UNSPECIFIED
+}
+
+type DeleteProfileRequest struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Mutation         *AdminMutation         `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
+	ProfileId        string                 `protobuf:"bytes,2,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
+	ExpectedRevision uint64                 `protobuf:"varint,3,opt,name=expected_revision,proto3" json:"expected_revision,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *DeleteProfileRequest) Reset() {
+	*x = DeleteProfileRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteProfileRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteProfileRequest) ProtoMessage() {}
+
+func (x *DeleteProfileRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteProfileRequest.ProtoReflect.Descriptor instead.
+func (*DeleteProfileRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *DeleteProfileRequest) GetMutation() *AdminMutation {
+	if x != nil {
+		return x.Mutation
+	}
+	return nil
+}
+
+func (x *DeleteProfileRequest) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
 	}
 	return ""
+}
+
+func (x *DeleteProfileRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
 }
 
 // 事务外解析，不占额、不锁设备；配置未知/漂移拒绝。
@@ -3226,7 +3313,7 @@ type ResolveGpuRequestRequest struct {
 
 func (x *ResolveGpuRequestRequest) Reset() {
 	*x = ResolveGpuRequestRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3238,7 +3325,7 @@ func (x *ResolveGpuRequestRequest) String() string {
 func (*ResolveGpuRequestRequest) ProtoMessage() {}
 
 func (x *ResolveGpuRequestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[36]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3251,7 +3338,7 @@ func (x *ResolveGpuRequestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ResolveGpuRequestRequest.ProtoReflect.Descriptor instead.
 func (*ResolveGpuRequestRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{36}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{39}
 }
 
 func (x *ResolveGpuRequestRequest) GetContext() *TenantContext {
@@ -3272,23 +3359,23 @@ func (x *ResolveGpuRequestRequest) GetGpu() *GpuRequest {
 type DeviceCapacity struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 内部物理设备ID，仅Admin明细。
-	DeviceId string `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	DeviceId string `protobuf:"bytes,1,opt,name=device_id,proto3" json:"device_id,omitempty"`
 	// 指定规格当前固定配置份数。
-	NominalUnits int64 `protobuf:"varint,2,opt,name=nominal_units,json=nominalUnits,proto3" json:"nominal_units,omitempty"`
+	NominalUnits int64 `protobuf:"varint,2,opt,name=nominal_units,proto3" json:"nominal_units,omitempty"`
 	// 去重真实分配数，不包含未放置申请。
-	KnownCommittedUnits int64 `protobuf:"varint,3,opt,name=known_committed_units,json=knownCommittedUnits,proto3" json:"known_committed_units,omitempty"`
+	KnownCommittedUnits int64 `protobuf:"varint,3,opt,name=known_committed_units,proto3" json:"known_committed_units,omitempty"`
 	// 仅合格设备的估计值，不是锁。
-	KnownFreeUnits int64 `protobuf:"varint,4,opt,name=known_free_units,json=knownFreeUnits,proto3" json:"known_free_units,omitempty"`
+	KnownFreeUnits int64 `protobuf:"varint,4,opt,name=known_free_units,proto3" json:"known_free_units,omitempty"`
 	// 经验证的预算<=量化可表达容量。
-	SafeMemoryBudgetMib int64 `protobuf:"varint,5,opt,name=safe_memory_budget_mib,json=safeMemoryBudgetMib,proto3" json:"safe_memory_budget_mib,omitempty"`
+	SafeMemoryBudgetMib int64 `protobuf:"varint,5,opt,name=safe_memory_budget_mib,proto3" json:"safe_memory_budget_mib,omitempty"`
 	// 已归一化一次的设备承诺。
-	CommittedMemoryMib int64 `protobuf:"varint,6,opt,name=committed_memory_mib,json=committedMemoryMib,proto3" json:"committed_memory_mib,omitempty"`
+	CommittedMemoryMib int64 `protobuf:"varint,6,opt,name=committed_memory_mib,proto3" json:"committed_memory_mib,omitempty"`
 	// 原始上报，非MiB。
-	ProviderMemoryBlocks int64 `protobuf:"varint,7,opt,name=provider_memory_blocks,json=providerMemoryBlocks,proto3" json:"provider_memory_blocks,omitempty"`
+	ProviderMemoryBlocks int64 `protobuf:"varint,7,opt,name=provider_memory_blocks,proto3" json:"provider_memory_blocks,omitempty"`
 	// 该样本的冻结F。
-	MemoryBlockMib uint32 `protobuf:"varint,8,opt,name=memory_block_mib,json=memoryBlockMib,proto3" json:"memory_block_mib,omitempty"`
+	MemoryBlockMib uint32 `protobuf:"varint,8,opt,name=memory_block_mib,proto3" json:"memory_block_mib,omitempty"`
 	// blocks*F，不反推精确物理容量。
-	ReportedMemoryMib int64 `protobuf:"varint,9,opt,name=reported_memory_mib,json=reportedMemoryMib,proto3" json:"reported_memory_mib,omitempty"`
+	ReportedMemoryMib int64 `protobuf:"varint,9,opt,name=reported_memory_mib,proto3" json:"reported_memory_mib,omitempty"`
 	// 该设备数据完整可信；false不贡献可用估计。
 	Complete bool `protobuf:"varint,10,opt,name=complete,proto3" json:"complete,omitempty"`
 	// 异常/排除原因，不使用空闲0掩盖。
@@ -3299,7 +3386,7 @@ type DeviceCapacity struct {
 
 func (x *DeviceCapacity) Reset() {
 	*x = DeviceCapacity{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3311,7 +3398,7 @@ func (x *DeviceCapacity) String() string {
 func (*DeviceCapacity) ProtoMessage() {}
 
 func (x *DeviceCapacity) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[37]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3324,7 +3411,7 @@ func (x *DeviceCapacity) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeviceCapacity.ProtoReflect.Descriptor instead.
 func (*DeviceCapacity) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{37}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *DeviceCapacity) GetDeviceId() string {
@@ -3408,21 +3495,21 @@ func (x *DeviceCapacity) GetIssues() []string {
 type CapacityView struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UUID。
-	ProfileId string `protobuf:"bytes,1,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileId string `protobuf:"bytes,1,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
 	// 指定版本。
-	ProfileVersion uint64 `protobuf:"varint,2,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ProfileVersion uint64 `protobuf:"varint,2,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
 	// 返回的供给类别。
 	Mode SupplyMode `protobuf:"varint,3,opt,name=mode,proto3,enum=accelerator.v1.SupplyMode" json:"mode,omitempty"`
 	// 去重真实设备数，故障设备仍在清单。
-	PhysicalDeviceCount int64 `protobuf:"varint,4,opt,name=physical_device_count,json=physicalDeviceCount,proto3" json:"physical_device_count,omitempty"`
+	PhysicalDeviceCount int64 `protobuf:"varint,4,opt,name=physical_device_count,proto3" json:"physical_device_count,omitempty"`
 	// 名义指定规格供给数。
-	NominalUnits int64 `protobuf:"varint,5,opt,name=nominal_units,json=nominalUnits,proto3" json:"nominal_units,omitempty"`
+	NominalUnits int64 `protobuf:"varint,5,opt,name=nominal_units,proto3" json:"nominal_units,omitempty"`
 	// 已知真实承诺数。
-	KnownCommittedUnits int64 `protobuf:"varint,6,opt,name=known_committed_units,json=knownCommittedUnits,proto3" json:"known_committed_units,omitempty"`
+	KnownCommittedUnits int64 `protobuf:"varint,6,opt,name=known_committed_units,proto3" json:"known_committed_units,omitempty"`
 	// 估计值；complete=false时只是已知范围。
-	KnownFreeUnits int64 `protobuf:"varint,7,opt,name=known_free_units,json=knownFreeUnits,proto3" json:"known_free_units,omitempty"`
+	KnownFreeUnits int64 `protobuf:"varint,7,opt,name=known_free_units,proto3" json:"known_free_units,omitempty"`
 	// 已观察但未放置的请求，不分摊到父卡。
-	UnplacedRequestedUnits int64 `protobuf:"varint,8,opt,name=unplaced_requested_units,json=unplacedRequestedUnits,proto3" json:"unplaced_requested_units,omitempty"`
+	UnplacedRequestedUnits int64 `protobuf:"varint,8,opt,name=unplaced_requested_units,proto3" json:"unplaced_requested_units,omitempty"`
 	// 必填。
 	Observation *Observation `protobuf:"bytes,9,opt,name=observation,proto3" json:"observation,omitempty"`
 	// 仅独立AdminGetCapacity可包含；租户恒空。
@@ -3433,7 +3520,7 @@ type CapacityView struct {
 
 func (x *CapacityView) Reset() {
 	*x = CapacityView{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3445,7 +3532,7 @@ func (x *CapacityView) String() string {
 func (*CapacityView) ProtoMessage() {}
 
 func (x *CapacityView) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[38]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3458,7 +3545,7 @@ func (x *CapacityView) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CapacityView.ProtoReflect.Descriptor instead.
 func (*CapacityView) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{38}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *CapacityView) GetProfileId() string {
@@ -3537,16 +3624,16 @@ type GetCapacityRequest struct {
 	// 必填。
 	Context *TenantContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填且可见。
-	ProfileId string `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileId string `protobuf:"bytes,2,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
 	// 必填。
-	ProfileVersion uint64 `protobuf:"varint,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ProfileVersion uint64 `protobuf:"varint,3,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetCapacityRequest) Reset() {
 	*x = GetCapacityRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3558,7 +3645,7 @@ func (x *GetCapacityRequest) String() string {
 func (*GetCapacityRequest) ProtoMessage() {}
 
 func (x *GetCapacityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[39]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3571,7 +3658,7 @@ func (x *GetCapacityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCapacityRequest.ProtoReflect.Descriptor instead.
 func (*GetCapacityRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{39}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetCapacityRequest) GetContext() *TenantContext {
@@ -3601,18 +3688,18 @@ type AdminGetCapacityRequest struct {
 	// 必填，无tenant字段。
 	Context *AdminRead `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填。
-	ProfileId string `protobuf:"bytes,2,opt,name=profile_id,json=profileId,proto3" json:"profile_id,omitempty"`
+	ProfileId string `protobuf:"bytes,2,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
 	// 必填。
-	ProfileVersion uint64 `protobuf:"varint,3,opt,name=profile_version,json=profileVersion,proto3" json:"profile_version,omitempty"`
+	ProfileVersion uint64 `protobuf:"varint,3,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
 	// 平台权限已验证后才允许逐设备详情。
-	IncludeDevices bool `protobuf:"varint,4,opt,name=include_devices,json=includeDevices,proto3" json:"include_devices,omitempty"`
+	IncludeDevices bool `protobuf:"varint,4,opt,name=include_devices,proto3" json:"include_devices,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AdminGetCapacityRequest) Reset() {
 	*x = AdminGetCapacityRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3624,7 +3711,7 @@ func (x *AdminGetCapacityRequest) String() string {
 func (*AdminGetCapacityRequest) ProtoMessage() {}
 
 func (x *AdminGetCapacityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[40]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3637,7 +3724,7 @@ func (x *AdminGetCapacityRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminGetCapacityRequest.ProtoReflect.Descriptor instead.
 func (*AdminGetCapacityRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{40}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *AdminGetCapacityRequest) GetContext() *AdminRead {
@@ -3674,9 +3761,9 @@ type GpuFit struct {
 	// 当前GPU形态估计；不能替代Quota或实际调度。
 	Status FitStatus `protobuf:"varint,1,opt,name=status,proto3,enum=accelerator.v1.FitStatus" json:"status,omitempty"`
 	// 当前条件参考；未知时0不表示全池耗尽。
-	EstimatedReplicas int64 `protobuf:"varint,2,opt,name=estimated_replicas,json=estimatedReplicas,proto3" json:"estimated_replicas,omitempty"`
+	EstimatedReplicas int64 `protobuf:"varint,2,opt,name=estimated_replicas,proto3" json:"estimated_replicas,omitempty"`
 	// false显示未知。
-	EstimateKnown bool `protobuf:"varint,3,opt,name=estimate_known,json=estimateKnown,proto3" json:"estimate_known,omitempty"`
+	EstimateKnown bool `protobuf:"varint,3,opt,name=estimate_known,proto3" json:"estimate_known,omitempty"`
 	// 稳定原因；CPU/网络/存储未检查须说明。
 	Reasons []string `protobuf:"bytes,4,rep,name=reasons,proto3" json:"reasons,omitempty"`
 	// 观测新鲜度。
@@ -3687,7 +3774,7 @@ type GpuFit struct {
 
 func (x *GpuFit) Reset() {
 	*x = GpuFit{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3699,7 +3786,7 @@ func (x *GpuFit) String() string {
 func (*GpuFit) ProtoMessage() {}
 
 func (x *GpuFit) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[41]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3712,7 +3799,7 @@ func (x *GpuFit) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuFit.ProtoReflect.Descriptor instead.
 func (*GpuFit) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{41}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{44}
 }
 
 func (x *GpuFit) GetStatus() FitStatus {
@@ -3763,7 +3850,7 @@ type CheckGpuFitRequest struct {
 
 func (x *CheckGpuFitRequest) Reset() {
 	*x = CheckGpuFitRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3775,7 +3862,7 @@ func (x *CheckGpuFitRequest) String() string {
 func (*CheckGpuFitRequest) ProtoMessage() {}
 
 func (x *CheckGpuFitRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[42]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3788,7 +3875,7 @@ func (x *CheckGpuFitRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CheckGpuFitRequest.ProtoReflect.Descriptor instead.
 func (*CheckGpuFitRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{42}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{45}
 }
 
 func (x *CheckGpuFitRequest) GetContext() *TenantContext {
@@ -3809,19 +3896,19 @@ func (x *CheckGpuFitRequest) GetGpu() *GpuRequest {
 type PhysicalDevice struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 平台UUID，稳定物理身份。
-	DeviceId string `protobuf:"bytes,1,opt,name=device_id,json=deviceId,proto3" json:"device_id,omitempty"`
+	DeviceId string `protobuf:"bytes,1,opt,name=device_id,proto3" json:"device_id,omitempty"`
 	// 集群UUID。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 已核验静态组UUID；未纳管设备可空。
-	GroupId string `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupId string `protobuf:"bytes,3,opt,name=group_id,proto3" json:"group_id,omitempty"`
 	// 实际位置。
 	Node *NodeRef `protobuf:"bytes,4,opt,name=node,proto3" json:"node,omitempty"`
 	// 供应商UUID，不能用node/index猜。
-	VendorDeviceId string `protobuf:"bytes,5,opt,name=vendor_device_id,json=vendorDeviceId,proto3" json:"vendor_device_id,omitempty"`
+	VendorDeviceId string `protobuf:"bytes,5,opt,name=vendor_device_id,proto3" json:"vendor_device_id,omitempty"`
 	// 归一化型号类别。
-	ModelKey string `protobuf:"bytes,6,opt,name=model_key,json=modelKey,proto3" json:"model_key,omitempty"`
+	ModelKey string `protobuf:"bytes,6,opt,name=model_key,proto3" json:"model_key,omitempty"`
 	// NVML等真实来源，<=2^63-1；不由blocks反推。
-	PhysicalMemoryBytes uint64 `protobuf:"varint,7,opt,name=physical_memory_bytes,json=physicalMemoryBytes,proto3" json:"physical_memory_bytes,omitempty"`
+	PhysicalMemoryBytes uint64 `protobuf:"varint,7,opt,name=physical_memory_bytes,proto3" json:"physical_memory_bytes,omitempty"`
 	// HEALTHY/UNHEALTHY/UNKNOWN；不清除既有占用。
 	Health string `protobuf:"bytes,8,opt,name=health,proto3" json:"health,omitempty"`
 	// 物理信息来源状态。
@@ -3832,7 +3919,7 @@ type PhysicalDevice struct {
 
 func (x *PhysicalDevice) Reset() {
 	*x = PhysicalDevice{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3844,7 +3931,7 @@ func (x *PhysicalDevice) String() string {
 func (*PhysicalDevice) ProtoMessage() {}
 
 func (x *PhysicalDevice) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[43]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3857,7 +3944,7 @@ func (x *PhysicalDevice) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PhysicalDevice.ProtoReflect.Descriptor instead.
 func (*PhysicalDevice) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{43}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *PhysicalDevice) GetDeviceId() string {
@@ -3929,9 +4016,9 @@ type ListDevicesRequest struct {
 	// 必填。
 	Context *AdminRead `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 可空，空为集群内受权范围。
-	GroupId string `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
+	GroupId string `protobuf:"bytes,3,opt,name=group_id,proto3" json:"group_id,omitempty"`
 	// 默认分页。
 	Page          *Page `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -3940,7 +4027,7 @@ type ListDevicesRequest struct {
 
 func (x *ListDevicesRequest) Reset() {
 	*x = ListDevicesRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3952,7 +4039,7 @@ func (x *ListDevicesRequest) String() string {
 func (*ListDevicesRequest) ProtoMessage() {}
 
 func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[44]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3965,7 +4052,7 @@ func (x *ListDevicesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesRequest.ProtoReflect.Descriptor instead.
 func (*ListDevicesRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{44}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{47}
 }
 
 func (x *ListDevicesRequest) GetContext() *AdminRead {
@@ -4002,14 +4089,14 @@ type ListDevicesResponse struct {
 	// 设备列表。
 	Items []*PhysicalDevice `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 分页。
-	NextToken     string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken     string `protobuf:"bytes,2,opt,name=next_token,proto3" json:"next_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListDevicesResponse) Reset() {
 	*x = ListDevicesResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4021,7 +4108,7 @@ func (x *ListDevicesResponse) String() string {
 func (*ListDevicesResponse) ProtoMessage() {}
 
 func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[45]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4034,7 +4121,7 @@ func (x *ListDevicesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDevicesResponse.ProtoReflect.Descriptor instead.
 func (*ListDevicesResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{45}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *ListDevicesResponse) GetItems() []*PhysicalDevice {
@@ -4055,20 +4142,20 @@ func (x *ListDevicesResponse) GetNextToken() string {
 type GpuUsageRef struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 资源租户UUID，必填。
-	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,json=tenantId,proto3" json:"tenant_id,omitempty"`
+	TenantId string `protobuf:"bytes,1,opt,name=tenant_id,proto3" json:"tenant_id,omitempty"`
 	// 首期ani-inference；投影直接调用者仍是ani-governance。
-	OwnerService string `protobuf:"bytes,2,opt,name=owner_service,json=ownerService,proto3" json:"owner_service,omitempty"`
+	OwnerService string `protobuf:"bytes,2,opt,name=owner_service,proto3" json:"owner_service,omitempty"`
 	// Gov生成UUID，稳定业务实例身份。
-	ResourceId string `protobuf:"bytes,3,opt,name=resource_id,json=resourceId,proto3" json:"resource_id,omitempty"`
+	ResourceId string `protobuf:"bytes,3,opt,name=resource_id,proto3" json:"resource_id,omitempty"`
 	// 原创建UUID，不能用DELETE操作ID。
-	CreateOperationId string `protobuf:"bytes,4,opt,name=create_operation_id,json=createOperationId,proto3" json:"create_operation_id,omitempty"`
+	CreateOperationId string `protobuf:"bytes,4,opt,name=create_operation_id,proto3" json:"create_operation_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *GpuUsageRef) Reset() {
 	*x = GpuUsageRef{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4080,7 +4167,7 @@ func (x *GpuUsageRef) String() string {
 func (*GpuUsageRef) ProtoMessage() {}
 
 func (x *GpuUsageRef) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[46]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4093,7 +4180,7 @@ func (x *GpuUsageRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuUsageRef.ProtoReflect.Descriptor instead.
 func (*GpuUsageRef) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{46}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *GpuUsageRef) GetTenantId() string {
@@ -4132,24 +4219,29 @@ type GpuUsageProjection struct {
 	// 只能1或2；不是worker generation。
 	Revision uint64 `protobuf:"varint,2,opt,name=revision,proto3" json:"revision,omitempty"`
 	// 1=DECLARED，2=ENDED。
-	State UsageState `protobuf:"varint,3,opt,name=state,proto3,enum=accelerator.v1.UsageState" json:"state,omitempty"`
-	// 两种revision都携带同一静态计划，允许结束先到。
-	Plan *ResolvedGpuPlan `protobuf:"bytes,4,opt,name=plan,proto3" json:"plan,omitempty"`
+	State           UsageState `protobuf:"varint,3,opt,name=state,proto3,enum=accelerator.v1.UsageState" json:"state,omitempty"`
+	ProfileId       string     `protobuf:"bytes,10,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
+	ProfileVersion  uint64     `protobuf:"varint,11,opt,name=profile_version,proto3" json:"profile_version,omitempty"`
+	GroupId         string     `protobuf:"bytes,12,opt,name=group_id,proto3" json:"group_id,omitempty"`
+	BaselineId      string     `protobuf:"bytes,13,opt,name=baseline_id,proto3" json:"baseline_id,omitempty"`
+	ClusterId       string     `protobuf:"bytes,14,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
+	ContainerName   string     `protobuf:"bytes,15,opt,name=container_name,proto3" json:"container_name,omitempty"`
+	ExecutionDigest string     `protobuf:"bytes,16,opt,name=execution_digest,proto3" json:"execution_digest,omitempty"`
 	// DECLARED必须UNSPECIFIED；ENDED必须有明确依据。
-	EndReason UsageEndReason `protobuf:"varint,5,opt,name=end_reason,json=endReason,proto3,enum=accelerator.v1.UsageEndReason" json:"end_reason,omitempty"`
+	EndReason UsageEndReason `protobuf:"varint,5,opt,name=end_reason,proto3,enum=accelerator.v1.UsageEndReason" json:"end_reason,omitempty"`
 	// 必填；原受理/未发撤销/最终释放账本事实引用。
-	SourceFactRef string `protobuf:"bytes,6,opt,name=source_fact_ref,json=sourceFactRef,proto3" json:"source_fact_ref,omitempty"`
+	SourceFactRef string `protobuf:"bytes,6,opt,name=source_fact_ref,proto3" json:"source_fact_ref,omitempty"`
 	// 原CREATE操作持久创建时间；两个revision固定相同，不冒充资源结束时间。
-	SourceOperationCreatedAt string `protobuf:"bytes,7,opt,name=source_operation_created_at,json=sourceOperationCreatedAt,proto3" json:"source_operation_created_at,omitempty"`
+	SourceOperationCreatedAt string `protobuf:"bytes,7,opt,name=source_operation_created_at,proto3" json:"source_operation_created_at,omitempty"`
 	// 全部规范语义字段摘要；同revision必须一致；传输request-id不计。
-	PayloadDigest string `protobuf:"bytes,8,opt,name=payload_digest,json=payloadDigest,proto3" json:"payload_digest,omitempty"`
+	PayloadDigest string `protobuf:"bytes,8,opt,name=payload_digest,proto3" json:"payload_digest,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GpuUsageProjection) Reset() {
 	*x = GpuUsageProjection{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4161,7 +4253,7 @@ func (x *GpuUsageProjection) String() string {
 func (*GpuUsageProjection) ProtoMessage() {}
 
 func (x *GpuUsageProjection) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[47]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4174,7 +4266,7 @@ func (x *GpuUsageProjection) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuUsageProjection.ProtoReflect.Descriptor instead.
 func (*GpuUsageProjection) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{47}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *GpuUsageProjection) GetRef() *GpuUsageRef {
@@ -4198,11 +4290,53 @@ func (x *GpuUsageProjection) GetState() UsageState {
 	return UsageState_USAGE_STATE_UNSPECIFIED
 }
 
-func (x *GpuUsageProjection) GetPlan() *ResolvedGpuPlan {
+func (x *GpuUsageProjection) GetProfileId() string {
 	if x != nil {
-		return x.Plan
+		return x.ProfileId
 	}
-	return nil
+	return ""
+}
+
+func (x *GpuUsageProjection) GetProfileVersion() uint64 {
+	if x != nil {
+		return x.ProfileVersion
+	}
+	return 0
+}
+
+func (x *GpuUsageProjection) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *GpuUsageProjection) GetBaselineId() string {
+	if x != nil {
+		return x.BaselineId
+	}
+	return ""
+}
+
+func (x *GpuUsageProjection) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *GpuUsageProjection) GetContainerName() string {
+	if x != nil {
+		return x.ContainerName
+	}
+	return ""
+}
+
+func (x *GpuUsageProjection) GetExecutionDigest() string {
+	if x != nil {
+		return x.ExecutionDigest
+	}
+	return ""
 }
 
 func (x *GpuUsageProjection) GetEndReason() UsageEndReason {
@@ -4237,7 +4371,7 @@ func (x *GpuUsageProjection) GetPayloadDigest() string {
 type SyncGpuUsageRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 日志关联，可随重试变化。
-	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,proto3" json:"request_id,omitempty"`
 	// 必填；仅Gov精确mTLS身份可以写。
 	Projection    *GpuUsageProjection `protobuf:"bytes,2,opt,name=projection,proto3" json:"projection,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4246,7 +4380,7 @@ type SyncGpuUsageRequest struct {
 
 func (x *SyncGpuUsageRequest) Reset() {
 	*x = SyncGpuUsageRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4258,7 +4392,7 @@ func (x *SyncGpuUsageRequest) String() string {
 func (*SyncGpuUsageRequest) ProtoMessage() {}
 
 func (x *SyncGpuUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[48]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4271,7 +4405,7 @@ func (x *SyncGpuUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncGpuUsageRequest.ProtoReflect.Descriptor instead.
 func (*SyncGpuUsageRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{48}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *SyncGpuUsageRequest) GetRequestId() string {
@@ -4294,7 +4428,7 @@ type SyncGpuUsageResponse struct {
 	// 原引用。
 	Ref *GpuUsageRef `protobuf:"bytes,1,opt,name=ref,proto3" json:"ref,omitempty"`
 	// GPU端当前最大已接纳revision。
-	AppliedRevision uint64 `protobuf:"varint,2,opt,name=applied_revision,json=appliedRevision,proto3" json:"applied_revision,omitempty"`
+	AppliedRevision uint64 `protobuf:"varint,2,opt,name=applied_revision,proto3" json:"applied_revision,omitempty"`
 	// 当前投影状态。
 	State UsageState `protobuf:"varint,3,opt,name=state,proto3,enum=accelerator.v1.UsageState" json:"state,omitempty"`
 	// 同内容/旧版本幂等返回。
@@ -4305,7 +4439,7 @@ type SyncGpuUsageResponse struct {
 
 func (x *SyncGpuUsageResponse) Reset() {
 	*x = SyncGpuUsageResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4317,7 +4451,7 @@ func (x *SyncGpuUsageResponse) String() string {
 func (*SyncGpuUsageResponse) ProtoMessage() {}
 
 func (x *SyncGpuUsageResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[49]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4330,7 +4464,7 @@ func (x *SyncGpuUsageResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SyncGpuUsageResponse.ProtoReflect.Descriptor instead.
 func (*SyncGpuUsageResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{49}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *SyncGpuUsageResponse) GetRef() *GpuUsageRef {
@@ -4374,7 +4508,7 @@ type GetGpuUsageRequest struct {
 
 func (x *GetGpuUsageRequest) Reset() {
 	*x = GetGpuUsageRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4386,7 +4520,7 @@ func (x *GetGpuUsageRequest) String() string {
 func (*GetGpuUsageRequest) ProtoMessage() {}
 
 func (x *GetGpuUsageRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[50]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4399,7 +4533,7 @@ func (x *GetGpuUsageRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetGpuUsageRequest.ProtoReflect.Descriptor instead.
 func (*GetGpuUsageRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{50}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *GetGpuUsageRequest) GetContext() *TenantContext {
@@ -4422,7 +4556,7 @@ type ListGpuUsagesRequest struct {
 	// 必填。
 	Context *TenantContext `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 可空或允许owner，不能扩大tenant。
-	OwnerService string `protobuf:"bytes,2,opt,name=owner_service,json=ownerService,proto3" json:"owner_service,omitempty"`
+	OwnerService string `protobuf:"bytes,2,opt,name=owner_service,proto3" json:"owner_service,omitempty"`
 	// UNSPECIFIED表示全部状态。
 	State UsageState `protobuf:"varint,3,opt,name=state,proto3,enum=accelerator.v1.UsageState" json:"state,omitempty"`
 	// 默认分页。
@@ -4433,7 +4567,7 @@ type ListGpuUsagesRequest struct {
 
 func (x *ListGpuUsagesRequest) Reset() {
 	*x = ListGpuUsagesRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4445,7 +4579,7 @@ func (x *ListGpuUsagesRequest) String() string {
 func (*ListGpuUsagesRequest) ProtoMessage() {}
 
 func (x *ListGpuUsagesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[51]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4458,7 +4592,7 @@ func (x *ListGpuUsagesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGpuUsagesRequest.ProtoReflect.Descriptor instead.
 func (*ListGpuUsagesRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{51}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *ListGpuUsagesRequest) GetContext() *TenantContext {
@@ -4495,14 +4629,14 @@ type ListGpuUsagesResponse struct {
 	// 投影列表。
 	Items []*GpuUsageProjection `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 分页。
-	NextToken     string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken     string `protobuf:"bytes,2,opt,name=next_token,proto3" json:"next_token,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListGpuUsagesResponse) Reset() {
 	*x = ListGpuUsagesResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4514,7 +4648,7 @@ func (x *ListGpuUsagesResponse) String() string {
 func (*ListGpuUsagesResponse) ProtoMessage() {}
 
 func (x *ListGpuUsagesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[52]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4527,7 +4661,7 @@ func (x *ListGpuUsagesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListGpuUsagesResponse.ProtoReflect.Descriptor instead.
 func (*ListGpuUsagesResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{52}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *ListGpuUsagesResponse) GetItems() []*GpuUsageProjection {
@@ -4548,7 +4682,7 @@ func (x *ListGpuUsagesResponse) GetNextToken() string {
 type PodRef struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// UUID。
-	ClusterId string `protobuf:"bytes,1,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,1,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 非空合法namespace。
 	Namespace string `protobuf:"bytes,2,opt,name=namespace,proto3" json:"namespace,omitempty"`
 	// 非空，仅定位。
@@ -4556,14 +4690,14 @@ type PodRef struct {
 	// 实际Pod UID，必填。
 	Uid string `protobuf:"bytes,4,opt,name=uid,proto3" json:"uid,omitempty"`
 	// 实际GPU容器名。
-	ContainerName string `protobuf:"bytes,5,opt,name=container_name,json=containerName,proto3" json:"container_name,omitempty"`
+	ContainerName string `protobuf:"bytes,5,opt,name=container_name,proto3" json:"container_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PodRef) Reset() {
 	*x = PodRef{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4575,7 +4709,7 @@ func (x *PodRef) String() string {
 func (*PodRef) ProtoMessage() {}
 
 func (x *PodRef) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[53]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4588,7 +4722,7 @@ func (x *PodRef) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PodRef.ProtoReflect.Descriptor instead.
 func (*PodRef) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{53}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{56}
 }
 
 func (x *PodRef) GetClusterId() string {
@@ -4630,25 +4764,25 @@ func (x *PodRef) GetContainerName() string {
 type GpuBinding struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 平台实际使用记录UUID。
-	BindingId string `protobuf:"bytes,1,opt,name=binding_id,json=bindingId,proto3" json:"binding_id,omitempty"`
+	BindingId string `protobuf:"bytes,1,opt,name=binding_id,proto3" json:"binding_id,omitempty"`
 	// 可缺省：投影/归属尚未核验；缺省不影响容量计数。
-	VerifiedUsageRef *GpuUsageRef `protobuf:"bytes,2,opt,name=verified_usage_ref,json=verifiedUsageRef,proto3" json:"verified_usage_ref,omitempty"`
+	VerifiedUsageRef *GpuUsageRef `protobuf:"bytes,2,opt,name=verified_usage_ref,proto3" json:"verified_usage_ref,omitempty"`
 	// 真实Pod引用。
 	Pod *PodRef `protobuf:"bytes,3,opt,name=pod,proto3" json:"pod,omitempty"`
 	// 管理员及内部可见；租户BFF移除。
-	PhysicalDeviceId string `protobuf:"bytes,4,opt,name=physical_device_id,json=physicalDeviceId,proto3" json:"physical_device_id,omitempty"`
+	PhysicalDeviceId string `protobuf:"bytes,4,opt,name=physical_device_id,proto3" json:"physical_device_id,omitempty"`
 	// 实际分配状态，不是业务Ready。
 	State AllocationState `protobuf:"varint,5,opt,name=state,proto3,enum=accelerator.v1.AllocationState" json:"state,omitempty"`
 	// 归一化的该设备承诺；仅runtime利用率不作依据。
-	MemoryMib int64 `protobuf:"varint,6,opt,name=memory_mib,json=memoryMib,proto3" json:"memory_mib,omitempty"`
+	MemoryMib int64 `protobuf:"varint,6,opt,name=memory_mib,proto3" json:"memory_mib,omitempty"`
 	// 该分配计算参数，范围0..100，不承诺吞吐。
-	CoreLimitPercent uint32 `protobuf:"varint,7,opt,name=core_limit_percent,json=coreLimitPercent,proto3" json:"core_limit_percent,omitempty"`
+	CoreLimitPercent uint32 `protobuf:"varint,7,opt,name=core_limit_percent,proto3" json:"core_limit_percent,omitempty"`
 	// 解释来源单位时使用的冻结基线。
-	SourceBaselineDigest string `protobuf:"bytes,8,opt,name=source_baseline_digest,json=sourceBaselineDigest,proto3" json:"source_baseline_digest,omitempty"`
+	SourceBaselineDigest string `protobuf:"bytes,8,opt,name=source_baseline_digest,proto3" json:"source_baseline_digest,omitempty"`
 	// 原始blocks来源所用F；已归一化值不能再乘。
-	SourceMemoryBlockMib uint32 `protobuf:"varint,9,opt,name=source_memory_block_mib,json=sourceMemoryBlockMib,proto3" json:"source_memory_block_mib,omitempty"`
+	SourceMemoryBlockMib uint32 `protobuf:"varint,9,opt,name=source_memory_block_mib,proto3" json:"source_memory_block_mib,omitempty"`
 	// 实际adapter原始证据引用。
-	EvidenceRef string `protobuf:"bytes,10,opt,name=evidence_ref,json=evidenceRef,proto3" json:"evidence_ref,omitempty"`
+	EvidenceRef string `protobuf:"bytes,10,opt,name=evidence_ref,proto3" json:"evidence_ref,omitempty"`
 	// 可信完整度。
 	Observation   *Observation `protobuf:"bytes,11,opt,name=observation,proto3" json:"observation,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4657,7 +4791,7 @@ type GpuBinding struct {
 
 func (x *GpuBinding) Reset() {
 	*x = GpuBinding{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4669,7 +4803,7 @@ func (x *GpuBinding) String() string {
 func (*GpuBinding) ProtoMessage() {}
 
 func (x *GpuBinding) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[54]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4682,7 +4816,7 @@ func (x *GpuBinding) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GpuBinding.ProtoReflect.Descriptor instead.
 func (*GpuBinding) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{54}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{57}
 }
 
 func (x *GpuBinding) GetBindingId() string {
@@ -4777,7 +4911,7 @@ type ListBindingsRequest struct {
 
 func (x *ListBindingsRequest) Reset() {
 	*x = ListBindingsRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4789,7 +4923,7 @@ func (x *ListBindingsRequest) String() string {
 func (*ListBindingsRequest) ProtoMessage() {}
 
 func (x *ListBindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[55]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4802,7 +4936,7 @@ func (x *ListBindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBindingsRequest.ProtoReflect.Descriptor instead.
 func (*ListBindingsRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{55}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *ListBindingsRequest) GetContext() *TenantContext {
@@ -4832,9 +4966,9 @@ type AdminListBindingsRequest struct {
 	// 必填平台上下文。
 	Context *AdminRead `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
 	// 必填UUID。
-	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
+	ClusterId string `protobuf:"bytes,2,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
 	// 可空；指定时必须属于集群。
-	PhysicalDeviceId string `protobuf:"bytes,3,opt,name=physical_device_id,json=physicalDeviceId,proto3" json:"physical_device_id,omitempty"`
+	PhysicalDeviceId string `protobuf:"bytes,3,opt,name=physical_device_id,proto3" json:"physical_device_id,omitempty"`
 	// 默认分页。
 	Page          *Page `protobuf:"bytes,4,opt,name=page,proto3" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4843,7 +4977,7 @@ type AdminListBindingsRequest struct {
 
 func (x *AdminListBindingsRequest) Reset() {
 	*x = AdminListBindingsRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[59]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4855,7 +4989,7 @@ func (x *AdminListBindingsRequest) String() string {
 func (*AdminListBindingsRequest) ProtoMessage() {}
 
 func (x *AdminListBindingsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[56]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[59]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4868,7 +5002,7 @@ func (x *AdminListBindingsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AdminListBindingsRequest.ProtoReflect.Descriptor instead.
 func (*AdminListBindingsRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{56}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{59}
 }
 
 func (x *AdminListBindingsRequest) GetContext() *AdminRead {
@@ -4905,7 +5039,7 @@ type ListBindingsResponse struct {
 	// BFF必须移除内部物理身份/拓扑。
 	Items []*GpuBinding `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
 	// 分页。
-	NextToken string `protobuf:"bytes,2,opt,name=next_token,json=nextToken,proto3" json:"next_token,omitempty"`
+	NextToken string `protobuf:"bytes,2,opt,name=next_token,proto3" json:"next_token,omitempty"`
 	// 缺失投影不等于零实际占用。
 	Observation   *Observation `protobuf:"bytes,3,opt,name=observation,proto3" json:"observation,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4914,7 +5048,7 @@ type ListBindingsResponse struct {
 
 func (x *ListBindingsResponse) Reset() {
 	*x = ListBindingsResponse{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[60]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4926,7 +5060,7 @@ func (x *ListBindingsResponse) String() string {
 func (*ListBindingsResponse) ProtoMessage() {}
 
 func (x *ListBindingsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[57]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[60]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4939,7 +5073,7 @@ func (x *ListBindingsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBindingsResponse.ProtoReflect.Descriptor instead.
 func (*ListBindingsResponse) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{57}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{60}
 }
 
 func (x *ListBindingsResponse) GetItems() []*GpuBinding {
@@ -4967,11 +5101,11 @@ func (x *ListBindingsResponse) GetObservation() *Observation {
 type ObserveReleaseRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 必填。
-	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,proto3" json:"request_id,omitempty"`
 	// 必填；直接mTLS调用方必须是该owner。
 	Ref *GpuUsageRef `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
 	// 必填UUID，明确关闭操作。
-	DeleteOperationId string `protobuf:"bytes,3,opt,name=delete_operation_id,json=deleteOperationId,proto3" json:"delete_operation_id,omitempty"`
+	DeleteOperationId string `protobuf:"bytes,3,opt,name=delete_operation_id,proto3" json:"delete_operation_id,omitempty"`
 	// owner掌握的完整实际范围；非空。没有外部创建则使用owner内部未执行证明，不调用空列表假释放。
 	Pods          []*PodRef `protobuf:"bytes,4,rep,name=pods,proto3" json:"pods,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -4980,7 +5114,7 @@ type ObserveReleaseRequest struct {
 
 func (x *ObserveReleaseRequest) Reset() {
 	*x = ObserveReleaseRequest{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[61]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4992,7 +5126,7 @@ func (x *ObserveReleaseRequest) String() string {
 func (*ObserveReleaseRequest) ProtoMessage() {}
 
 func (x *ObserveReleaseRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[58]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[61]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5005,7 +5139,7 @@ func (x *ObserveReleaseRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObserveReleaseRequest.ProtoReflect.Descriptor instead.
 func (*ObserveReleaseRequest) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{58}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{61}
 }
 
 func (x *ObserveReleaseRequest) GetRequestId() string {
@@ -5040,26 +5174,26 @@ func (x *ObserveReleaseRequest) GetPods() []*PodRef {
 type ReleaseObservation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// 结果证据UUID。
-	EvidenceId string `protobuf:"bytes,1,opt,name=evidence_id,json=evidenceId,proto3" json:"evidence_id,omitempty"`
+	EvidenceId string `protobuf:"bytes,1,opt,name=evidence_id,proto3" json:"evidence_id,omitempty"`
 	// 对应资源引用。
 	Ref *GpuUsageRef `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
 	// 正常解除、仍存在或未知。
 	Finding ReleaseFinding `protobuf:"varint,3,opt,name=finding,proto3,enum=accelerator.v1.ReleaseFinding" json:"finding,omitempty"`
 	// 已确认残留设备分配的Pod，不只查当前GPU进程。
-	ActivePodUids []string `protobuf:"bytes,4,rep,name=active_pod_uids,json=activePodUids,proto3" json:"active_pod_uids,omitempty"`
+	ActivePodUids []string `protobuf:"bytes,4,rep,name=active_pod_uids,proto3" json:"active_pod_uids,omitempty"`
 	// 缺少可信证据的节点。
-	UncertainNodeUids []string `protobuf:"bytes,5,rep,name=uncertain_node_uids,json=uncertainNodeUids,proto3" json:"uncertain_node_uids,omitempty"`
+	UncertainNodeUids []string `protobuf:"bytes,5,rep,name=uncertain_node_uids,proto3" json:"uncertain_node_uids,omitempty"`
 	// 必填。
 	Observation *Observation `protobuf:"bytes,6,opt,name=observation,proto3" json:"observation,omitempty"`
 	// 稳定证据摘要，绑定检查范围。
-	EvidenceDigest string `protobuf:"bytes,7,opt,name=evidence_digest,json=evidenceDigest,proto3" json:"evidence_digest,omitempty"`
+	EvidenceDigest string `protobuf:"bytes,7,opt,name=evidence_digest,proto3" json:"evidence_digest,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
 
 func (x *ReleaseObservation) Reset() {
 	*x = ReleaseObservation{}
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[59]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -5071,7 +5205,7 @@ func (x *ReleaseObservation) String() string {
 func (*ReleaseObservation) ProtoMessage() {}
 
 func (x *ReleaseObservation) ProtoReflect() protoreflect.Message {
-	mi := &file_accelerator_v1_accelerator_proto_msgTypes[59]
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -5084,7 +5218,7 @@ func (x *ReleaseObservation) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReleaseObservation.ProtoReflect.Descriptor instead.
 func (*ReleaseObservation) Descriptor() ([]byte, []int) {
-	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{59}
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ReleaseObservation) GetEvidenceId() string {
@@ -5143,401 +5277,464 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	" accelerator/v1/accelerator.proto\x12\x0eaccelerator.v1\"+\n" +
 	"\x05Actor\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12\x0e\n" +
-	"\x02id\x18\x02 \x01(\tR\x02id\"x\n" +
-	"\rTenantContext\x12\x1d\n" +
+	"\x02id\x18\x02 \x01(\tR\x02id\"z\n" +
+	"\rTenantContext\x12\x1e\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12\x1b\n" +
-	"\ttenant_id\x18\x02 \x01(\tR\btenantId\x12+\n" +
-	"\x05actor\x18\x03 \x01(\v2\x15.accelerator.v1.ActorR\x05actor\"W\n" +
-	"\tAdminRead\x12\x1d\n" +
+	"request_id\x18\x01 \x01(\tR\n" +
+	"request_id\x12\x1c\n" +
+	"\ttenant_id\x18\x02 \x01(\tR\ttenant_id\x12+\n" +
+	"\x05actor\x18\x03 \x01(\v2\x15.accelerator.v1.ActorR\x05actor\"X\n" +
+	"\tAdminRead\x12\x1e\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12+\n" +
-	"\x05actor\x18\x02 \x01(\v2\x15.accelerator.v1.ActorR\x05actor\"m\n" +
+	"request_id\x18\x01 \x01(\tR\n" +
+	"request_id\x12+\n" +
+	"\x05actor\x18\x02 \x01(\v2\x15.accelerator.v1.ActorR\x05actor\"n\n" +
 	"\rAdminMutation\x123\n" +
-	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12'\n" +
-	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\"0\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12(\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tR\x0fidempotency_key\"0\n" +
 	"\x04Page\x12\x12\n" +
 	"\x04size\x18\x01 \x01(\rR\x04size\x12\x14\n" +
 	"\x05token\x18\x02 \x01(\tR\x05token\"2\n" +
 	"\bKeyValue\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value\"\xa6\x01\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value\"\xa9\x01\n" +
 	"\vObservation\x12\x1a\n" +
-	"\bcomplete\x18\x01 \x01(\bR\bcomplete\x12\x1f\n" +
-	"\vobserved_at\x18\x02 \x01(\tR\n" +
-	"observedAt\x12\x1f\n" +
-	"\vreceived_at\x18\x03 \x01(\tR\n" +
-	"receivedAt\x12\x16\n" +
-	"\x06issues\x18\x04 \x03(\tR\x06issues\x12!\n" +
-	"\fsnapshot_ref\x18\x05 \x01(\tR\vsnapshotRef\"\xb4\x01\n" +
-	"\fVerification\x127\n" +
-	"\x05state\x18\x01 \x01(\x0e2!.accelerator.v1.VerificationStateR\x05state\x12!\n" +
-	"\fevidence_ref\x18\x02 \x01(\tR\vevidenceRef\x12\x1f\n" +
-	"\vverified_at\x18\x03 \x01(\tR\n" +
-	"verifiedAt\x12'\n" +
-	"\x0fbaseline_digest\x18\x04 \x01(\tR\x0ebaselineDigest\"\xfa\x06\n" +
-	"\x10ProviderBaseline\x12\x1f\n" +
-	"\vbaseline_id\x18\x01 \x01(\tR\n" +
-	"baselineId\x12\x1d\n" +
+	"\bcomplete\x18\x01 \x01(\bR\bcomplete\x12 \n" +
+	"\vobserved_at\x18\x02 \x01(\tR\vobserved_at\x12 \n" +
+	"\vreceived_at\x18\x03 \x01(\tR\vreceived_at\x12\x16\n" +
+	"\x06issues\x18\x04 \x03(\tR\x06issues\x12\"\n" +
+	"\fsnapshot_ref\x18\x05 \x01(\tR\fsnapshot_ref\"\x83\a\n" +
+	"\x10ProviderBaseline\x12 \n" +
+	"\vbaseline_id\x18\x01 \x01(\tR\vbaseline_id\x12\x1e\n" +
 	"\n" +
-	"adapter_id\x18\x02 \x01(\tR\tadapterId\x12'\n" +
-	"\x0fvolcano_version\x18\x03 \x01(\tR\x0evolcanoVersion\x120\n" +
-	"\x14volcano_image_digest\x18\x04 \x01(\tR\x12volcanoImageDigest\x122\n" +
-	"\x15device_plugin_version\x18\x05 \x01(\tR\x13devicePluginVersion\x12;\n" +
-	"\x1adevice_plugin_image_digest\x18\x06 \x01(\tR\x17devicePluginImageDigest\x12,\n" +
-	"\x12hami_core_revision\x18\a \x01(\tR\x10hamiCoreRevision\x12(\n" +
-	"\x10memory_block_mib\x18\b \x01(\rR\x0ememoryBlockMib\x12.\n" +
-	"\x13factor_evidence_ref\x18\t \x01(\tR\x11factorEvidenceRef\x12'\n" +
+	"adapter_id\x18\x02 \x01(\tR\n" +
+	"adapter_id\x12(\n" +
+	"\x0fvolcano_version\x18\x03 \x01(\tR\x0fvolcano_version\x122\n" +
+	"\x14volcano_image_digest\x18\x04 \x01(\tR\x14volcano_image_digest\x124\n" +
+	"\x15device_plugin_version\x18\x05 \x01(\tR\x15device_plugin_version\x12>\n" +
+	"\x1adevice_plugin_image_digest\x18\x06 \x01(\tR\x1adevice_plugin_image_digest\x12.\n" +
+	"\x12hami_core_revision\x18\a \x01(\tR\x12hami_core_revision\x12*\n" +
+	"\x10memory_block_mib\x18\b \x01(\rR\x10memory_block_mib\x12(\n" +
 	"\x0fmemory_encoding\x18\n" +
-	" \x01(\tR\x0ememoryEncoding\x12\x1f\n" +
-	"\vsplit_count\x18\v \x01(\rR\n" +
-	"splitCount\x120\n" +
-	"\x14memory_scale_percent\x18\f \x01(\rR\x12memoryScalePercent\x12,\n" +
-	"\x12core_scale_percent\x18\r \x01(\rR\x10coreScalePercent\x120\n" +
-	"\x14core_budget_additive\x18\x0e \x01(\bR\x12coreBudgetAdditive\x12,\n" +
-	"\x12node_config_digest\x18\x0f \x01(\tR\x10nodeConfigDigest\x126\n" +
-	"\x17scheduler_config_digest\x18\x10 \x01(\tR\x15schedulerConfigDigest\x12%\n" +
-	"\x0erecipe_version\x18\x11 \x01(\tR\rrecipeVersion\x12'\n" +
-	"\x0fbaseline_digest\x18\x12 \x01(\tR\x0ebaselineDigest\x12@\n" +
-	"\fverification\x18\x13 \x01(\v2\x1c.accelerator.v1.VerificationR\fverification\"/\n" +
+	" \x01(\tR\x0fmemory_encoding\x12 \n" +
+	"\vsplit_count\x18\v \x01(\rR\vsplit_count\x122\n" +
+	"\x14memory_scale_percent\x18\f \x01(\rR\x14memory_scale_percent\x12.\n" +
+	"\x12core_scale_percent\x18\r \x01(\rR\x12core_scale_percent\x122\n" +
+	"\x14core_budget_additive\x18\x0e \x01(\bR\x14core_budget_additive\x12.\n" +
+	"\x12node_config_digest\x18\x0f \x01(\tR\x12node_config_digest\x128\n" +
+	"\x17scheduler_config_digest\x18\x10 \x01(\tR\x17scheduler_config_digest\x12&\n" +
+	"\x0erecipe_version\x18\x11 \x01(\tR\x0erecipe_version\x12(\n" +
+	"\x0fbaseline_digest\x18\x12 \x01(\tR\x0fbaseline_digest\x12.\n" +
+	"\x12runtime_class_name\x18\x14 \x01(\tR\x12runtime_class_nameJ\x04\b\t\x10\n" +
+	"J\x04\b\x13\x10\x14R\x13factor_evidence_refR\fverification\"/\n" +
 	"\aNodeRef\x12\x10\n" +
 	"\x03uid\x18\x01 \x01(\tR\x03uid\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\"\x8c\x01\n" +
-	"\aCluster\x12\x1d\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\"\x8f\x01\n" +
+	"\aCluster\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12%\n" +
-	"\x0econnection_ref\x18\x03 \x01(\tR\rconnectionRef\x12\x18\n" +
-	"\aversion\x18\x04 \x01(\x04R\aversion\"\x9d\x01\n" +
+	"cluster_id\x18\x01 \x01(\tR\n" +
+	"cluster_id\x12\"\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\fdisplay_name\x12&\n" +
+	"\x0econnection_ref\x18\x03 \x01(\tR\x0econnection_ref\x12\x18\n" +
+	"\aversion\x18\x04 \x01(\x04R\aversion\"\x9f\x01\n" +
 	"\x16RegisterClusterRequest\x129\n" +
-	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12%\n" +
-	"\x0econnection_ref\x18\x03 \x01(\tR\rconnectionRef\"t\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\"\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\fdisplay_name\x12&\n" +
+	"\x0econnection_ref\x18\x03 \x01(\tR\x0econnection_ref\"t\n" +
 	"\x13ListClustersRequest\x123\n" +
 	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12(\n" +
-	"\x04page\x18\x02 \x01(\v2\x14.accelerator.v1.PageR\x04page\"d\n" +
+	"\x04page\x18\x02 \x01(\v2\x14.accelerator.v1.PageR\x04page\"e\n" +
 	"\x14ListClustersResponse\x12-\n" +
-	"\x05items\x18\x01 \x03(\v2\x17.accelerator.v1.ClusterR\x05items\x12\x1d\n" +
+	"\x05items\x18\x01 \x03(\v2\x17.accelerator.v1.ClusterR\x05items\x12\x1e\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\"a\n" +
-	"\x04Pool\x12\x17\n" +
-	"\apool_id\x18\x01 \x01(\tR\x06poolId\x12\x1d\n" +
+	"next_token\x18\x02 \x01(\tR\n" +
+	"next_token\"d\n" +
+	"\x04Pool\x12\x18\n" +
+	"\apool_id\x18\x01 \x01(\tR\apool_id\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\x90\x01\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12\"\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\fdisplay_name\"\x92\x01\n" +
 	"\x11CreatePoolRequest\x129\n" +
-	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x1d\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\"\x90\x01\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12\"\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\fdisplay_name\"\x91\x01\n" +
 	"\x10ListPoolsRequest\x123\n" +
-	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12(\n" +
-	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"^\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12(\n" +
+	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"_\n" +
 	"\x11ListPoolsResponse\x12*\n" +
-	"\x05items\x18\x01 \x03(\v2\x14.accelerator.v1.PoolR\x05items\x12\x1d\n" +
+	"\x05items\x18\x01 \x03(\v2\x14.accelerator.v1.PoolR\x05items\x12\x1e\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\"\xd3\x03\n" +
-	"\vSupplyGroup\x12\x19\n" +
-	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12\x17\n" +
-	"\apool_id\x18\x02 \x01(\tR\x06poolId\x12\x1d\n" +
+	"next_token\x18\x02 \x01(\tR\n" +
+	"next_token\"\xda\x03\n" +
+	"\vSupplyGroup\x12\x1a\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\bgroup_id\x12\x18\n" +
+	"\apool_id\x18\x02 \x01(\tR\apool_id\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x03 \x01(\tR\tclusterId\x12!\n" +
-	"\fdisplay_name\x18\x04 \x01(\tR\vdisplayName\x12.\n" +
+	"cluster_id\x18\x03 \x01(\tR\n" +
+	"cluster_id\x12\"\n" +
+	"\fdisplay_name\x18\x04 \x01(\tR\fdisplay_name\x12.\n" +
 	"\x04mode\x18\x05 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x12-\n" +
-	"\x05nodes\x18\x06 \x03(\v2\x17.accelerator.v1.NodeRefR\x05nodes\x12\x1b\n" +
-	"\tmodel_key\x18\a \x01(\tR\bmodelKey\x12<\n" +
+	"\x05nodes\x18\x06 \x03(\v2\x17.accelerator.v1.NodeRefR\x05nodes\x12\x1c\n" +
+	"\tmodel_key\x18\a \x01(\tR\tmodel_key\x12<\n" +
 	"\bbaseline\x18\b \x01(\v2 .accelerator.v1.ProviderBaselineR\bbaseline\x12<\n" +
-	"\tadmission\x18\t \x01(\x0e2\x1e.accelerator.v1.AdmissionStateR\tadmission\x12\x1d\n" +
+	"\tadmission\x18\t \x01(\x0e2\x1e.accelerator.v1.AdmissionStateR\tadmission\x12\x1e\n" +
 	"\n" +
 	"queue_name\x18\n" +
-	" \x01(\tR\tqueueName\x12\x18\n" +
-	"\aversion\x18\v \x01(\x04R\aversion\x12\x1d\n" +
+	" \x01(\tR\n" +
+	"queue_name\x12\x18\n" +
+	"\aversion\x18\v \x01(\x04R\aversion\x12\x1e\n" +
 	"\n" +
-	"adopted_at\x18\f \x01(\tR\tadoptedAt\"\xe9\x02\n" +
+	"adopted_at\x18\f \x01(\tR\n" +
+	"adopted_at\"\xed\x02\n" +
 	"\x17AdoptSupplyGroupRequest\x129\n" +
-	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x17\n" +
-	"\apool_id\x18\x02 \x01(\tR\x06poolId\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12.\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x18\n" +
+	"\apool_id\x18\x02 \x01(\tR\apool_id\x12\"\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\fdisplay_name\x12.\n" +
 	"\x04mode\x18\x04 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x12-\n" +
-	"\x05nodes\x18\x05 \x03(\v2\x17.accelerator.v1.NodeRefR\x05nodes\x12\x1b\n" +
-	"\tmodel_key\x18\x06 \x01(\tR\bmodelKey\x12<\n" +
-	"\bbaseline\x18\a \x01(\v2 .accelerator.v1.ProviderBaselineR\bbaseline\x12\x1d\n" +
+	"\x05nodes\x18\x05 \x03(\v2\x17.accelerator.v1.NodeRefR\x05nodes\x12\x1c\n" +
+	"\tmodel_key\x18\x06 \x01(\tR\tmodel_key\x12<\n" +
+	"\bbaseline\x18\a \x01(\v2 .accelerator.v1.ProviderBaselineR\bbaseline\x12\x1e\n" +
 	"\n" +
-	"queue_name\x18\b \x01(\tR\tqueueName\"\x91\x01\n" +
+	"queue_name\x18\b \x01(\tR\n" +
+	"queue_name\"\x92\x01\n" +
 	"\x17ListSupplyGroupsRequest\x123\n" +
-	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x17\n" +
-	"\apool_id\x18\x02 \x01(\tR\x06poolId\x12(\n" +
-	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"l\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x18\n" +
+	"\apool_id\x18\x02 \x01(\tR\apool_id\x12(\n" +
+	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"m\n" +
 	"\x18ListSupplyGroupsResponse\x121\n" +
-	"\x05items\x18\x01 \x03(\v2\x1b.accelerator.v1.SupplyGroupR\x05items\x12\x1d\n" +
+	"\x05items\x18\x01 \x03(\v2\x1b.accelerator.v1.SupplyGroupR\x05items\x12\x1e\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\"\xe8\x01\n" +
+	"next_token\x18\x02 \x01(\tR\n" +
+	"next_token\"\xea\x01\n" +
 	"\x13SetAdmissionRequest\x129\n" +
-	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x19\n" +
-	"\bgroup_id\x18\x02 \x01(\tR\agroupId\x12)\n" +
-	"\x10expected_version\x18\x03 \x01(\x04R\x0fexpectedVersion\x128\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x1a\n" +
+	"\bgroup_id\x18\x02 \x01(\tR\bgroup_id\x12*\n" +
+	"\x10expected_version\x18\x03 \x01(\x04R\x10expected_version\x128\n" +
 	"\adesired\x18\x04 \x01(\x0e2\x1e.accelerator.v1.AdmissionStateR\adesired\x12\x16\n" +
-	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xaf\x02\n" +
-	"\vProfileSpec\x12\x19\n" +
-	"\bgroup_id\x18\x01 \x01(\tR\agroupId\x12.\n" +
-	"\x04mode\x18\x02 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x12\x1b\n" +
-	"\tmodel_key\x18\x03 \x01(\tR\bmodelKey\x12*\n" +
-	"\x11shared_memory_mib\x18\x04 \x01(\x03R\x0fsharedMemoryMib\x12,\n" +
-	"\x12core_limit_percent\x18\x05 \x01(\rR\x10coreLimitPercent\x125\n" +
-	"\x17max_devices_per_replica\x18\x06 \x01(\rR\x14maxDevicesPerReplica\x12'\n" +
-	"\x0fisolation_class\x18\a \x01(\tR\x0eisolationClass\"\x88\x02\n" +
+	"\x06reason\x18\x05 \x01(\tR\x06reason\"\xda\x02\n" +
+	"\vProfileSpec\x12\x1a\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\bgroup_id\x12.\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x12\x1c\n" +
+	"\tmodel_key\x18\x03 \x01(\tR\tmodel_key\x124\n" +
+	"\x15memory_mib_per_device\x18\b \x01(\x03R\x15memory_mib_per_device\x12.\n" +
+	"\x12core_limit_percent\x18\x05 \x01(\rR\x12core_limit_percent\x128\n" +
+	"\x17max_devices_per_replica\x18\x06 \x01(\rR\x17max_devices_per_replica\x12(\n" +
+	"\x0fisolation_class\x18\a \x01(\tR\x0fisolation_classJ\x04\b\x04\x10\x05R\x11shared_memory_mib\"\xd0\x02\n" +
 	"\n" +
-	"GpuProfile\x12\x1d\n" +
+	"GpuProfile\x12\x1e\n" +
 	"\n" +
-	"profile_id\x18\x01 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x02 \x01(\x04R\x0eprofileVersion\x12!\n" +
-	"\fdisplay_name\x18\x03 \x01(\tR\vdisplayName\x12/\n" +
-	"\x04spec\x18\x04 \x01(\v2\x1b.accelerator.v1.ProfileSpecR\x04spec\x12\x1f\n" +
-	"\vbaseline_id\x18\x05 \x01(\tR\n" +
-	"baselineId\x12\x1f\n" +
-	"\vspec_digest\x18\x06 \x01(\tR\n" +
-	"specDigest\x12\x1c\n" +
-	"\tpublished\x18\a \x01(\bR\tpublished\"\x87\x02\n" +
-	"\x15PublishProfileRequest\x129\n" +
-	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12!\n" +
-	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12/\n" +
-	"\x04spec\x18\x03 \x01(\v2\x1b.accelerator.v1.ProfileSpecR\x04spec\x124\n" +
-	"\x16expected_group_version\x18\x04 \x01(\x04R\x14expectedGroupVersion\x12)\n" +
-	"\x10verification_ref\x18\x05 \x01(\tR\x0fverificationRef\"\xc7\x01\n" +
+	"profile_id\x18\x01 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x02 \x01(\x04R\x0fprofile_version\x12\"\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\fdisplay_name\x12/\n" +
+	"\x04spec\x18\x04 \x01(\v2\x1b.accelerator.v1.ProfileSpecR\x04spec\x12 \n" +
+	"\vbaseline_id\x18\x05 \x01(\tR\vbaseline_id\x12 \n" +
+	"\vspec_digest\x18\x06 \x01(\tR\vspec_digest\x122\n" +
+	"\x05state\x18\b \x01(\x0e2\x1c.accelerator.v1.ProfileStateR\x05state\x12\x1a\n" +
+	"\brevision\x18\t \x01(\x04R\brevisionJ\x04\b\a\x10\bR\tpublished\"\xf6\x01\n" +
+	"\x14CreateProfileRequest\x129\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\"\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\fdisplay_name\x12/\n" +
+	"\x04spec\x18\x03 \x01(\v2\x1b.accelerator.v1.ProfileSpecR\x04spec\x126\n" +
+	"\x16expected_group_version\x18\x04 \x01(\x04R\x16expected_group_versionJ\x04\b\x05\x10\x06R\x10verification_ref\"\xc8\x01\n" +
 	"\x13ListProfilesRequest\x127\n" +
-	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12.\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12.\n" +
 	"\x04mode\x18\x03 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x12(\n" +
-	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\x9d\x01\n" +
+	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\x9e\x01\n" +
 	"\x14ListProfilesResponse\x120\n" +
-	"\x05items\x18\x01 \x03(\v2\x1a.accelerator.v1.GpuProfileR\x05items\x12\x1d\n" +
+	"\x05items\x18\x01 \x03(\v2\x1a.accelerator.v1.GpuProfileR\x05items\x12\x1e\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\x124\n" +
-	"\x06scopes\x18\x03 \x03(\v2\x1c.accelerator.v1.ProfileScopeR\x06scopes\"\xaf\x01\n" +
-	"\fProfileScope\x12\x1d\n" +
+	"next_token\x18\x02 \x01(\tR\n" +
+	"next_token\x124\n" +
+	"\x06scopes\x18\x03 \x03(\v2\x1c.accelerator.v1.ProfileScopeR\x06scopes\"\xb4\x01\n" +
+	"\fProfileScope\x12\x1e\n" +
 	"\n" +
-	"profile_id\x18\x01 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x02 \x01(\x04R\x0eprofileVersion\x12\x1f\n" +
-	"\vspec_digest\x18\x03 \x01(\tR\n" +
-	"specDigest\x12\x1d\n" +
+	"profile_id\x18\x01 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x02 \x01(\x04R\x0fprofile_version\x12 \n" +
+	"\vspec_digest\x18\x03 \x01(\tR\vspec_digest\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x04 \x01(\tR\tclusterId\x12\x17\n" +
-	"\apool_id\x18\x05 \x01(\tR\x06poolId\"\x98\x01\n" +
+	"cluster_id\x18\x04 \x01(\tR\n" +
+	"cluster_id\x12\x18\n" +
+	"\apool_id\x18\x05 \x01(\tR\apool_id\"\x99\x01\n" +
 	"\x18AdminListProfilesRequest\x123\n" +
-	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12(\n" +
-	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\x94\x01\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12(\n" +
+	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\x96\x01\n" +
 	"\x11GetProfileRequest\x127\n" +
-	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12\x1e\n" +
 	"\n" +
-	"profile_id\x18\x02 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x03 \x01(\x04R\x0eprofileVersion\"\xff\x01\n" +
+	"profile_id\x18\x02 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x03 \x01(\x04R\x0fprofile_version\"\x86\x02\n" +
 	"\n" +
-	"GpuRequest\x12\x1d\n" +
+	"GpuRequest\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12\x17\n" +
-	"\apool_id\x18\x02 \x01(\tR\x06poolId\x12\x1d\n" +
+	"cluster_id\x18\x01 \x01(\tR\n" +
+	"cluster_id\x12\x18\n" +
+	"\apool_id\x18\x02 \x01(\tR\apool_id\x12\x1e\n" +
 	"\n" +
-	"profile_id\x18\x03 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x04 \x01(\x04R\x0eprofileVersion\x12\x1a\n" +
-	"\breplicas\x18\x05 \x01(\rR\breplicas\x12.\n" +
-	"\x13devices_per_replica\x18\x06 \x01(\rR\x11devicesPerReplica\x12%\n" +
-	"\x0econtainer_name\x18\a \x01(\tR\rcontainerName\"\xe4\x01\n" +
-	"\x0eMemoryEncoding\x12(\n" +
-	"\x10memory_block_mib\x18\x01 \x01(\rR\x0ememoryBlockMib\x127\n" +
-	"\x18memory_blocks_per_device\x18\x02 \x01(\x03R\x15memoryBlocksPerDevice\x12*\n" +
-	"\x11shared_memory_mib\x18\x03 \x01(\x03R\x0fsharedMemoryMib\x12+\n" +
-	"\x11memory_percentage\x18\x04 \x01(\rR\x10memoryPercentage\x12\x16\n" +
-	"\x06policy\x18\x05 \x01(\tR\x06policy\"\xa4\x01\n" +
-	"\x0eResourceTotals\x120\n" +
-	"\x14logical_device_count\x18\x01 \x01(\x03R\x12logicalDeviceCount\x124\n" +
-	"\x16exclusive_device_count\x18\x02 \x01(\x03R\x14exclusiveDeviceCount\x12*\n" +
-	"\x11shared_memory_mib\x18\x03 \x01(\x03R\x0fsharedMemoryMib\"\xf6\x02\n" +
-	"\x0fRuntimeFragment\x12%\n" +
-	"\x0escheduler_name\x18\x01 \x01(\tR\rschedulerName\x12\x1d\n" +
+	"profile_id\x18\x03 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x04 \x01(\x04R\x0fprofile_version\x12\x1a\n" +
+	"\breplicas\x18\x05 \x01(\rR\breplicas\x120\n" +
+	"\x13devices_per_replica\x18\x06 \x01(\rR\x13devices_per_replica\x12&\n" +
+	"\x0econtainer_name\x18\a \x01(\tR\x0econtainer_name\"\xf1\x04\n" +
+	"\fGpuExecution\x12&\n" +
+	"\x0escheduler_name\x18\x01 \x01(\tR\x0escheduler_name\x12\x1e\n" +
 	"\n" +
-	"queue_name\x18\x02 \x01(\tR\tqueueName\x129\n" +
-	"\vnode_labels\x18\x03 \x03(\v2\x18.accelerator.v1.KeyValueR\n" +
-	"nodeLabels\x12A\n" +
-	"\x0fpod_annotations\x18\x04 \x03(\v2\x18.accelerator.v1.KeyValueR\x0epodAnnotations\x12J\n" +
-	"\x14limits_per_container\x18\x05 \x03(\v2\x18.accelerator.v1.KeyValueR\x12limitsPerContainer\x12,\n" +
-	"\x12runtime_class_name\x18\x06 \x01(\tR\x10runtimeClassName\x12%\n" +
-	"\x0erecipe_version\x18\a \x01(\tR\rrecipeVersion\"\xa9\x03\n" +
-	"\x0fResolvedGpuPlan\x12%\n" +
-	"\x0eschema_version\x18\x01 \x01(\rR\rschemaVersion\x124\n" +
-	"\arequest\x18\x02 \x01(\v2\x1a.accelerator.v1.GpuRequestR\arequest\x124\n" +
-	"\aprofile\x18\x03 \x01(\v2\x1a.accelerator.v1.GpuProfileR\aprofile\x12:\n" +
-	"\bencoding\x18\x04 \x01(\v2\x1e.accelerator.v1.MemoryEncodingR\bencoding\x126\n" +
-	"\x06totals\x18\x05 \x01(\v2\x1e.accelerator.v1.ResourceTotalsR\x06totals\x129\n" +
-	"\aruntime\x18\x06 \x01(\v2\x1f.accelerator.v1.RuntimeFragmentR\aruntime\x12'\n" +
-	"\x0fbaseline_digest\x18\a \x01(\tR\x0ebaselineDigest\x12+\n" +
-	"\x11resolution_digest\x18\b \x01(\tR\x10resolutionDigest\"\x81\x01\n" +
+	"queue_name\x18\x02 \x01(\tR\n" +
+	"queue_name\x12.\n" +
+	"\x12runtime_class_name\x18\x03 \x01(\tR\x12runtime_class_name\x12T\n" +
+	"\rnode_selector\x18\x04 \x03(\v2..accelerator.v1.GpuExecution.NodeSelectorEntryR\rnode_selector\x12Z\n" +
+	"\x0fpod_annotations\x18\x05 \x03(\v20.accelerator.v1.GpuExecution.PodAnnotationsEntryR\x0fpod_annotations\x12I\n" +
+	"\tresources\x18\x06 \x03(\v2+.accelerator.v1.GpuExecution.ResourcesEntryR\tresources\x12*\n" +
+	"\x10execution_digest\x18\a \x01(\tR\x10execution_digest\x1a?\n" +
+	"\x11NodeSelectorEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1aA\n" +
+	"\x13PodAnnotationsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\x1a<\n" +
+	"\x0eResourcesEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xc8\x01\n" +
+	"\n" +
+	"GpuDisplay\x12\x1e\n" +
+	"\n" +
+	"profile_id\x18\x01 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x02 \x01(\x04R\x0fprofile_version\x12\"\n" +
+	"\fprofile_name\x18\x03 \x01(\tR\fprofile_name\x12\x1c\n" +
+	"\tmodel_key\x18\x04 \x01(\tR\tmodel_key\x12.\n" +
+	"\x04mode\x18\x05 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\"D\n" +
+	"\fGpuQuotaItem\x12\x1e\n" +
+	"\n" +
+	"quota_code\x18\x01 \x01(\tR\n" +
+	"quota_code\x12\x14\n" +
+	"\x05units\x18\x02 \x01(\x03R\x05units\"\xca\x01\n" +
+	"\x12ResolvedGpuRequest\x12:\n" +
+	"\texecution\x18\x01 \x01(\v2\x1c.accelerator.v1.GpuExecutionR\texecution\x12>\n" +
+	"\vquota_items\x18\x02 \x03(\v2\x1c.accelerator.v1.GpuQuotaItemR\vquota_items\x128\n" +
+	"\tselection\x18\x03 \x01(\v2\x1a.accelerator.v1.GpuDisplayR\tselection\"~\n" +
+	"\x15PreviewProfileRequest\x123\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1a\n" +
+	"\bgroup_id\x18\x02 \x01(\tR\bgroup_id\x12\x14\n" +
+	"\x05parts\x18\x03 \x01(\rR\x05parts\"\x9d\x01\n" +
+	"\x0eProfilePreview\x12/\n" +
+	"\x04spec\x18\x01 \x01(\v2\x1b.accelerator.v1.ProfileSpecR\x04spec\x12,\n" +
+	"\x11unused_memory_mib\x18\x02 \x01(\x03R\x11unused_memory_mib\x12,\n" +
+	"\x11unused_core_units\x18\x03 \x01(\rR\x11unused_core_units\"\xd9\x01\n" +
+	"\x16SetProfileStateRequest\x129\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x1e\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\n" +
+	"profile_id\x12,\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x11expected_revision\x126\n" +
+	"\adesired\x18\x04 \x01(\x0e2\x1c.accelerator.v1.ProfileStateR\adesired\"\x9f\x01\n" +
+	"\x14DeleteProfileRequest\x129\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\x1e\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\n" +
+	"profile_id\x12,\n" +
+	"\x11expected_revision\x18\x03 \x01(\x04R\x11expected_revision\"\x81\x01\n" +
 	"\x18ResolveGpuRequestRequest\x127\n" +
 	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12,\n" +
-	"\x03gpu\x18\x02 \x01(\v2\x1a.accelerator.v1.GpuRequestR\x03gpu\"\xdb\x03\n" +
-	"\x0eDeviceCapacity\x12\x1b\n" +
-	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12#\n" +
-	"\rnominal_units\x18\x02 \x01(\x03R\fnominalUnits\x122\n" +
-	"\x15known_committed_units\x18\x03 \x01(\x03R\x13knownCommittedUnits\x12(\n" +
-	"\x10known_free_units\x18\x04 \x01(\x03R\x0eknownFreeUnits\x123\n" +
-	"\x16safe_memory_budget_mib\x18\x05 \x01(\x03R\x13safeMemoryBudgetMib\x120\n" +
-	"\x14committed_memory_mib\x18\x06 \x01(\x03R\x12committedMemoryMib\x124\n" +
-	"\x16provider_memory_blocks\x18\a \x01(\x03R\x14providerMemoryBlocks\x12(\n" +
-	"\x10memory_block_mib\x18\b \x01(\rR\x0ememoryBlockMib\x12.\n" +
-	"\x13reported_memory_mib\x18\t \x01(\x03R\x11reportedMemoryMib\x12\x1a\n" +
+	"\x03gpu\x18\x02 \x01(\v2\x1a.accelerator.v1.GpuRequestR\x03gpu\"\xec\x03\n" +
+	"\x0eDeviceCapacity\x12\x1c\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\tdevice_id\x12$\n" +
+	"\rnominal_units\x18\x02 \x01(\x03R\rnominal_units\x124\n" +
+	"\x15known_committed_units\x18\x03 \x01(\x03R\x15known_committed_units\x12*\n" +
+	"\x10known_free_units\x18\x04 \x01(\x03R\x10known_free_units\x126\n" +
+	"\x16safe_memory_budget_mib\x18\x05 \x01(\x03R\x16safe_memory_budget_mib\x122\n" +
+	"\x14committed_memory_mib\x18\x06 \x01(\x03R\x14committed_memory_mib\x126\n" +
+	"\x16provider_memory_blocks\x18\a \x01(\x03R\x16provider_memory_blocks\x12*\n" +
+	"\x10memory_block_mib\x18\b \x01(\rR\x10memory_block_mib\x120\n" +
+	"\x13reported_memory_mib\x18\t \x01(\x03R\x13reported_memory_mib\x12\x1a\n" +
 	"\bcomplete\x18\n" +
 	" \x01(\bR\bcomplete\x12\x16\n" +
-	"\x06issues\x18\v \x03(\tR\x06issues\"\xf0\x03\n" +
-	"\fCapacityView\x12\x1d\n" +
+	"\x06issues\x18\v \x03(\tR\x06issues\"\xfb\x03\n" +
+	"\fCapacityView\x12\x1e\n" +
 	"\n" +
-	"profile_id\x18\x01 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x02 \x01(\x04R\x0eprofileVersion\x12.\n" +
-	"\x04mode\x18\x03 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x122\n" +
-	"\x15physical_device_count\x18\x04 \x01(\x03R\x13physicalDeviceCount\x12#\n" +
-	"\rnominal_units\x18\x05 \x01(\x03R\fnominalUnits\x122\n" +
-	"\x15known_committed_units\x18\x06 \x01(\x03R\x13knownCommittedUnits\x12(\n" +
-	"\x10known_free_units\x18\a \x01(\x03R\x0eknownFreeUnits\x128\n" +
-	"\x18unplaced_requested_units\x18\b \x01(\x03R\x16unplacedRequestedUnits\x12=\n" +
+	"profile_id\x18\x01 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x02 \x01(\x04R\x0fprofile_version\x12.\n" +
+	"\x04mode\x18\x03 \x01(\x0e2\x1a.accelerator.v1.SupplyModeR\x04mode\x124\n" +
+	"\x15physical_device_count\x18\x04 \x01(\x03R\x15physical_device_count\x12$\n" +
+	"\rnominal_units\x18\x05 \x01(\x03R\rnominal_units\x124\n" +
+	"\x15known_committed_units\x18\x06 \x01(\x03R\x15known_committed_units\x12*\n" +
+	"\x10known_free_units\x18\a \x01(\x03R\x10known_free_units\x12:\n" +
+	"\x18unplaced_requested_units\x18\b \x01(\x03R\x18unplaced_requested_units\x12=\n" +
 	"\vobservation\x18\t \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\x128\n" +
 	"\adevices\x18\n" +
-	" \x03(\v2\x1e.accelerator.v1.DeviceCapacityR\adevices\"\x95\x01\n" +
+	" \x03(\v2\x1e.accelerator.v1.DeviceCapacityR\adevices\"\x97\x01\n" +
 	"\x12GetCapacityRequest\x127\n" +
-	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12\x1e\n" +
 	"\n" +
-	"profile_id\x18\x02 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x03 \x01(\x04R\x0eprofileVersion\"\xbf\x01\n" +
+	"profile_id\x18\x02 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x03 \x01(\x04R\x0fprofile_version\"\xc2\x01\n" +
 	"\x17AdminGetCapacityRequest\x123\n" +
-	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1e\n" +
 	"\n" +
-	"profile_id\x18\x02 \x01(\tR\tprofileId\x12'\n" +
-	"\x0fprofile_version\x18\x03 \x01(\x04R\x0eprofileVersion\x12'\n" +
-	"\x0finclude_devices\x18\x04 \x01(\bR\x0eincludeDevices\"\xea\x01\n" +
+	"profile_id\x18\x02 \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\x03 \x01(\x04R\x0fprofile_version\x12(\n" +
+	"\x0finclude_devices\x18\x04 \x01(\bR\x0finclude_devices\"\xec\x01\n" +
 	"\x06GpuFit\x121\n" +
-	"\x06status\x18\x01 \x01(\x0e2\x19.accelerator.v1.FitStatusR\x06status\x12-\n" +
-	"\x12estimated_replicas\x18\x02 \x01(\x03R\x11estimatedReplicas\x12%\n" +
-	"\x0eestimate_known\x18\x03 \x01(\bR\restimateKnown\x12\x18\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x19.accelerator.v1.FitStatusR\x06status\x12.\n" +
+	"\x12estimated_replicas\x18\x02 \x01(\x03R\x12estimated_replicas\x12&\n" +
+	"\x0eestimate_known\x18\x03 \x01(\bR\x0eestimate_known\x12\x18\n" +
 	"\areasons\x18\x04 \x03(\tR\areasons\x12=\n" +
 	"\vobservation\x18\x05 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"{\n" +
 	"\x12CheckGpuFitRequest\x127\n" +
 	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12,\n" +
-	"\x03gpu\x18\x02 \x01(\v2\x1a.accelerator.v1.GpuRequestR\x03gpu\"\xe6\x02\n" +
-	"\x0ePhysicalDevice\x12\x1b\n" +
-	"\tdevice_id\x18\x01 \x01(\tR\bdeviceId\x12\x1d\n" +
+	"\x03gpu\x18\x02 \x01(\v2\x1a.accelerator.v1.GpuRequestR\x03gpu\"\xee\x02\n" +
+	"\x0ePhysicalDevice\x12\x1c\n" +
+	"\tdevice_id\x18\x01 \x01(\tR\tdevice_id\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12\x19\n" +
-	"\bgroup_id\x18\x03 \x01(\tR\agroupId\x12+\n" +
-	"\x04node\x18\x04 \x01(\v2\x17.accelerator.v1.NodeRefR\x04node\x12(\n" +
-	"\x10vendor_device_id\x18\x05 \x01(\tR\x0evendorDeviceId\x12\x1b\n" +
-	"\tmodel_key\x18\x06 \x01(\tR\bmodelKey\x122\n" +
-	"\x15physical_memory_bytes\x18\a \x01(\x04R\x13physicalMemoryBytes\x12\x16\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12\x1a\n" +
+	"\bgroup_id\x18\x03 \x01(\tR\bgroup_id\x12+\n" +
+	"\x04node\x18\x04 \x01(\v2\x17.accelerator.v1.NodeRefR\x04node\x12*\n" +
+	"\x10vendor_device_id\x18\x05 \x01(\tR\x10vendor_device_id\x12\x1c\n" +
+	"\tmodel_key\x18\x06 \x01(\tR\tmodel_key\x124\n" +
+	"\x15physical_memory_bytes\x18\a \x01(\x04R\x15physical_memory_bytes\x12\x16\n" +
 	"\x06health\x18\b \x01(\tR\x06health\x12=\n" +
-	"\vobservation\x18\t \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\xad\x01\n" +
+	"\vobservation\x18\t \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\xaf\x01\n" +
 	"\x12ListDevicesRequest\x123\n" +
-	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12\x19\n" +
-	"\bgroup_id\x18\x03 \x01(\tR\agroupId\x12(\n" +
-	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"j\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12\x1a\n" +
+	"\bgroup_id\x18\x03 \x01(\tR\bgroup_id\x12(\n" +
+	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"k\n" +
 	"\x13ListDevicesResponse\x124\n" +
-	"\x05items\x18\x01 \x03(\v2\x1e.accelerator.v1.PhysicalDeviceR\x05items\x12\x1d\n" +
+	"\x05items\x18\x01 \x03(\v2\x1e.accelerator.v1.PhysicalDeviceR\x05items\x12\x1e\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\"\xa0\x01\n" +
-	"\vGpuUsageRef\x12\x1b\n" +
-	"\ttenant_id\x18\x01 \x01(\tR\btenantId\x12#\n" +
-	"\rowner_service\x18\x02 \x01(\tR\fownerService\x12\x1f\n" +
-	"\vresource_id\x18\x03 \x01(\tR\n" +
-	"resourceId\x12.\n" +
-	"\x13create_operation_id\x18\x04 \x01(\tR\x11createOperationId\"\x93\x03\n" +
+	"next_token\x18\x02 \x01(\tR\n" +
+	"next_token\"\xa5\x01\n" +
+	"\vGpuUsageRef\x12\x1c\n" +
+	"\ttenant_id\x18\x01 \x01(\tR\ttenant_id\x12$\n" +
+	"\rowner_service\x18\x02 \x01(\tR\rowner_service\x12 \n" +
+	"\vresource_id\x18\x03 \x01(\tR\vresource_id\x120\n" +
+	"\x13create_operation_id\x18\x04 \x01(\tR\x13create_operation_id\"\xed\x04\n" +
 	"\x12GpuUsageProjection\x12-\n" +
 	"\x03ref\x18\x01 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x12\x1a\n" +
 	"\brevision\x18\x02 \x01(\x04R\brevision\x120\n" +
-	"\x05state\x18\x03 \x01(\x0e2\x1a.accelerator.v1.UsageStateR\x05state\x123\n" +
-	"\x04plan\x18\x04 \x01(\v2\x1f.accelerator.v1.ResolvedGpuPlanR\x04plan\x12=\n" +
+	"\x05state\x18\x03 \x01(\x0e2\x1a.accelerator.v1.UsageStateR\x05state\x12\x1e\n" +
 	"\n" +
-	"end_reason\x18\x05 \x01(\x0e2\x1e.accelerator.v1.UsageEndReasonR\tendReason\x12&\n" +
-	"\x0fsource_fact_ref\x18\x06 \x01(\tR\rsourceFactRef\x12=\n" +
-	"\x1bsource_operation_created_at\x18\a \x01(\tR\x18sourceOperationCreatedAt\x12%\n" +
-	"\x0epayload_digest\x18\b \x01(\tR\rpayloadDigest\"x\n" +
-	"\x13SyncGpuUsageRequest\x12\x1d\n" +
+	"profile_id\x18\n" +
+	" \x01(\tR\n" +
+	"profile_id\x12(\n" +
+	"\x0fprofile_version\x18\v \x01(\x04R\x0fprofile_version\x12\x1a\n" +
+	"\bgroup_id\x18\f \x01(\tR\bgroup_id\x12 \n" +
+	"\vbaseline_id\x18\r \x01(\tR\vbaseline_id\x12\x1e\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12B\n" +
+	"cluster_id\x18\x0e \x01(\tR\n" +
+	"cluster_id\x12&\n" +
+	"\x0econtainer_name\x18\x0f \x01(\tR\x0econtainer_name\x12*\n" +
+	"\x10execution_digest\x18\x10 \x01(\tR\x10execution_digest\x12>\n" +
+	"\n" +
+	"end_reason\x18\x05 \x01(\x0e2\x1e.accelerator.v1.UsageEndReasonR\n" +
+	"end_reason\x12(\n" +
+	"\x0fsource_fact_ref\x18\x06 \x01(\tR\x0fsource_fact_ref\x12@\n" +
+	"\x1bsource_operation_created_at\x18\a \x01(\tR\x1bsource_operation_created_at\x12&\n" +
+	"\x0epayload_digest\x18\b \x01(\tR\x0epayload_digestJ\x04\b\x04\x10\x05R\x04plan\"y\n" +
+	"\x13SyncGpuUsageRequest\x12\x1e\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\n" +
+	"request_id\x12B\n" +
 	"\n" +
 	"projection\x18\x02 \x01(\v2\".accelerator.v1.GpuUsageProjectionR\n" +
-	"projection\"\xbe\x01\n" +
+	"projection\"\xbf\x01\n" +
 	"\x14SyncGpuUsageResponse\x12-\n" +
-	"\x03ref\x18\x01 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x12)\n" +
-	"\x10applied_revision\x18\x02 \x01(\x04R\x0fappliedRevision\x120\n" +
+	"\x03ref\x18\x01 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x12*\n" +
+	"\x10applied_revision\x18\x02 \x01(\x04R\x10applied_revision\x120\n" +
 	"\x05state\x18\x03 \x01(\x0e2\x1a.accelerator.v1.UsageStateR\x05state\x12\x1a\n" +
 	"\breplayed\x18\x04 \x01(\bR\breplayed\"|\n" +
 	"\x12GetGpuUsageRequest\x127\n" +
 	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12-\n" +
-	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\"\xd0\x01\n" +
+	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\"\xd1\x01\n" +
 	"\x14ListGpuUsagesRequest\x127\n" +
-	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12#\n" +
-	"\rowner_service\x18\x02 \x01(\tR\fownerService\x120\n" +
+	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12$\n" +
+	"\rowner_service\x18\x02 \x01(\tR\rowner_service\x120\n" +
 	"\x05state\x18\x03 \x01(\x0e2\x1a.accelerator.v1.UsageStateR\x05state\x12(\n" +
-	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"p\n" +
+	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"q\n" +
 	"\x15ListGpuUsagesResponse\x128\n" +
-	"\x05items\x18\x01 \x03(\v2\".accelerator.v1.GpuUsageProjectionR\x05items\x12\x1d\n" +
+	"\x05items\x18\x01 \x03(\v2\".accelerator.v1.GpuUsageProjectionR\x05items\x12\x1e\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\"\x92\x01\n" +
-	"\x06PodRef\x12\x1d\n" +
+	"next_token\x18\x02 \x01(\tR\n" +
+	"next_token\"\x94\x01\n" +
+	"\x06PodRef\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x01 \x01(\tR\tclusterId\x12\x1c\n" +
+	"cluster_id\x18\x01 \x01(\tR\n" +
+	"cluster_id\x12\x1c\n" +
 	"\tnamespace\x18\x02 \x01(\tR\tnamespace\x12\x12\n" +
 	"\x04name\x18\x03 \x01(\tR\x04name\x12\x10\n" +
-	"\x03uid\x18\x04 \x01(\tR\x03uid\x12%\n" +
-	"\x0econtainer_name\x18\x05 \x01(\tR\rcontainerName\"\xa1\x04\n" +
+	"\x03uid\x18\x04 \x01(\tR\x03uid\x12&\n" +
+	"\x0econtainer_name\x18\x05 \x01(\tR\x0econtainer_name\"\xaf\x04\n" +
 	"\n" +
-	"GpuBinding\x12\x1d\n" +
+	"GpuBinding\x12\x1e\n" +
 	"\n" +
-	"binding_id\x18\x01 \x01(\tR\tbindingId\x12I\n" +
-	"\x12verified_usage_ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x10verifiedUsageRef\x12(\n" +
-	"\x03pod\x18\x03 \x01(\v2\x16.accelerator.v1.PodRefR\x03pod\x12,\n" +
-	"\x12physical_device_id\x18\x04 \x01(\tR\x10physicalDeviceId\x125\n" +
-	"\x05state\x18\x05 \x01(\x0e2\x1f.accelerator.v1.AllocationStateR\x05state\x12\x1d\n" +
+	"binding_id\x18\x01 \x01(\tR\n" +
+	"binding_id\x12K\n" +
+	"\x12verified_usage_ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x12verified_usage_ref\x12(\n" +
+	"\x03pod\x18\x03 \x01(\v2\x16.accelerator.v1.PodRefR\x03pod\x12.\n" +
+	"\x12physical_device_id\x18\x04 \x01(\tR\x12physical_device_id\x125\n" +
+	"\x05state\x18\x05 \x01(\x0e2\x1f.accelerator.v1.AllocationStateR\x05state\x12\x1e\n" +
 	"\n" +
-	"memory_mib\x18\x06 \x01(\x03R\tmemoryMib\x12,\n" +
-	"\x12core_limit_percent\x18\a \x01(\rR\x10coreLimitPercent\x124\n" +
-	"\x16source_baseline_digest\x18\b \x01(\tR\x14sourceBaselineDigest\x125\n" +
-	"\x17source_memory_block_mib\x18\t \x01(\rR\x14sourceMemoryBlockMib\x12!\n" +
+	"memory_mib\x18\x06 \x01(\x03R\n" +
+	"memory_mib\x12.\n" +
+	"\x12core_limit_percent\x18\a \x01(\rR\x12core_limit_percent\x126\n" +
+	"\x16source_baseline_digest\x18\b \x01(\tR\x16source_baseline_digest\x128\n" +
+	"\x17source_memory_block_mib\x18\t \x01(\rR\x17source_memory_block_mib\x12\"\n" +
 	"\fevidence_ref\x18\n" +
-	" \x01(\tR\vevidenceRef\x12=\n" +
+	" \x01(\tR\fevidence_ref\x12=\n" +
 	"\vobservation\x18\v \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\xa7\x01\n" +
 	"\x13ListBindingsRequest\x127\n" +
 	"\acontext\x18\x01 \x01(\v2\x1d.accelerator.v1.TenantContextR\acontext\x12-\n" +
 	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x12(\n" +
-	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\xc6\x01\n" +
+	"\x04page\x18\x03 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\xc9\x01\n" +
 	"\x18AdminListBindingsRequest\x123\n" +
-	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1d\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1e\n" +
 	"\n" +
-	"cluster_id\x18\x02 \x01(\tR\tclusterId\x12,\n" +
-	"\x12physical_device_id\x18\x03 \x01(\tR\x10physicalDeviceId\x12(\n" +
-	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\xa6\x01\n" +
+	"cluster_id\x18\x02 \x01(\tR\n" +
+	"cluster_id\x12.\n" +
+	"\x12physical_device_id\x18\x03 \x01(\tR\x12physical_device_id\x12(\n" +
+	"\x04page\x18\x04 \x01(\v2\x14.accelerator.v1.PageR\x04page\"\xa7\x01\n" +
 	"\x14ListBindingsResponse\x120\n" +
-	"\x05items\x18\x01 \x03(\v2\x1a.accelerator.v1.GpuBindingR\x05items\x12\x1d\n" +
+	"\x05items\x18\x01 \x03(\v2\x1a.accelerator.v1.GpuBindingR\x05items\x12\x1e\n" +
 	"\n" +
-	"next_token\x18\x02 \x01(\tR\tnextToken\x12=\n" +
-	"\vobservation\x18\x03 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\xc1\x01\n" +
-	"\x15ObserveReleaseRequest\x12\x1d\n" +
+	"next_token\x18\x02 \x01(\tR\n" +
+	"next_token\x12=\n" +
+	"\vobservation\x18\x03 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\xc4\x01\n" +
+	"\x15ObserveReleaseRequest\x12\x1e\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tR\trequestId\x12-\n" +
-	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x12.\n" +
-	"\x13delete_operation_id\x18\x03 \x01(\tR\x11deleteOperationId\x12*\n" +
-	"\x04pods\x18\x04 \x03(\v2\x16.accelerator.v1.PodRefR\x04pods\"\xde\x02\n" +
-	"\x12ReleaseObservation\x12\x1f\n" +
-	"\vevidence_id\x18\x01 \x01(\tR\n" +
-	"evidenceId\x12-\n" +
+	"request_id\x18\x01 \x01(\tR\n" +
+	"request_id\x12-\n" +
+	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x120\n" +
+	"\x13delete_operation_id\x18\x03 \x01(\tR\x13delete_operation_id\x12*\n" +
+	"\x04pods\x18\x04 \x03(\v2\x16.accelerator.v1.PodRefR\x04pods\"\xe4\x02\n" +
+	"\x12ReleaseObservation\x12 \n" +
+	"\vevidence_id\x18\x01 \x01(\tR\vevidence_id\x12-\n" +
 	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x128\n" +
-	"\afinding\x18\x03 \x01(\x0e2\x1e.accelerator.v1.ReleaseFindingR\afinding\x12&\n" +
-	"\x0factive_pod_uids\x18\x04 \x03(\tR\ractivePodUids\x12.\n" +
-	"\x13uncertain_node_uids\x18\x05 \x03(\tR\x11uncertainNodeUids\x12=\n" +
-	"\vobservation\x18\x06 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\x12'\n" +
-	"\x0fevidence_digest\x18\a \x01(\tR\x0eevidenceDigest*P\n" +
+	"\afinding\x18\x03 \x01(\x0e2\x1e.accelerator.v1.ReleaseFindingR\afinding\x12(\n" +
+	"\x0factive_pod_uids\x18\x04 \x03(\tR\x0factive_pod_uids\x120\n" +
+	"\x13uncertain_node_uids\x18\x05 \x03(\tR\x13uncertain_node_uids\x12=\n" +
+	"\vobservation\x18\x06 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\x12(\n" +
+	"\x0fevidence_digest\x18\a \x01(\tR\x0fevidence_digest*P\n" +
 	"\n" +
 	"SupplyMode\x12\x1b\n" +
 	"\x17SUPPLY_MODE_UNSPECIFIED\x10\x00\x12\x13\n" +
@@ -5546,12 +5743,7 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\x0eAdmissionState\x12\x19\n" +
 	"\x15ADMISSION_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10ADMISSION_CLOSED\x10\x01\x12\x12\n" +
-	"\x0eADMISSION_OPEN\x10\x02*b\n" +
-	"\x11VerificationState\x12\x1c\n" +
-	"\x18VERIFICATION_UNSPECIFIED\x10\x00\x12\x10\n" +
-	"\fNOT_VERIFIED\x10\x01\x12\f\n" +
-	"\bVERIFIED\x10\x02\x12\x0f\n" +
-	"\vUNSUPPORTED\x10\x03*B\n" +
+	"\x0eADMISSION_OPEN\x10\x02*B\n" +
 	"\n" +
 	"UsageState\x12\x1b\n" +
 	"\x17USAGE_STATE_UNSPECIFIED\x10\x00\x12\f\n" +
@@ -5577,7 +5769,13 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\x1bRELEASE_FINDING_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ALLOCATION_RELEASED\x10\x01\x12\x1c\n" +
 	"\x18ALLOCATION_STILL_PRESENT\x10\x02\x12\x13\n" +
-	"\x0fRELEASE_UNKNOWN\x10\x032\xc6\b\n" +
+	"\x0fRELEASE_UNKNOWN\x10\x03*l\n" +
+	"\fProfileState\x12\x1d\n" +
+	"\x19PROFILE_STATE_UNSPECIFIED\x10\x00\x12\x12\n" +
+	"\x0ePROFILE_ACTIVE\x10\x01\x12\x14\n" +
+	"\x10PROFILE_DISABLED\x10\x02\x12\x13\n" +
+	"\x0fPROFILE_DELETED\x10\x032\xc7\n" +
+	"\n" +
 	"\x17AcceleratorAdminService\x12R\n" +
 	"\x0fRegisterCluster\x12&.accelerator.v1.RegisterClusterRequest\x1a\x17.accelerator.v1.Cluster\x12Y\n" +
 	"\fListClusters\x12#.accelerator.v1.ListClustersRequest\x1a$.accelerator.v1.ListClustersResponse\x12E\n" +
@@ -5586,17 +5784,20 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\tListPools\x12 .accelerator.v1.ListPoolsRequest\x1a!.accelerator.v1.ListPoolsResponse\x12X\n" +
 	"\x10AdoptSupplyGroup\x12'.accelerator.v1.AdoptSupplyGroupRequest\x1a\x1b.accelerator.v1.SupplyGroup\x12e\n" +
 	"\x10ListSupplyGroups\x12'.accelerator.v1.ListSupplyGroupsRequest\x1a(.accelerator.v1.ListSupplyGroupsResponse\x12P\n" +
-	"\fSetAdmission\x12#.accelerator.v1.SetAdmissionRequest\x1a\x1b.accelerator.v1.SupplyGroup\x12S\n" +
-	"\x0ePublishProfile\x12%.accelerator.v1.PublishProfileRequest\x1a\x1a.accelerator.v1.GpuProfile\x12c\n" +
+	"\fSetAdmission\x12#.accelerator.v1.SetAdmissionRequest\x1a\x1b.accelerator.v1.SupplyGroup\x12Q\n" +
+	"\rCreateProfile\x12$.accelerator.v1.CreateProfileRequest\x1a\x1a.accelerator.v1.GpuProfile\x12W\n" +
+	"\x0ePreviewProfile\x12%.accelerator.v1.PreviewProfileRequest\x1a\x1e.accelerator.v1.ProfilePreview\x12U\n" +
+	"\x0fSetProfileState\x12&.accelerator.v1.SetProfileStateRequest\x1a\x1a.accelerator.v1.GpuProfile\x12Q\n" +
+	"\rDeleteProfile\x12$.accelerator.v1.DeleteProfileRequest\x1a\x1a.accelerator.v1.GpuProfile\x12c\n" +
 	"\x11AdminListProfiles\x12(.accelerator.v1.AdminListProfilesRequest\x1a$.accelerator.v1.ListProfilesResponse\x12c\n" +
 	"\x11AdminListBindings\x12(.accelerator.v1.AdminListBindingsRequest\x1a$.accelerator.v1.ListBindingsResponse\x12V\n" +
 	"\vListDevices\x12\".accelerator.v1.ListDevicesRequest\x1a#.accelerator.v1.ListDevicesResponse\x12Y\n" +
-	"\x10AdminGetCapacity\x12'.accelerator.v1.AdminGetCapacityRequest\x1a\x1c.accelerator.v1.CapacityView2\xbf\x03\n" +
+	"\x10AdminGetCapacity\x12'.accelerator.v1.AdminGetCapacityRequest\x1a\x1c.accelerator.v1.CapacityView2\xc2\x03\n" +
 	"\x19AcceleratorCatalogService\x12Y\n" +
 	"\fListProfiles\x12#.accelerator.v1.ListProfilesRequest\x1a$.accelerator.v1.ListProfilesResponse\x12K\n" +
 	"\n" +
-	"GetProfile\x12!.accelerator.v1.GetProfileRequest\x1a\x1a.accelerator.v1.GpuProfile\x12^\n" +
-	"\x11ResolveGpuRequest\x12(.accelerator.v1.ResolveGpuRequestRequest\x1a\x1f.accelerator.v1.ResolvedGpuPlan\x12O\n" +
+	"GetProfile\x12!.accelerator.v1.GetProfileRequest\x1a\x1a.accelerator.v1.GpuProfile\x12a\n" +
+	"\x11ResolveGpuRequest\x12(.accelerator.v1.ResolveGpuRequestRequest\x1a\".accelerator.v1.ResolvedGpuRequest\x12O\n" +
 	"\vGetCapacity\x12\".accelerator.v1.GetCapacityRequest\x1a\x1c.accelerator.v1.CapacityView\x12I\n" +
 	"\vCheckGpuFit\x12\".accelerator.v1.CheckGpuFitRequest\x1a\x16.accelerator.v1.GpuFit2\xe1\x03\n" +
 	"\x17AcceleratorUsageService\x12Y\n" +
@@ -5619,16 +5820,16 @@ func file_accelerator_v1_accelerator_proto_rawDescGZIP() []byte {
 }
 
 var file_accelerator_v1_accelerator_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_accelerator_v1_accelerator_proto_msgTypes = make([]protoimpl.MessageInfo, 60)
+var file_accelerator_v1_accelerator_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
 var file_accelerator_v1_accelerator_proto_goTypes = []any{
 	(SupplyMode)(0),                  // 0: accelerator.v1.SupplyMode
 	(AdmissionState)(0),              // 1: accelerator.v1.AdmissionState
-	(VerificationState)(0),           // 2: accelerator.v1.VerificationState
-	(UsageState)(0),                  // 3: accelerator.v1.UsageState
-	(UsageEndReason)(0),              // 4: accelerator.v1.UsageEndReason
-	(AllocationState)(0),             // 5: accelerator.v1.AllocationState
-	(FitStatus)(0),                   // 6: accelerator.v1.FitStatus
-	(ReleaseFinding)(0),              // 7: accelerator.v1.ReleaseFinding
+	(UsageState)(0),                  // 2: accelerator.v1.UsageState
+	(UsageEndReason)(0),              // 3: accelerator.v1.UsageEndReason
+	(AllocationState)(0),             // 4: accelerator.v1.AllocationState
+	(FitStatus)(0),                   // 5: accelerator.v1.FitStatus
+	(ReleaseFinding)(0),              // 6: accelerator.v1.ReleaseFinding
+	(ProfileState)(0),                // 7: accelerator.v1.ProfileState
 	(*Actor)(nil),                    // 8: accelerator.v1.Actor
 	(*TenantContext)(nil),            // 9: accelerator.v1.TenantContext
 	(*AdminRead)(nil),                // 10: accelerator.v1.AdminRead
@@ -5636,201 +5837,215 @@ var file_accelerator_v1_accelerator_proto_goTypes = []any{
 	(*Page)(nil),                     // 12: accelerator.v1.Page
 	(*KeyValue)(nil),                 // 13: accelerator.v1.KeyValue
 	(*Observation)(nil),              // 14: accelerator.v1.Observation
-	(*Verification)(nil),             // 15: accelerator.v1.Verification
-	(*ProviderBaseline)(nil),         // 16: accelerator.v1.ProviderBaseline
-	(*NodeRef)(nil),                  // 17: accelerator.v1.NodeRef
-	(*Cluster)(nil),                  // 18: accelerator.v1.Cluster
-	(*RegisterClusterRequest)(nil),   // 19: accelerator.v1.RegisterClusterRequest
-	(*ListClustersRequest)(nil),      // 20: accelerator.v1.ListClustersRequest
-	(*ListClustersResponse)(nil),     // 21: accelerator.v1.ListClustersResponse
-	(*Pool)(nil),                     // 22: accelerator.v1.Pool
-	(*CreatePoolRequest)(nil),        // 23: accelerator.v1.CreatePoolRequest
-	(*ListPoolsRequest)(nil),         // 24: accelerator.v1.ListPoolsRequest
-	(*ListPoolsResponse)(nil),        // 25: accelerator.v1.ListPoolsResponse
-	(*SupplyGroup)(nil),              // 26: accelerator.v1.SupplyGroup
-	(*AdoptSupplyGroupRequest)(nil),  // 27: accelerator.v1.AdoptSupplyGroupRequest
-	(*ListSupplyGroupsRequest)(nil),  // 28: accelerator.v1.ListSupplyGroupsRequest
-	(*ListSupplyGroupsResponse)(nil), // 29: accelerator.v1.ListSupplyGroupsResponse
-	(*SetAdmissionRequest)(nil),      // 30: accelerator.v1.SetAdmissionRequest
-	(*ProfileSpec)(nil),              // 31: accelerator.v1.ProfileSpec
-	(*GpuProfile)(nil),               // 32: accelerator.v1.GpuProfile
-	(*PublishProfileRequest)(nil),    // 33: accelerator.v1.PublishProfileRequest
-	(*ListProfilesRequest)(nil),      // 34: accelerator.v1.ListProfilesRequest
-	(*ListProfilesResponse)(nil),     // 35: accelerator.v1.ListProfilesResponse
-	(*ProfileScope)(nil),             // 36: accelerator.v1.ProfileScope
-	(*AdminListProfilesRequest)(nil), // 37: accelerator.v1.AdminListProfilesRequest
-	(*GetProfileRequest)(nil),        // 38: accelerator.v1.GetProfileRequest
-	(*GpuRequest)(nil),               // 39: accelerator.v1.GpuRequest
-	(*MemoryEncoding)(nil),           // 40: accelerator.v1.MemoryEncoding
-	(*ResourceTotals)(nil),           // 41: accelerator.v1.ResourceTotals
-	(*RuntimeFragment)(nil),          // 42: accelerator.v1.RuntimeFragment
-	(*ResolvedGpuPlan)(nil),          // 43: accelerator.v1.ResolvedGpuPlan
-	(*ResolveGpuRequestRequest)(nil), // 44: accelerator.v1.ResolveGpuRequestRequest
-	(*DeviceCapacity)(nil),           // 45: accelerator.v1.DeviceCapacity
-	(*CapacityView)(nil),             // 46: accelerator.v1.CapacityView
-	(*GetCapacityRequest)(nil),       // 47: accelerator.v1.GetCapacityRequest
-	(*AdminGetCapacityRequest)(nil),  // 48: accelerator.v1.AdminGetCapacityRequest
-	(*GpuFit)(nil),                   // 49: accelerator.v1.GpuFit
-	(*CheckGpuFitRequest)(nil),       // 50: accelerator.v1.CheckGpuFitRequest
-	(*PhysicalDevice)(nil),           // 51: accelerator.v1.PhysicalDevice
-	(*ListDevicesRequest)(nil),       // 52: accelerator.v1.ListDevicesRequest
-	(*ListDevicesResponse)(nil),      // 53: accelerator.v1.ListDevicesResponse
-	(*GpuUsageRef)(nil),              // 54: accelerator.v1.GpuUsageRef
-	(*GpuUsageProjection)(nil),       // 55: accelerator.v1.GpuUsageProjection
-	(*SyncGpuUsageRequest)(nil),      // 56: accelerator.v1.SyncGpuUsageRequest
-	(*SyncGpuUsageResponse)(nil),     // 57: accelerator.v1.SyncGpuUsageResponse
-	(*GetGpuUsageRequest)(nil),       // 58: accelerator.v1.GetGpuUsageRequest
-	(*ListGpuUsagesRequest)(nil),     // 59: accelerator.v1.ListGpuUsagesRequest
-	(*ListGpuUsagesResponse)(nil),    // 60: accelerator.v1.ListGpuUsagesResponse
-	(*PodRef)(nil),                   // 61: accelerator.v1.PodRef
-	(*GpuBinding)(nil),               // 62: accelerator.v1.GpuBinding
-	(*ListBindingsRequest)(nil),      // 63: accelerator.v1.ListBindingsRequest
-	(*AdminListBindingsRequest)(nil), // 64: accelerator.v1.AdminListBindingsRequest
-	(*ListBindingsResponse)(nil),     // 65: accelerator.v1.ListBindingsResponse
-	(*ObserveReleaseRequest)(nil),    // 66: accelerator.v1.ObserveReleaseRequest
-	(*ReleaseObservation)(nil),       // 67: accelerator.v1.ReleaseObservation
+	(*ProviderBaseline)(nil),         // 15: accelerator.v1.ProviderBaseline
+	(*NodeRef)(nil),                  // 16: accelerator.v1.NodeRef
+	(*Cluster)(nil),                  // 17: accelerator.v1.Cluster
+	(*RegisterClusterRequest)(nil),   // 18: accelerator.v1.RegisterClusterRequest
+	(*ListClustersRequest)(nil),      // 19: accelerator.v1.ListClustersRequest
+	(*ListClustersResponse)(nil),     // 20: accelerator.v1.ListClustersResponse
+	(*Pool)(nil),                     // 21: accelerator.v1.Pool
+	(*CreatePoolRequest)(nil),        // 22: accelerator.v1.CreatePoolRequest
+	(*ListPoolsRequest)(nil),         // 23: accelerator.v1.ListPoolsRequest
+	(*ListPoolsResponse)(nil),        // 24: accelerator.v1.ListPoolsResponse
+	(*SupplyGroup)(nil),              // 25: accelerator.v1.SupplyGroup
+	(*AdoptSupplyGroupRequest)(nil),  // 26: accelerator.v1.AdoptSupplyGroupRequest
+	(*ListSupplyGroupsRequest)(nil),  // 27: accelerator.v1.ListSupplyGroupsRequest
+	(*ListSupplyGroupsResponse)(nil), // 28: accelerator.v1.ListSupplyGroupsResponse
+	(*SetAdmissionRequest)(nil),      // 29: accelerator.v1.SetAdmissionRequest
+	(*ProfileSpec)(nil),              // 30: accelerator.v1.ProfileSpec
+	(*GpuProfile)(nil),               // 31: accelerator.v1.GpuProfile
+	(*CreateProfileRequest)(nil),     // 32: accelerator.v1.CreateProfileRequest
+	(*ListProfilesRequest)(nil),      // 33: accelerator.v1.ListProfilesRequest
+	(*ListProfilesResponse)(nil),     // 34: accelerator.v1.ListProfilesResponse
+	(*ProfileScope)(nil),             // 35: accelerator.v1.ProfileScope
+	(*AdminListProfilesRequest)(nil), // 36: accelerator.v1.AdminListProfilesRequest
+	(*GetProfileRequest)(nil),        // 37: accelerator.v1.GetProfileRequest
+	(*GpuRequest)(nil),               // 38: accelerator.v1.GpuRequest
+	(*GpuExecution)(nil),             // 39: accelerator.v1.GpuExecution
+	(*GpuDisplay)(nil),               // 40: accelerator.v1.GpuDisplay
+	(*GpuQuotaItem)(nil),             // 41: accelerator.v1.GpuQuotaItem
+	(*ResolvedGpuRequest)(nil),       // 42: accelerator.v1.ResolvedGpuRequest
+	(*PreviewProfileRequest)(nil),    // 43: accelerator.v1.PreviewProfileRequest
+	(*ProfilePreview)(nil),           // 44: accelerator.v1.ProfilePreview
+	(*SetProfileStateRequest)(nil),   // 45: accelerator.v1.SetProfileStateRequest
+	(*DeleteProfileRequest)(nil),     // 46: accelerator.v1.DeleteProfileRequest
+	(*ResolveGpuRequestRequest)(nil), // 47: accelerator.v1.ResolveGpuRequestRequest
+	(*DeviceCapacity)(nil),           // 48: accelerator.v1.DeviceCapacity
+	(*CapacityView)(nil),             // 49: accelerator.v1.CapacityView
+	(*GetCapacityRequest)(nil),       // 50: accelerator.v1.GetCapacityRequest
+	(*AdminGetCapacityRequest)(nil),  // 51: accelerator.v1.AdminGetCapacityRequest
+	(*GpuFit)(nil),                   // 52: accelerator.v1.GpuFit
+	(*CheckGpuFitRequest)(nil),       // 53: accelerator.v1.CheckGpuFitRequest
+	(*PhysicalDevice)(nil),           // 54: accelerator.v1.PhysicalDevice
+	(*ListDevicesRequest)(nil),       // 55: accelerator.v1.ListDevicesRequest
+	(*ListDevicesResponse)(nil),      // 56: accelerator.v1.ListDevicesResponse
+	(*GpuUsageRef)(nil),              // 57: accelerator.v1.GpuUsageRef
+	(*GpuUsageProjection)(nil),       // 58: accelerator.v1.GpuUsageProjection
+	(*SyncGpuUsageRequest)(nil),      // 59: accelerator.v1.SyncGpuUsageRequest
+	(*SyncGpuUsageResponse)(nil),     // 60: accelerator.v1.SyncGpuUsageResponse
+	(*GetGpuUsageRequest)(nil),       // 61: accelerator.v1.GetGpuUsageRequest
+	(*ListGpuUsagesRequest)(nil),     // 62: accelerator.v1.ListGpuUsagesRequest
+	(*ListGpuUsagesResponse)(nil),    // 63: accelerator.v1.ListGpuUsagesResponse
+	(*PodRef)(nil),                   // 64: accelerator.v1.PodRef
+	(*GpuBinding)(nil),               // 65: accelerator.v1.GpuBinding
+	(*ListBindingsRequest)(nil),      // 66: accelerator.v1.ListBindingsRequest
+	(*AdminListBindingsRequest)(nil), // 67: accelerator.v1.AdminListBindingsRequest
+	(*ListBindingsResponse)(nil),     // 68: accelerator.v1.ListBindingsResponse
+	(*ObserveReleaseRequest)(nil),    // 69: accelerator.v1.ObserveReleaseRequest
+	(*ReleaseObservation)(nil),       // 70: accelerator.v1.ReleaseObservation
+	nil,                              // 71: accelerator.v1.GpuExecution.NodeSelectorEntry
+	nil,                              // 72: accelerator.v1.GpuExecution.PodAnnotationsEntry
+	nil,                              // 73: accelerator.v1.GpuExecution.ResourcesEntry
 }
 var file_accelerator_v1_accelerator_proto_depIdxs = []int32{
 	8,   // 0: accelerator.v1.TenantContext.actor:type_name -> accelerator.v1.Actor
 	8,   // 1: accelerator.v1.AdminRead.actor:type_name -> accelerator.v1.Actor
 	10,  // 2: accelerator.v1.AdminMutation.context:type_name -> accelerator.v1.AdminRead
-	2,   // 3: accelerator.v1.Verification.state:type_name -> accelerator.v1.VerificationState
-	15,  // 4: accelerator.v1.ProviderBaseline.verification:type_name -> accelerator.v1.Verification
-	11,  // 5: accelerator.v1.RegisterClusterRequest.mutation:type_name -> accelerator.v1.AdminMutation
-	10,  // 6: accelerator.v1.ListClustersRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 7: accelerator.v1.ListClustersRequest.page:type_name -> accelerator.v1.Page
-	18,  // 8: accelerator.v1.ListClustersResponse.items:type_name -> accelerator.v1.Cluster
-	11,  // 9: accelerator.v1.CreatePoolRequest.mutation:type_name -> accelerator.v1.AdminMutation
-	10,  // 10: accelerator.v1.ListPoolsRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 11: accelerator.v1.ListPoolsRequest.page:type_name -> accelerator.v1.Page
-	22,  // 12: accelerator.v1.ListPoolsResponse.items:type_name -> accelerator.v1.Pool
-	0,   // 13: accelerator.v1.SupplyGroup.mode:type_name -> accelerator.v1.SupplyMode
-	17,  // 14: accelerator.v1.SupplyGroup.nodes:type_name -> accelerator.v1.NodeRef
-	16,  // 15: accelerator.v1.SupplyGroup.baseline:type_name -> accelerator.v1.ProviderBaseline
-	1,   // 16: accelerator.v1.SupplyGroup.admission:type_name -> accelerator.v1.AdmissionState
-	11,  // 17: accelerator.v1.AdoptSupplyGroupRequest.mutation:type_name -> accelerator.v1.AdminMutation
-	0,   // 18: accelerator.v1.AdoptSupplyGroupRequest.mode:type_name -> accelerator.v1.SupplyMode
-	17,  // 19: accelerator.v1.AdoptSupplyGroupRequest.nodes:type_name -> accelerator.v1.NodeRef
-	16,  // 20: accelerator.v1.AdoptSupplyGroupRequest.baseline:type_name -> accelerator.v1.ProviderBaseline
-	10,  // 21: accelerator.v1.ListSupplyGroupsRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 22: accelerator.v1.ListSupplyGroupsRequest.page:type_name -> accelerator.v1.Page
-	26,  // 23: accelerator.v1.ListSupplyGroupsResponse.items:type_name -> accelerator.v1.SupplyGroup
-	11,  // 24: accelerator.v1.SetAdmissionRequest.mutation:type_name -> accelerator.v1.AdminMutation
-	1,   // 25: accelerator.v1.SetAdmissionRequest.desired:type_name -> accelerator.v1.AdmissionState
-	0,   // 26: accelerator.v1.ProfileSpec.mode:type_name -> accelerator.v1.SupplyMode
-	31,  // 27: accelerator.v1.GpuProfile.spec:type_name -> accelerator.v1.ProfileSpec
-	11,  // 28: accelerator.v1.PublishProfileRequest.mutation:type_name -> accelerator.v1.AdminMutation
-	31,  // 29: accelerator.v1.PublishProfileRequest.spec:type_name -> accelerator.v1.ProfileSpec
-	9,   // 30: accelerator.v1.ListProfilesRequest.context:type_name -> accelerator.v1.TenantContext
-	0,   // 31: accelerator.v1.ListProfilesRequest.mode:type_name -> accelerator.v1.SupplyMode
-	12,  // 32: accelerator.v1.ListProfilesRequest.page:type_name -> accelerator.v1.Page
-	32,  // 33: accelerator.v1.ListProfilesResponse.items:type_name -> accelerator.v1.GpuProfile
-	36,  // 34: accelerator.v1.ListProfilesResponse.scopes:type_name -> accelerator.v1.ProfileScope
-	10,  // 35: accelerator.v1.AdminListProfilesRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 36: accelerator.v1.AdminListProfilesRequest.page:type_name -> accelerator.v1.Page
-	9,   // 37: accelerator.v1.GetProfileRequest.context:type_name -> accelerator.v1.TenantContext
-	13,  // 38: accelerator.v1.RuntimeFragment.node_labels:type_name -> accelerator.v1.KeyValue
-	13,  // 39: accelerator.v1.RuntimeFragment.pod_annotations:type_name -> accelerator.v1.KeyValue
-	13,  // 40: accelerator.v1.RuntimeFragment.limits_per_container:type_name -> accelerator.v1.KeyValue
-	39,  // 41: accelerator.v1.ResolvedGpuPlan.request:type_name -> accelerator.v1.GpuRequest
-	32,  // 42: accelerator.v1.ResolvedGpuPlan.profile:type_name -> accelerator.v1.GpuProfile
-	40,  // 43: accelerator.v1.ResolvedGpuPlan.encoding:type_name -> accelerator.v1.MemoryEncoding
-	41,  // 44: accelerator.v1.ResolvedGpuPlan.totals:type_name -> accelerator.v1.ResourceTotals
-	42,  // 45: accelerator.v1.ResolvedGpuPlan.runtime:type_name -> accelerator.v1.RuntimeFragment
-	9,   // 46: accelerator.v1.ResolveGpuRequestRequest.context:type_name -> accelerator.v1.TenantContext
-	39,  // 47: accelerator.v1.ResolveGpuRequestRequest.gpu:type_name -> accelerator.v1.GpuRequest
-	0,   // 48: accelerator.v1.CapacityView.mode:type_name -> accelerator.v1.SupplyMode
-	14,  // 49: accelerator.v1.CapacityView.observation:type_name -> accelerator.v1.Observation
-	45,  // 50: accelerator.v1.CapacityView.devices:type_name -> accelerator.v1.DeviceCapacity
-	9,   // 51: accelerator.v1.GetCapacityRequest.context:type_name -> accelerator.v1.TenantContext
-	10,  // 52: accelerator.v1.AdminGetCapacityRequest.context:type_name -> accelerator.v1.AdminRead
-	6,   // 53: accelerator.v1.GpuFit.status:type_name -> accelerator.v1.FitStatus
-	14,  // 54: accelerator.v1.GpuFit.observation:type_name -> accelerator.v1.Observation
-	9,   // 55: accelerator.v1.CheckGpuFitRequest.context:type_name -> accelerator.v1.TenantContext
-	39,  // 56: accelerator.v1.CheckGpuFitRequest.gpu:type_name -> accelerator.v1.GpuRequest
-	17,  // 57: accelerator.v1.PhysicalDevice.node:type_name -> accelerator.v1.NodeRef
-	14,  // 58: accelerator.v1.PhysicalDevice.observation:type_name -> accelerator.v1.Observation
-	10,  // 59: accelerator.v1.ListDevicesRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 60: accelerator.v1.ListDevicesRequest.page:type_name -> accelerator.v1.Page
-	51,  // 61: accelerator.v1.ListDevicesResponse.items:type_name -> accelerator.v1.PhysicalDevice
-	54,  // 62: accelerator.v1.GpuUsageProjection.ref:type_name -> accelerator.v1.GpuUsageRef
-	3,   // 63: accelerator.v1.GpuUsageProjection.state:type_name -> accelerator.v1.UsageState
-	43,  // 64: accelerator.v1.GpuUsageProjection.plan:type_name -> accelerator.v1.ResolvedGpuPlan
-	4,   // 65: accelerator.v1.GpuUsageProjection.end_reason:type_name -> accelerator.v1.UsageEndReason
-	55,  // 66: accelerator.v1.SyncGpuUsageRequest.projection:type_name -> accelerator.v1.GpuUsageProjection
-	54,  // 67: accelerator.v1.SyncGpuUsageResponse.ref:type_name -> accelerator.v1.GpuUsageRef
-	3,   // 68: accelerator.v1.SyncGpuUsageResponse.state:type_name -> accelerator.v1.UsageState
-	9,   // 69: accelerator.v1.GetGpuUsageRequest.context:type_name -> accelerator.v1.TenantContext
-	54,  // 70: accelerator.v1.GetGpuUsageRequest.ref:type_name -> accelerator.v1.GpuUsageRef
-	9,   // 71: accelerator.v1.ListGpuUsagesRequest.context:type_name -> accelerator.v1.TenantContext
-	3,   // 72: accelerator.v1.ListGpuUsagesRequest.state:type_name -> accelerator.v1.UsageState
-	12,  // 73: accelerator.v1.ListGpuUsagesRequest.page:type_name -> accelerator.v1.Page
-	55,  // 74: accelerator.v1.ListGpuUsagesResponse.items:type_name -> accelerator.v1.GpuUsageProjection
-	54,  // 75: accelerator.v1.GpuBinding.verified_usage_ref:type_name -> accelerator.v1.GpuUsageRef
-	61,  // 76: accelerator.v1.GpuBinding.pod:type_name -> accelerator.v1.PodRef
-	5,   // 77: accelerator.v1.GpuBinding.state:type_name -> accelerator.v1.AllocationState
-	14,  // 78: accelerator.v1.GpuBinding.observation:type_name -> accelerator.v1.Observation
-	9,   // 79: accelerator.v1.ListBindingsRequest.context:type_name -> accelerator.v1.TenantContext
-	54,  // 80: accelerator.v1.ListBindingsRequest.ref:type_name -> accelerator.v1.GpuUsageRef
-	12,  // 81: accelerator.v1.ListBindingsRequest.page:type_name -> accelerator.v1.Page
-	10,  // 82: accelerator.v1.AdminListBindingsRequest.context:type_name -> accelerator.v1.AdminRead
-	12,  // 83: accelerator.v1.AdminListBindingsRequest.page:type_name -> accelerator.v1.Page
-	62,  // 84: accelerator.v1.ListBindingsResponse.items:type_name -> accelerator.v1.GpuBinding
-	14,  // 85: accelerator.v1.ListBindingsResponse.observation:type_name -> accelerator.v1.Observation
-	54,  // 86: accelerator.v1.ObserveReleaseRequest.ref:type_name -> accelerator.v1.GpuUsageRef
-	61,  // 87: accelerator.v1.ObserveReleaseRequest.pods:type_name -> accelerator.v1.PodRef
-	54,  // 88: accelerator.v1.ReleaseObservation.ref:type_name -> accelerator.v1.GpuUsageRef
-	7,   // 89: accelerator.v1.ReleaseObservation.finding:type_name -> accelerator.v1.ReleaseFinding
-	14,  // 90: accelerator.v1.ReleaseObservation.observation:type_name -> accelerator.v1.Observation
-	19,  // 91: accelerator.v1.AcceleratorAdminService.RegisterCluster:input_type -> accelerator.v1.RegisterClusterRequest
-	20,  // 92: accelerator.v1.AcceleratorAdminService.ListClusters:input_type -> accelerator.v1.ListClustersRequest
-	23,  // 93: accelerator.v1.AcceleratorAdminService.CreatePool:input_type -> accelerator.v1.CreatePoolRequest
-	24,  // 94: accelerator.v1.AcceleratorAdminService.ListPools:input_type -> accelerator.v1.ListPoolsRequest
-	27,  // 95: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:input_type -> accelerator.v1.AdoptSupplyGroupRequest
-	28,  // 96: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:input_type -> accelerator.v1.ListSupplyGroupsRequest
-	30,  // 97: accelerator.v1.AcceleratorAdminService.SetAdmission:input_type -> accelerator.v1.SetAdmissionRequest
-	33,  // 98: accelerator.v1.AcceleratorAdminService.PublishProfile:input_type -> accelerator.v1.PublishProfileRequest
-	37,  // 99: accelerator.v1.AcceleratorAdminService.AdminListProfiles:input_type -> accelerator.v1.AdminListProfilesRequest
-	64,  // 100: accelerator.v1.AcceleratorAdminService.AdminListBindings:input_type -> accelerator.v1.AdminListBindingsRequest
-	52,  // 101: accelerator.v1.AcceleratorAdminService.ListDevices:input_type -> accelerator.v1.ListDevicesRequest
-	48,  // 102: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:input_type -> accelerator.v1.AdminGetCapacityRequest
-	34,  // 103: accelerator.v1.AcceleratorCatalogService.ListProfiles:input_type -> accelerator.v1.ListProfilesRequest
-	38,  // 104: accelerator.v1.AcceleratorCatalogService.GetProfile:input_type -> accelerator.v1.GetProfileRequest
-	44,  // 105: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:input_type -> accelerator.v1.ResolveGpuRequestRequest
-	47,  // 106: accelerator.v1.AcceleratorCatalogService.GetCapacity:input_type -> accelerator.v1.GetCapacityRequest
-	50,  // 107: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:input_type -> accelerator.v1.CheckGpuFitRequest
-	56,  // 108: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:input_type -> accelerator.v1.SyncGpuUsageRequest
-	58,  // 109: accelerator.v1.AcceleratorUsageService.GetGpuUsage:input_type -> accelerator.v1.GetGpuUsageRequest
-	59,  // 110: accelerator.v1.AcceleratorUsageService.ListGpuUsages:input_type -> accelerator.v1.ListGpuUsagesRequest
-	63,  // 111: accelerator.v1.AcceleratorUsageService.ListBindings:input_type -> accelerator.v1.ListBindingsRequest
-	66,  // 112: accelerator.v1.AcceleratorUsageService.ObserveRelease:input_type -> accelerator.v1.ObserveReleaseRequest
-	18,  // 113: accelerator.v1.AcceleratorAdminService.RegisterCluster:output_type -> accelerator.v1.Cluster
-	21,  // 114: accelerator.v1.AcceleratorAdminService.ListClusters:output_type -> accelerator.v1.ListClustersResponse
-	22,  // 115: accelerator.v1.AcceleratorAdminService.CreatePool:output_type -> accelerator.v1.Pool
-	25,  // 116: accelerator.v1.AcceleratorAdminService.ListPools:output_type -> accelerator.v1.ListPoolsResponse
-	26,  // 117: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:output_type -> accelerator.v1.SupplyGroup
-	29,  // 118: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:output_type -> accelerator.v1.ListSupplyGroupsResponse
-	26,  // 119: accelerator.v1.AcceleratorAdminService.SetAdmission:output_type -> accelerator.v1.SupplyGroup
-	32,  // 120: accelerator.v1.AcceleratorAdminService.PublishProfile:output_type -> accelerator.v1.GpuProfile
-	35,  // 121: accelerator.v1.AcceleratorAdminService.AdminListProfiles:output_type -> accelerator.v1.ListProfilesResponse
-	65,  // 122: accelerator.v1.AcceleratorAdminService.AdminListBindings:output_type -> accelerator.v1.ListBindingsResponse
-	53,  // 123: accelerator.v1.AcceleratorAdminService.ListDevices:output_type -> accelerator.v1.ListDevicesResponse
-	46,  // 124: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:output_type -> accelerator.v1.CapacityView
-	35,  // 125: accelerator.v1.AcceleratorCatalogService.ListProfiles:output_type -> accelerator.v1.ListProfilesResponse
-	32,  // 126: accelerator.v1.AcceleratorCatalogService.GetProfile:output_type -> accelerator.v1.GpuProfile
-	43,  // 127: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:output_type -> accelerator.v1.ResolvedGpuPlan
-	46,  // 128: accelerator.v1.AcceleratorCatalogService.GetCapacity:output_type -> accelerator.v1.CapacityView
-	49,  // 129: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:output_type -> accelerator.v1.GpuFit
-	57,  // 130: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:output_type -> accelerator.v1.SyncGpuUsageResponse
-	55,  // 131: accelerator.v1.AcceleratorUsageService.GetGpuUsage:output_type -> accelerator.v1.GpuUsageProjection
-	60,  // 132: accelerator.v1.AcceleratorUsageService.ListGpuUsages:output_type -> accelerator.v1.ListGpuUsagesResponse
-	65,  // 133: accelerator.v1.AcceleratorUsageService.ListBindings:output_type -> accelerator.v1.ListBindingsResponse
-	67,  // 134: accelerator.v1.AcceleratorUsageService.ObserveRelease:output_type -> accelerator.v1.ReleaseObservation
-	113, // [113:135] is the sub-list for method output_type
-	91,  // [91:113] is the sub-list for method input_type
-	91,  // [91:91] is the sub-list for extension type_name
-	91,  // [91:91] is the sub-list for extension extendee
-	0,   // [0:91] is the sub-list for field type_name
+	11,  // 3: accelerator.v1.RegisterClusterRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	10,  // 4: accelerator.v1.ListClustersRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 5: accelerator.v1.ListClustersRequest.page:type_name -> accelerator.v1.Page
+	17,  // 6: accelerator.v1.ListClustersResponse.items:type_name -> accelerator.v1.Cluster
+	11,  // 7: accelerator.v1.CreatePoolRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	10,  // 8: accelerator.v1.ListPoolsRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 9: accelerator.v1.ListPoolsRequest.page:type_name -> accelerator.v1.Page
+	21,  // 10: accelerator.v1.ListPoolsResponse.items:type_name -> accelerator.v1.Pool
+	0,   // 11: accelerator.v1.SupplyGroup.mode:type_name -> accelerator.v1.SupplyMode
+	16,  // 12: accelerator.v1.SupplyGroup.nodes:type_name -> accelerator.v1.NodeRef
+	15,  // 13: accelerator.v1.SupplyGroup.baseline:type_name -> accelerator.v1.ProviderBaseline
+	1,   // 14: accelerator.v1.SupplyGroup.admission:type_name -> accelerator.v1.AdmissionState
+	11,  // 15: accelerator.v1.AdoptSupplyGroupRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	0,   // 16: accelerator.v1.AdoptSupplyGroupRequest.mode:type_name -> accelerator.v1.SupplyMode
+	16,  // 17: accelerator.v1.AdoptSupplyGroupRequest.nodes:type_name -> accelerator.v1.NodeRef
+	15,  // 18: accelerator.v1.AdoptSupplyGroupRequest.baseline:type_name -> accelerator.v1.ProviderBaseline
+	10,  // 19: accelerator.v1.ListSupplyGroupsRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 20: accelerator.v1.ListSupplyGroupsRequest.page:type_name -> accelerator.v1.Page
+	25,  // 21: accelerator.v1.ListSupplyGroupsResponse.items:type_name -> accelerator.v1.SupplyGroup
+	11,  // 22: accelerator.v1.SetAdmissionRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	1,   // 23: accelerator.v1.SetAdmissionRequest.desired:type_name -> accelerator.v1.AdmissionState
+	0,   // 24: accelerator.v1.ProfileSpec.mode:type_name -> accelerator.v1.SupplyMode
+	30,  // 25: accelerator.v1.GpuProfile.spec:type_name -> accelerator.v1.ProfileSpec
+	7,   // 26: accelerator.v1.GpuProfile.state:type_name -> accelerator.v1.ProfileState
+	11,  // 27: accelerator.v1.CreateProfileRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	30,  // 28: accelerator.v1.CreateProfileRequest.spec:type_name -> accelerator.v1.ProfileSpec
+	9,   // 29: accelerator.v1.ListProfilesRequest.context:type_name -> accelerator.v1.TenantContext
+	0,   // 30: accelerator.v1.ListProfilesRequest.mode:type_name -> accelerator.v1.SupplyMode
+	12,  // 31: accelerator.v1.ListProfilesRequest.page:type_name -> accelerator.v1.Page
+	31,  // 32: accelerator.v1.ListProfilesResponse.items:type_name -> accelerator.v1.GpuProfile
+	35,  // 33: accelerator.v1.ListProfilesResponse.scopes:type_name -> accelerator.v1.ProfileScope
+	10,  // 34: accelerator.v1.AdminListProfilesRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 35: accelerator.v1.AdminListProfilesRequest.page:type_name -> accelerator.v1.Page
+	9,   // 36: accelerator.v1.GetProfileRequest.context:type_name -> accelerator.v1.TenantContext
+	71,  // 37: accelerator.v1.GpuExecution.node_selector:type_name -> accelerator.v1.GpuExecution.NodeSelectorEntry
+	72,  // 38: accelerator.v1.GpuExecution.pod_annotations:type_name -> accelerator.v1.GpuExecution.PodAnnotationsEntry
+	73,  // 39: accelerator.v1.GpuExecution.resources:type_name -> accelerator.v1.GpuExecution.ResourcesEntry
+	0,   // 40: accelerator.v1.GpuDisplay.mode:type_name -> accelerator.v1.SupplyMode
+	39,  // 41: accelerator.v1.ResolvedGpuRequest.execution:type_name -> accelerator.v1.GpuExecution
+	41,  // 42: accelerator.v1.ResolvedGpuRequest.quota_items:type_name -> accelerator.v1.GpuQuotaItem
+	40,  // 43: accelerator.v1.ResolvedGpuRequest.selection:type_name -> accelerator.v1.GpuDisplay
+	10,  // 44: accelerator.v1.PreviewProfileRequest.context:type_name -> accelerator.v1.AdminRead
+	30,  // 45: accelerator.v1.ProfilePreview.spec:type_name -> accelerator.v1.ProfileSpec
+	11,  // 46: accelerator.v1.SetProfileStateRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	7,   // 47: accelerator.v1.SetProfileStateRequest.desired:type_name -> accelerator.v1.ProfileState
+	11,  // 48: accelerator.v1.DeleteProfileRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	9,   // 49: accelerator.v1.ResolveGpuRequestRequest.context:type_name -> accelerator.v1.TenantContext
+	38,  // 50: accelerator.v1.ResolveGpuRequestRequest.gpu:type_name -> accelerator.v1.GpuRequest
+	0,   // 51: accelerator.v1.CapacityView.mode:type_name -> accelerator.v1.SupplyMode
+	14,  // 52: accelerator.v1.CapacityView.observation:type_name -> accelerator.v1.Observation
+	48,  // 53: accelerator.v1.CapacityView.devices:type_name -> accelerator.v1.DeviceCapacity
+	9,   // 54: accelerator.v1.GetCapacityRequest.context:type_name -> accelerator.v1.TenantContext
+	10,  // 55: accelerator.v1.AdminGetCapacityRequest.context:type_name -> accelerator.v1.AdminRead
+	5,   // 56: accelerator.v1.GpuFit.status:type_name -> accelerator.v1.FitStatus
+	14,  // 57: accelerator.v1.GpuFit.observation:type_name -> accelerator.v1.Observation
+	9,   // 58: accelerator.v1.CheckGpuFitRequest.context:type_name -> accelerator.v1.TenantContext
+	38,  // 59: accelerator.v1.CheckGpuFitRequest.gpu:type_name -> accelerator.v1.GpuRequest
+	16,  // 60: accelerator.v1.PhysicalDevice.node:type_name -> accelerator.v1.NodeRef
+	14,  // 61: accelerator.v1.PhysicalDevice.observation:type_name -> accelerator.v1.Observation
+	10,  // 62: accelerator.v1.ListDevicesRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 63: accelerator.v1.ListDevicesRequest.page:type_name -> accelerator.v1.Page
+	54,  // 64: accelerator.v1.ListDevicesResponse.items:type_name -> accelerator.v1.PhysicalDevice
+	57,  // 65: accelerator.v1.GpuUsageProjection.ref:type_name -> accelerator.v1.GpuUsageRef
+	2,   // 66: accelerator.v1.GpuUsageProjection.state:type_name -> accelerator.v1.UsageState
+	3,   // 67: accelerator.v1.GpuUsageProjection.end_reason:type_name -> accelerator.v1.UsageEndReason
+	58,  // 68: accelerator.v1.SyncGpuUsageRequest.projection:type_name -> accelerator.v1.GpuUsageProjection
+	57,  // 69: accelerator.v1.SyncGpuUsageResponse.ref:type_name -> accelerator.v1.GpuUsageRef
+	2,   // 70: accelerator.v1.SyncGpuUsageResponse.state:type_name -> accelerator.v1.UsageState
+	9,   // 71: accelerator.v1.GetGpuUsageRequest.context:type_name -> accelerator.v1.TenantContext
+	57,  // 72: accelerator.v1.GetGpuUsageRequest.ref:type_name -> accelerator.v1.GpuUsageRef
+	9,   // 73: accelerator.v1.ListGpuUsagesRequest.context:type_name -> accelerator.v1.TenantContext
+	2,   // 74: accelerator.v1.ListGpuUsagesRequest.state:type_name -> accelerator.v1.UsageState
+	12,  // 75: accelerator.v1.ListGpuUsagesRequest.page:type_name -> accelerator.v1.Page
+	58,  // 76: accelerator.v1.ListGpuUsagesResponse.items:type_name -> accelerator.v1.GpuUsageProjection
+	57,  // 77: accelerator.v1.GpuBinding.verified_usage_ref:type_name -> accelerator.v1.GpuUsageRef
+	64,  // 78: accelerator.v1.GpuBinding.pod:type_name -> accelerator.v1.PodRef
+	4,   // 79: accelerator.v1.GpuBinding.state:type_name -> accelerator.v1.AllocationState
+	14,  // 80: accelerator.v1.GpuBinding.observation:type_name -> accelerator.v1.Observation
+	9,   // 81: accelerator.v1.ListBindingsRequest.context:type_name -> accelerator.v1.TenantContext
+	57,  // 82: accelerator.v1.ListBindingsRequest.ref:type_name -> accelerator.v1.GpuUsageRef
+	12,  // 83: accelerator.v1.ListBindingsRequest.page:type_name -> accelerator.v1.Page
+	10,  // 84: accelerator.v1.AdminListBindingsRequest.context:type_name -> accelerator.v1.AdminRead
+	12,  // 85: accelerator.v1.AdminListBindingsRequest.page:type_name -> accelerator.v1.Page
+	65,  // 86: accelerator.v1.ListBindingsResponse.items:type_name -> accelerator.v1.GpuBinding
+	14,  // 87: accelerator.v1.ListBindingsResponse.observation:type_name -> accelerator.v1.Observation
+	57,  // 88: accelerator.v1.ObserveReleaseRequest.ref:type_name -> accelerator.v1.GpuUsageRef
+	64,  // 89: accelerator.v1.ObserveReleaseRequest.pods:type_name -> accelerator.v1.PodRef
+	57,  // 90: accelerator.v1.ReleaseObservation.ref:type_name -> accelerator.v1.GpuUsageRef
+	6,   // 91: accelerator.v1.ReleaseObservation.finding:type_name -> accelerator.v1.ReleaseFinding
+	14,  // 92: accelerator.v1.ReleaseObservation.observation:type_name -> accelerator.v1.Observation
+	18,  // 93: accelerator.v1.AcceleratorAdminService.RegisterCluster:input_type -> accelerator.v1.RegisterClusterRequest
+	19,  // 94: accelerator.v1.AcceleratorAdminService.ListClusters:input_type -> accelerator.v1.ListClustersRequest
+	22,  // 95: accelerator.v1.AcceleratorAdminService.CreatePool:input_type -> accelerator.v1.CreatePoolRequest
+	23,  // 96: accelerator.v1.AcceleratorAdminService.ListPools:input_type -> accelerator.v1.ListPoolsRequest
+	26,  // 97: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:input_type -> accelerator.v1.AdoptSupplyGroupRequest
+	27,  // 98: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:input_type -> accelerator.v1.ListSupplyGroupsRequest
+	29,  // 99: accelerator.v1.AcceleratorAdminService.SetAdmission:input_type -> accelerator.v1.SetAdmissionRequest
+	32,  // 100: accelerator.v1.AcceleratorAdminService.CreateProfile:input_type -> accelerator.v1.CreateProfileRequest
+	43,  // 101: accelerator.v1.AcceleratorAdminService.PreviewProfile:input_type -> accelerator.v1.PreviewProfileRequest
+	45,  // 102: accelerator.v1.AcceleratorAdminService.SetProfileState:input_type -> accelerator.v1.SetProfileStateRequest
+	46,  // 103: accelerator.v1.AcceleratorAdminService.DeleteProfile:input_type -> accelerator.v1.DeleteProfileRequest
+	36,  // 104: accelerator.v1.AcceleratorAdminService.AdminListProfiles:input_type -> accelerator.v1.AdminListProfilesRequest
+	67,  // 105: accelerator.v1.AcceleratorAdminService.AdminListBindings:input_type -> accelerator.v1.AdminListBindingsRequest
+	55,  // 106: accelerator.v1.AcceleratorAdminService.ListDevices:input_type -> accelerator.v1.ListDevicesRequest
+	51,  // 107: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:input_type -> accelerator.v1.AdminGetCapacityRequest
+	33,  // 108: accelerator.v1.AcceleratorCatalogService.ListProfiles:input_type -> accelerator.v1.ListProfilesRequest
+	37,  // 109: accelerator.v1.AcceleratorCatalogService.GetProfile:input_type -> accelerator.v1.GetProfileRequest
+	47,  // 110: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:input_type -> accelerator.v1.ResolveGpuRequestRequest
+	50,  // 111: accelerator.v1.AcceleratorCatalogService.GetCapacity:input_type -> accelerator.v1.GetCapacityRequest
+	53,  // 112: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:input_type -> accelerator.v1.CheckGpuFitRequest
+	59,  // 113: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:input_type -> accelerator.v1.SyncGpuUsageRequest
+	61,  // 114: accelerator.v1.AcceleratorUsageService.GetGpuUsage:input_type -> accelerator.v1.GetGpuUsageRequest
+	62,  // 115: accelerator.v1.AcceleratorUsageService.ListGpuUsages:input_type -> accelerator.v1.ListGpuUsagesRequest
+	66,  // 116: accelerator.v1.AcceleratorUsageService.ListBindings:input_type -> accelerator.v1.ListBindingsRequest
+	69,  // 117: accelerator.v1.AcceleratorUsageService.ObserveRelease:input_type -> accelerator.v1.ObserveReleaseRequest
+	17,  // 118: accelerator.v1.AcceleratorAdminService.RegisterCluster:output_type -> accelerator.v1.Cluster
+	20,  // 119: accelerator.v1.AcceleratorAdminService.ListClusters:output_type -> accelerator.v1.ListClustersResponse
+	21,  // 120: accelerator.v1.AcceleratorAdminService.CreatePool:output_type -> accelerator.v1.Pool
+	24,  // 121: accelerator.v1.AcceleratorAdminService.ListPools:output_type -> accelerator.v1.ListPoolsResponse
+	25,  // 122: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:output_type -> accelerator.v1.SupplyGroup
+	28,  // 123: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:output_type -> accelerator.v1.ListSupplyGroupsResponse
+	25,  // 124: accelerator.v1.AcceleratorAdminService.SetAdmission:output_type -> accelerator.v1.SupplyGroup
+	31,  // 125: accelerator.v1.AcceleratorAdminService.CreateProfile:output_type -> accelerator.v1.GpuProfile
+	44,  // 126: accelerator.v1.AcceleratorAdminService.PreviewProfile:output_type -> accelerator.v1.ProfilePreview
+	31,  // 127: accelerator.v1.AcceleratorAdminService.SetProfileState:output_type -> accelerator.v1.GpuProfile
+	31,  // 128: accelerator.v1.AcceleratorAdminService.DeleteProfile:output_type -> accelerator.v1.GpuProfile
+	34,  // 129: accelerator.v1.AcceleratorAdminService.AdminListProfiles:output_type -> accelerator.v1.ListProfilesResponse
+	68,  // 130: accelerator.v1.AcceleratorAdminService.AdminListBindings:output_type -> accelerator.v1.ListBindingsResponse
+	56,  // 131: accelerator.v1.AcceleratorAdminService.ListDevices:output_type -> accelerator.v1.ListDevicesResponse
+	49,  // 132: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:output_type -> accelerator.v1.CapacityView
+	34,  // 133: accelerator.v1.AcceleratorCatalogService.ListProfiles:output_type -> accelerator.v1.ListProfilesResponse
+	31,  // 134: accelerator.v1.AcceleratorCatalogService.GetProfile:output_type -> accelerator.v1.GpuProfile
+	42,  // 135: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:output_type -> accelerator.v1.ResolvedGpuRequest
+	49,  // 136: accelerator.v1.AcceleratorCatalogService.GetCapacity:output_type -> accelerator.v1.CapacityView
+	52,  // 137: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:output_type -> accelerator.v1.GpuFit
+	60,  // 138: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:output_type -> accelerator.v1.SyncGpuUsageResponse
+	58,  // 139: accelerator.v1.AcceleratorUsageService.GetGpuUsage:output_type -> accelerator.v1.GpuUsageProjection
+	63,  // 140: accelerator.v1.AcceleratorUsageService.ListGpuUsages:output_type -> accelerator.v1.ListGpuUsagesResponse
+	68,  // 141: accelerator.v1.AcceleratorUsageService.ListBindings:output_type -> accelerator.v1.ListBindingsResponse
+	70,  // 142: accelerator.v1.AcceleratorUsageService.ObserveRelease:output_type -> accelerator.v1.ReleaseObservation
+	118, // [118:143] is the sub-list for method output_type
+	93,  // [93:118] is the sub-list for method input_type
+	93,  // [93:93] is the sub-list for extension type_name
+	93,  // [93:93] is the sub-list for extension extendee
+	0,   // [0:93] is the sub-list for field type_name
 }
 
 func init() { file_accelerator_v1_accelerator_proto_init() }
@@ -5844,7 +6059,7 @@ func file_accelerator_v1_accelerator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_accelerator_v1_accelerator_proto_rawDesc), len(file_accelerator_v1_accelerator_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   60,
+			NumMessages:   66,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

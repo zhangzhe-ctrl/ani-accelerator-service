@@ -15,11 +15,13 @@ import (
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/pkg/schedulerconfig"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
+	"google.golang.org/grpc"
+	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
+	pr "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
-// Supplies only a TLS-authenticated Kubernetes source shape. The production
-// reader and production consumption verifier remain untouched. It never issues
-// hardware attestation, marks a supply VERIFIED, or writes a profile.
+// Supplies external Kubernetes and Unix runtime protocol shapes. Production
+// readers remain unchanged; the ordinary executable receives a separate NVML ABI fixture.
 func TestJointFormalProviderSource(t *testing.T) {
 	root := os.Getenv("ACC_FORMAL_SOURCE_DIR")
 	if root == "" {
@@ -41,7 +43,7 @@ func TestJointFormalProviderSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-formal-source", MemoryBlockMiB: 1024, FactorEvidenceRef: "formal:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: digest, SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-v1"}
+	baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-mib-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-formal-source", MemoryBlockMiB: 1, MemoryEncoding: "MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: digest, SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-mib-v1", RuntimeClassName: "nvidia"}
 	baseline.BaselineDigest, _ = biz.BaselineDigest(baseline)
 	node := biz.NodeRef{UID: "formal-node-" + biz.NewID(), Name: "formal-source-node"}
 	groupFile := filepath.Join(root, "group-id")
@@ -51,7 +53,7 @@ func TestJointFormalProviderSource(t *testing.T) {
 		var response any
 		switch {
 		case r.URL.Path == "/api/v1/nodes":
-			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": node.UID, "name": node.Name, "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: strings.TrimSpace(string(group)), biz.ModelLabel: "nvidia-test", biz.BaselineLabel: baseline.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
+			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": node.UID, "name": node.Name, "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: strings.TrimSpace(string(group)), biz.ModelLabel: "nvidia-test", biz.BaselineLabel: baseline.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24576,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
 		case r.URL.Path == "/api/v1/pods":
 			response = map[string]any{"items": []any{}}
 		case strings.Contains(r.URL.Path, "/configmaps/"):
@@ -61,7 +63,7 @@ func TestJointFormalProviderSource(t *testing.T) {
 		case r.URL.Path == "/api/v1/namespaces/system/pods":
 			name, image, args := "scheduler", baseline.VolcanoImageDigest, []string{}
 			if r.URL.Query().Get("labelSelector") == "app=plugin" {
-				name, image, args = "plugin", baseline.DevicePluginImageDigest, []string{"--gpu-memory-factor=1024", "--device-split-count=4"}
+				name, image, args = "plugin", baseline.DevicePluginImageDigest, []string{"--gpu-memory-factor=1", "--device-split-count=4"}
 			}
 			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"name": name}, "spec": map[string]any{"nodeName": node.Name, "containers": []any{map[string]any{"name": name, "args": args}}}, "status": map[string]any{"phase": "Running", "containerStatuses": []any{map[string]any{"name": name, "ready": true, "imageID": image}}}}}}
 		default:
@@ -83,19 +85,24 @@ func TestJointFormalProviderSource(t *testing.T) {
 	api.TLS = tc
 	api.StartTLS()
 	defer api.Close()
-	connection := Connection{Ref: "formal-source:" + biz.NewID(), APIServer: api.URL, ServerName: "accelerator.test", CAFile: pki.CAFile, CertFile: clientCert, KeyFile: clientKey, PluginNamespace: "system", PluginSelector: "app=plugin", PluginContainer: "plugin", PluginConfigMap: "plugin", SchedulerNamespace: "system", SchedulerSelector: "app=scheduler", SchedulerContainer: "scheduler", SchedulerConfigMap: "scheduler"}
+	state := &replayState{absent: true, exited: true}
+	podResources := unixServer(t, "formal-pr", func(s *grpc.Server) { pr.RegisterPodResourcesListerServer(s, &replayResources{state: state}) })
+	runtimeSocket := unixServer(t, "formal-cri", func(s *grpc.Server) {
+		cri.RegisterRuntimeServiceServer(s, &replayRuntime{state: state, podUID: "formal-absent-pod"})
+	})
+	connection := Connection{LocalNodeUID: node.UID, Nodes: []NodeSource{{UID: node.UID, Name: node.Name, PodResourcesSocket: podResources, CRISocket: runtimeSocket}}, Ref: "formal-source:" + biz.NewID(), APIServer: api.URL, ServerName: "accelerator.test", CAFile: pki.CAFile, CertFile: clientCert, KeyFile: clientKey, PluginNamespace: "system", PluginSelector: "app=plugin", PluginContainer: "plugin", PluginConfigMap: "plugin", SchedulerNamespace: "system", SchedulerSelector: "app=scheduler", SchedulerContainer: "scheduler", SchedulerConfigMap: "scheduler"}
 	configPath := filepath.Join(root, "provider.json")
 	payload, e := json.Marshal(Config{Connections: []Connection{connection}})
 	if e != nil {
 		t.Fatal(e)
 	}
 	testkit.Write(t, configPath, payload)
-	payload, e = json.MarshalIndent(map[string]any{"provider_config_file": configPath, "connection_ref": connection.Ref, "baseline": baseline, "node": node, "model_key": "nvidia-test", "queue_name": "gpu", "group_id_file": groupFile, "scope": "constructed A-layer TLS source only; no hardware attestation"}, "", "  ")
+	payload, e = json.MarshalIndent(map[string]any{"provider_config_file": configPath, "connection_ref": connection.Ref, "baseline": baseline, "node": node, "model_key": "nvidia-test", "queue_name": "gpu", "group_id_file": groupFile, "scope": "constructed Kubernetes and Unix runtime source; no actual GPU"}, "", "  ")
 	if e != nil {
 		t.Fatal(e)
 	}
 	testkit.Write(t, filepath.Join(root, "source.json"), payload)
-	t.Log("formal source ready; production Publish must reach CONSUMPTION_NOT_VERIFIED after writing adopted group ID to group-id")
+	t.Log("constructed external Kubernetes and Unix runtime source ready; actual GPU NOT_RUN")
 	for {
 		if _, e = os.Stat(filepath.Join(root, "stop")); e == nil {
 			break

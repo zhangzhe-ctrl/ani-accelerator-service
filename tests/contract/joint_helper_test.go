@@ -21,7 +21,7 @@ import (
 )
 
 // This one-shot fixture exists only in the test binary. Gov first commits and
-// synchronizes its original ref; the helper reads that persisted plan and writes
+// synchronizes its original ref; the helper reads that persisted thin usage and writes
 // controlled inventory through the actual transactional repository.
 func TestJointObservationFixture(t *testing.T) {
 	path := os.Getenv("ACC_JOINT_OBSERVATION_FILE")
@@ -29,10 +29,12 @@ func TestJointObservationFixture(t *testing.T) {
 		t.Skip("one-shot isolated software observation fixture")
 	}
 	var in struct {
-		Ref      biz.UsageRef `json:"ref"`
-		State    string       `json:"state"`
-		DeviceID string       `json:"device_id"`
-		Pod      *biz.PodRef  `json:"pod"`
+		Ref              biz.UsageRef `json:"ref"`
+		State            string       `json:"state"`
+		DeviceID         string       `json:"device_id"`
+		Pod              *biz.PodRef  `json:"pod"`
+		MemoryMiB        int64        `json:"memory_mib"`
+		CoreLimitPercent uint32       `json:"core_limit_percent"`
 	}
 	readJointJSON(t, path, &in)
 	if err := biz.ValidateRef(&in.Ref); err != nil {
@@ -51,7 +53,7 @@ func TestJointObservationFixture(t *testing.T) {
 		if e != nil {
 			return e
 		}
-		group, e = r.Group(context.Background(), usage.Plan.Profile.Spec.GroupID)
+		group, e = r.Group(context.Background(), usage.GroupID)
 		return e
 	}); err != nil {
 		t.Fatal(err)
@@ -69,23 +71,26 @@ func TestJointObservationFixture(t *testing.T) {
 		in.DeviceID = biz.NewID()
 	}
 	if in.Pod == nil {
-		in.Pod = &biz.PodRef{ClusterID: group.ClusterID, Namespace: "joint-contract", Name: "owner-instance", UID: "pod-" + biz.NewID(), ContainerName: usage.Plan.Request.ContainerName}
+		in.Pod = &biz.PodRef{ClusterID: group.ClusterID, Namespace: "joint-contract", Name: "owner-instance", UID: "pod-" + biz.NewID(), ContainerName: usage.ContainerName}
 	}
-	if in.Pod.ClusterID != group.ClusterID || in.Pod.ContainerName != usage.Plan.Request.ContainerName {
-		t.Fatal("fixture scope differs from frozen plan")
+	if in.Pod.ClusterID != group.ClusterID || in.Pod.ContainerName != usage.ContainerName {
+		t.Fatal("fixture scope differs from accepted usage")
 	}
 	now := time.Now().UTC()
 	batch := biz.ObservationBatch{ClusterID: group.ClusterID}
 	if in.State == "ACTIVE" {
+		if in.MemoryMiB <= 0 || in.CoreLimitPercent == 0 || in.CoreLimitPercent > 100 {
+			t.Fatal("actual external memory/core observation required")
+		}
 		batch.Devices = []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: in.DeviceID, ClusterID: group.ClusterID, GroupID: group.GroupID, Node: &group.Nodes[0], VendorDeviceID: "GPU-joint-" + in.DeviceID, ModelKey: group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576 / int64(group.Baseline.MemoryBlockMiB), MemoryBlockMiB: group.Baseline.MemoryBlockMiB, SafeMemoryBudgetMiB: 24576, BaselineDigest: group.Baseline.BaselineDigest}}
 		for _, source := range []string{"scheduler", "allocation", "runtime"} {
-			batch.Claims = append(batch.Claims, biz.Claim{Pod: *in.Pod, DeviceID: in.DeviceID, NodeUID: group.Nodes[0].UID, Source: source, Cursor: "joint-active", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: usage.Plan.Profile.Spec.SharedMemoryMiB, CoreLimitPercent: usage.Plan.Profile.Spec.CoreLimitPercent, BaselineDigest: group.Baseline.BaselineDigest, MemoryBlockMiB: group.Baseline.MemoryBlockMiB, EvidenceRef: "isolated-joint:" + source, OwnerRef: &in.Ref, PlanDigest: usage.Plan.ResolutionDigest})
+			batch.Claims = append(batch.Claims, biz.Claim{Pod: *in.Pod, DeviceID: in.DeviceID, NodeUID: group.Nodes[0].UID, Source: source, Cursor: "joint-active", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: in.MemoryMiB, CoreLimitPercent: in.CoreLimitPercent, BaselineDigest: group.Baseline.BaselineDigest, MemoryBlockMiB: group.Baseline.MemoryBlockMiB, EvidenceRef: "isolated-joint:" + source, OwnerRef: &in.Ref, ExecutionDigest: usage.ExecutionDigest})
 		}
 		for _, source := range []string{"kubernetes", "podresources", "cri"} {
 			batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: group.ClusterID, NodeUID: group.Nodes[0].UID, Source: source, ObservedAt: now, ReceivedAt: now, Complete: true})
 		}
 	} else {
-		batch.Releases = []biz.ReleaseProof{{Pod: *in.Pod, DeviceID: in.DeviceID, NodeUID: group.Nodes[0].UID, ObservedAt: now, ReceivedAt: now, EvidenceRef: "isolated-joint:scope-release", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: &in.Ref, PlanDigest: usage.Plan.ResolutionDigest}}
+		batch.Releases = []biz.ReleaseProof{{Pod: *in.Pod, DeviceID: in.DeviceID, NodeUID: group.Nodes[0].UID, ObservedAt: now, ReceivedAt: now, EvidenceRef: "isolated-joint:scope-release", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: &in.Ref, ExecutionDigest: usage.ExecutionDigest}}
 	}
 	if err = db.Transact(context.Background(), func(tx biz.Transaction) error { return tx.SaveObservation(context.Background(), batch) }); err != nil {
 		t.Fatal(err)
@@ -150,12 +155,12 @@ func TestJointCatalogSeed(t *testing.T) {
 	rpc("RegisterCluster", &pb.RegisterClusterRequest{Mutation: mutation(), DisplayName: "joint-software-only", ConnectionRef: os.Getenv("ACC_CONTRACT_CONNECTION")}, cluster)
 	pool := new(pb.Pool)
 	rpc("CreatePool", &pb.CreatePoolRequest{Mutation: mutation(), ClusterId: cluster.ClusterId, DisplayName: "joint"}, pool)
-	baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "isolated-joint", MemoryBlockMiB: 1024, FactorEvidenceRef: "joint:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: strings.Repeat("d", 64), RecipeVersion: "volcano-hami-v1"}
+	baseline := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-mib-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "isolated-joint", MemoryBlockMiB: 1, MemoryEncoding: "MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: strings.Repeat("d", 64), RecipeVersion: "volcano-hami-mib-v1", RuntimeClassName: "nvidia"}
 	baseline.BaselineDigest, _ = biz.BaselineDigest(baseline)
 	group := new(pb.SupplyGroup)
 	rpc("AdoptSupplyGroup", &pb.AdoptSupplyGroupRequest{Mutation: mutation(), PoolId: pool.PoolId, DisplayName: "joint", Mode: pb.SupplyMode_SHARED_FIXED, Nodes: []*pb.NodeRef{{Uid: "node-" + biz.NewID(), Name: "joint-node"}}, ModelKey: "nvidia-test", Baseline: copyAs[pb.ProviderBaseline](t, baseline), QueueName: "gpu"}, group)
 	profile := new(pb.GpuProfile)
-	rpc("PublishProfile", &pb.PublishProfileRequest{Mutation: mutation(), DisplayName: "joint-6gib", Spec: &pb.ProfileSpec{GroupId: group.GroupId, Mode: pb.SupplyMode_SHARED_FIXED, ModelKey: group.ModelKey, SharedMemoryMib: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: 1, VerificationRef: "isolated-test:consumption"}, profile)
+	rpc("CreateProfile", &pb.CreateProfileRequest{Mutation: mutation(), DisplayName: "joint-6gib", Spec: &pb.ProfileSpec{GroupId: group.GroupId, Mode: pb.SupplyMode_SHARED_FIXED, ModelKey: group.ModelKey, MemoryMibPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: 1}, profile)
 	rpc("SetAdmission", &pb.SetAdmissionRequest{Mutation: mutation(), GroupId: group.GroupId, ExpectedVersion: 2, Desired: pb.AdmissionState_ADMISSION_OPEN, Reason: "isolated B-layer only"}, group)
 	request := &pb.GpuRequest{ClusterId: cluster.ClusterId, PoolId: pool.PoolId, ProfileId: profile.ProfileId, ProfileVersion: 1, Replicas: 2, DevicesPerReplica: 1, ContainerName: "inference"}
 	writeJointJSON(t, output, map[string]any{"requests": requests, "cluster": cluster, "pool": pool, "group": group, "profile": profile, "request": request, "scope": "isolated B-layer; no hardware evidence"})

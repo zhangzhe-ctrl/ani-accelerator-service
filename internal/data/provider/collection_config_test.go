@@ -2,10 +2,7 @@ package provider
 
 import (
 	"context"
-	"os"
-	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data"
@@ -13,37 +10,24 @@ import (
 
 // Only external protocols are replayed; observations, reconciliation, release
 // authorization, and capacity use the production adapter/use case and real PG.
-func TestProviderQualificationIndependentCollection(t *testing.T) {
-	for _, fault := range []string{"expired", "invalid", "missing", "scheduler_config", "scheduler_image", "factor", "registration", "physical_bytes", "podresources", "cri"} {
+func TestProviderConfigurationIndependentCollection(t *testing.T) {
+	for _, fault := range []string{"scheduler_config", "scheduler_image", "factor", "registration", "inventory_missing", "podresources", "cri"} {
 		t.Run(fault, func(t *testing.T) { providerControlledSources(t, "v1.15.2", fault) })
 	}
 }
 
-type changedBytesInventory struct{}
+type unavailableInventory struct{}
 
-func (changedBytesInventory) Read(ctx context.Context) ([]Inventory, error) {
-	devices, err := (replayInventory{}).Read(ctx)
-	devices[0].Bytes -= 1 << 20
-	return devices, err
+func (unavailableInventory) Read(context.Context) ([]Inventory, error) {
+	return nil, biz.Precondition("NVML_UNAVAILABLE")
 }
 
-func qualificationObservation(t *testing.T, fault string, adapter *Provider, evidence *EvidenceStore, dir string, att Attestation, state *replayState, cluster biz.Cluster, group biz.SupplyGroup, db *data.Postgres, u *biz.Usecase, owner context.Context, ref *biz.UsageRef, pod biz.PodRef, capacity func() *biz.CapacityView) {
+func configurationObservation(t *testing.T, fault string, adapter *Provider, state *replayState, cluster biz.Cluster, group biz.SupplyGroup, db *data.Postgres, u *biz.Usecase, owner context.Context, ref *biz.UsageRef, pod biz.PodRef, capacity func() *biz.CapacityView) {
 	t.Helper()
 	ctx := context.Background()
 	switch fault {
-	case "expired":
-		clock := time.Now().Add(2 * time.Hour)
-		evidence.now = func() time.Time { return clock }
-	case "invalid":
-		if err := os.WriteFile(filepath.Join(dir, EvidenceFilename(att.EvidenceRef)), []byte(`{"payload":{},"signature":"invalid"}`), 0600); err != nil {
-			t.Fatal(err)
-		}
-	case "missing":
-		if err := os.Remove(filepath.Join(dir, EvidenceFilename(att.EvidenceRef))); err != nil {
-			t.Fatal(err)
-		}
-	case "physical_bytes":
-		adapter.inventory = changedBytesInventory{}
+	case "inventory_missing":
+		adapter.inventory = unavailableInventory{}
 	case "cri":
 		state.mu.Lock()
 		state.runtimeFailed = true
@@ -54,7 +38,7 @@ func qualificationObservation(t *testing.T, fault string, adapter *Provider, evi
 	sourceFailure := fault == "cri" || fault == "podresources"
 	if !sourceFailure {
 		if _, err := adapter.Inspect(ctx, cluster, group); err == nil {
-			t.Fatalf("admission accepted qualification/runtime drift %s", fault)
+			t.Fatalf("admission accepted configuration drift %s", fault)
 		}
 	}
 	collect := func() biz.ObservationBatch {
@@ -76,7 +60,7 @@ func qualificationObservation(t *testing.T, fault string, adapter *Provider, evi
 			}
 		}
 		if len(batch.Claims) == 0 {
-			t.Fatal("qualification failure stopped live occupancy sampling")
+			t.Fatal("configuration drift stopped live occupancy sampling")
 		}
 	}
 	v := capacity()
@@ -99,9 +83,9 @@ func qualificationObservation(t *testing.T, fault string, adapter *Provider, evi
 			t.Fatal("missing actual CRI/PodResources source produced release proof")
 		}
 	} else if len(batch.Releases) != 1 {
-		t.Fatalf("qualification or registration failure blocked positive release proof: %+v", batch)
+		t.Fatalf("configuration or registration failure blocked positive release proof: %+v", batch)
 	}
-	observed, err := u.ObserveRelease(owner, "qualification-release", ref, biz.NewID(), []biz.PodRef{pod})
+	observed, err := u.ObserveRelease(owner, "configuration-release", ref, biz.NewID(), []biz.PodRef{pod})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -110,12 +94,12 @@ func qualificationObservation(t *testing.T, fault string, adapter *Provider, evi
 			t.Fatalf("real source failure falsely released occupancy: %+v", observed)
 		}
 	} else if observed.Finding != biz.AllocationReleased || !observed.Observation.Complete {
-		t.Fatalf("positive CRI exit and allocation absence must release without qualification: %+v", observed)
+		t.Fatalf("positive CRI exit and allocation absence must release without matching configuration: %+v", observed)
 	}
 	if !sourceFailure {
 		v = capacity()
 		if v.KnownCommittedUnits != 0 || v.KnownFreeUnits != 0 || v.Observation.Complete {
-			t.Fatalf("released facts may not restore unqualified supply: %+v", v)
+			t.Fatalf("released facts may not restore unknown supply: %+v", v)
 		}
 	}
 }

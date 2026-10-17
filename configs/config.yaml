@@ -23,6 +23,4 @@ accelerator:
   freshness: 120s
   collect_interval: 10s
   provider_config_file: "${PROVIDER_CONFIG_FILE:/etc/accelerator/provider.json}"
-  attestations_dir: "${ATTESTATIONS_DIR:/etc/accelerator/attestations}"
-  attestation_public_key_file: "${ATTESTATION_PUBLIC_KEY_FILE:/etc/accelerator/hardware.pub}"
   owner_public_key_file: "${OWNER_PUBLIC_KEY_FILE:/etc/accelerator/inference.pub}"

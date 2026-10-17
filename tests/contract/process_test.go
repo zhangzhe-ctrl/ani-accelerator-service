@@ -33,22 +33,20 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-// Only this test binary can inject a verified source. Production main always
-// assembles the pinned provider and signed hardware-attestation verifier.
+// This test binary supplies external provider observations. Production main always
+// assembles the production provider and owner-signature verifier.
 type controlledProvider struct{}
 
 func (controlledProvider) Inspect(_ context.Context, _ biz.Cluster, g biz.SupplyGroup) (biz.GroupInspection, error) {
 	i := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now()}
 	for _, n := range g.Nodes {
-		i.Nodes = append(i.Nodes, biz.InspectedNode{Node: n, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, ConfigDigest: g.Baseline.NodeConfigDigest, Labels: map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: g.Baseline.BaselineID}})
+		i.Nodes = append(i.Nodes, biz.InspectedNode{Node: n, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, ConfigDigest: g.Baseline.NodeConfigDigest, Labels: map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: g.Baseline.BaselineID}, DeviceBudgetsMiB: []int64{24576}})
 	}
 	return i, nil
 }
 func (controlledProvider) Collect(_ context.Context, c biz.Cluster, _ []biz.SupplyGroup) (biz.ObservationBatch, error) {
 	return biz.ObservationBatch{ClusterID: c.ClusterID}, nil
 }
-
-type controlledEvidence struct{}
 
 type interruptKey struct{}
 type interruptRepository struct {
@@ -70,13 +68,6 @@ func (r interruptRepository) Transact(ctx context.Context, fn func(biz.Transacti
 		}
 		return nil
 	})
-}
-
-func (controlledEvidence) Verify(_ context.Context, g biz.SupplyGroup, _ *biz.ProfileSpec, ref string) (*biz.Verification, error) {
-	if ref != "isolated-test:consumption" {
-		return nil, biz.Precondition("CONSUMPTION_NOT_VERIFIED")
-	}
-	return &biz.Verification{State: biz.Verified, EvidenceRef: ref, VerifiedAt: "2026-09-23T00:00:00Z", BaselineDigest: g.Baseline.BaselineDigest}, nil
 }
 
 func TestContractServerProcess(t *testing.T) {
@@ -104,7 +95,7 @@ func TestContractServerProcess(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, err := biz.NewUsecase(interruptRepository{db, os.Getenv("ACC_CONTRACT_MARKER")}, controlledProvider{}, controlledEvidence{}, cursor, []string{os.Getenv("ACC_CONTRACT_CONNECTION")}, 16, time.Minute)
+	u, err := biz.NewUsecase(interruptRepository{db, os.Getenv("ACC_CONTRACT_MARKER")}, controlledProvider{}, cursor, []string{os.Getenv("ACC_CONTRACT_CONNECTION")}, 16, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -358,12 +349,12 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if len(pools.Items) != 1 || pools.Items[0].PoolId != pool.PoolId {
 		t.Fatal(pools)
 	}
-	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-test", MemoryBlockMiB: 1024, FactorEvidenceRef: "controlled:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: strings.Repeat("d", 64), RecipeVersion: "volcano-hami-v1"}
+	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-mib-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-test", MemoryBlockMiB: 1, MemoryEncoding: "MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: strings.Repeat("d", 64), RecipeVersion: "volcano-hami-mib-v1", RuntimeClassName: "nvidia"}
 	b.BaselineDigest, _ = biz.BaselineDigest(b)
 	group := new(pb.SupplyGroup)
 	adopt := &pb.AdoptSupplyGroupRequest{Mutation: mutation(), PoolId: pool.PoolId, DisplayName: "contract", Mode: pb.SupplyMode_SHARED_FIXED, Nodes: []*pb.NodeRef{{Uid: "node-" + biz.NewID(), Name: "contract-node"}}, ModelKey: "nvidia-test", Baseline: copyAs[pb.ProviderBaseline](t, b), QueueName: "gpu"}
 	rpc("AdoptSupplyGroup", "", adopt, group)
-	if group.Admission != pb.AdmissionState_ADMISSION_CLOSED || group.Baseline.Verification.State != pb.VerificationState_NOT_VERIFIED {
+	if group.Admission != pb.AdmissionState_ADMISSION_CLOSED {
 		t.Fatal(group)
 	}
 	groups := new(pb.ListSupplyGroupsResponse)
@@ -372,9 +363,9 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		t.Fatal(groups)
 	}
 	profile := new(pb.GpuProfile)
-	publish := &pb.PublishProfileRequest{Mutation: mutation(), DisplayName: "6 GiB", Spec: &pb.ProfileSpec{GroupId: group.GroupId, Mode: pb.SupplyMode_SHARED_FIXED, ModelKey: group.ModelKey, SharedMemoryMib: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: 1, VerificationRef: "isolated-test:consumption"}
-	rpc("PublishProfile", "", publish, profile)
-	if !profile.Published || profile.ProfileVersion != 1 {
+	publish := &pb.CreateProfileRequest{Mutation: mutation(), DisplayName: "6 GiB", Spec: &pb.ProfileSpec{GroupId: group.GroupId, Mode: pb.SupplyMode_SHARED_FIXED, ModelKey: group.ModelKey, MemoryMibPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: 1}
+	rpc("CreateProfile", "", publish, profile)
+	if profile.State != pb.ProfileState_PROFILE_ACTIVE || profile.Revision != 1 || profile.ProfileVersion != 1 {
 		t.Fatal(profile)
 	}
 	profiles := new(pb.ListProfilesResponse)
@@ -401,9 +392,9 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		t.Fatal("profile changed across restart")
 	}
 	request := &pb.GpuRequest{ClusterId: cluster.ClusterId, PoolId: pool.PoolId, ProfileId: profile.ProfileId, ProfileVersion: 1, Replicas: 2, DevicesPerReplica: 1, ContainerName: "inference"}
-	plan := new(pb.ResolvedGpuPlan)
+	plan := new(pb.ResolvedGpuRequest)
 	rpc("ResolveGpuRequest", tenant, &pb.ResolveGpuRequestRequest{Context: tc, Gpu: request}, plan)
-	if plan.Encoding.MemoryBlocksPerDevice != 6 || plan.Totals.SharedMemoryMib != 12288 {
+	if plan.Execution.Resources["volcano.sh/vgpu-memory"] != "6144" || len(plan.QuotaItems) != 1 || plan.QuotaItems[0].Units != 12288 {
 		t.Fatal(plan)
 	}
 	db, err := data.OpenPostgres(context.Background(), r.Config.Database.DsnFile)
@@ -415,9 +406,9 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	now := time.Now().UTC()
 	device := biz.NewID()
 	pod := biz.PodRef{ClusterID: cluster.ClusterId, Namespace: "contract", Name: "inference", UID: "pod-" + biz.NewID(), ContainerName: "inference"}
-	batch := biz.ObservationBatch{ClusterID: cluster.ClusterId, Devices: []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: cluster.ClusterId, GroupID: group.GroupId, Node: copyAs[biz.NodeRef](t, group.Nodes[0]), VendorDeviceID: "GPU-01234567-89ab-cdef-0123-456789abcdef", ModelKey: group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24, MemoryBlockMiB: 1024, SafeMemoryBudgetMiB: 24576, BaselineDigest: b.BaselineDigest}}}
+	batch := biz.ObservationBatch{ClusterID: cluster.ClusterId, Devices: []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: cluster.ClusterId, GroupID: group.GroupId, Node: copyAs[biz.NodeRef](t, group.Nodes[0]), VendorDeviceID: "GPU-01234567-89ab-cdef-0123-456789abcdef", ModelKey: group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: b.BaselineDigest}}}
 	for _, source := range []string{"scheduler", "allocation", "runtime"} {
-		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: b.BaselineDigest, MemoryBlockMiB: 1024, EvidenceRef: "controlled:" + source, OwnerRef: ref, PlanDigest: plan.ResolutionDigest})
+		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: b.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "controlled:" + source, OwnerRef: ref, ExecutionDigest: plan.Execution.ExecutionDigest})
 	}
 	for _, source := range []string{"kubernetes", "podresources", "cri"} {
 		batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: cluster.ClusterId, NodeUID: group.Nodes[0].Uid, Source: source, ObservedAt: now, ReceivedAt: now, Complete: true})
@@ -459,7 +450,7 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if observation.Finding != pb.ReleaseFinding_ALLOCATION_STILL_PRESENT {
 		t.Fatal(observation)
 	}
-	projection := &biz.UsageProjection{Ref: ref, Revision: 2, State: biz.Ended, Plan: copyAs[biz.ResolvedPlan](t, plan), EndReason: biz.OwnerReleased, SourceFactRef: "quota-operation:" + ref.CreateOperationID + ":gpu-fully-released", SourceOperationCreatedAt: "2026-09-23T00:00:00Z"}
+	projection := &biz.UsageProjection{Ref: ref, Revision: 2, State: biz.Ended, ProfileID: profile.ProfileId, ProfileVersion: profile.ProfileVersion, GroupID: group.GroupId, BaselineID: b.BaselineID, ClusterID: cluster.ClusterId, ContainerName: "inference", ExecutionDigest: plan.Execution.ExecutionDigest, EndReason: biz.OwnerReleased, SourceFactRef: "quota-operation:" + ref.CreateOperationID + ":gpu-fully-released", SourceOperationCreatedAt: "2026-09-23T00:00:00Z"}
 	projection.PayloadDigest, _ = biz.ProjectionDigest(projection)
 	syncRequest := &pb.SyncGpuUsageRequest{RequestId: "contract", Projection: copyAs[pb.GpuUsageProjection](t, projection)}
 	syncResult := new(pb.SyncGpuUsageResponse)
@@ -559,7 +550,7 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	}
 	second.kill(t)
 	// Positive scoped release retires old evidence, even after ENDED.
-	store(biz.ObservationBatch{ClusterID: cluster.ClusterId, Releases: []biz.ReleaseProof{{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), EvidenceRef: "controlled:released", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: ref, PlanDigest: plan.ResolutionDigest}}})
+	store(biz.ObservationBatch{ClusterID: cluster.ClusterId, Releases: []biz.ReleaseProof{{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), EvidenceRef: "controlled:released", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: ref, ExecutionDigest: plan.Execution.ExecutionDigest}}})
 	rpc("ObserveRelease", tenant, release, observation)
 	if observation.Finding != pb.ReleaseFinding_ALLOCATION_RELEASED {
 		t.Fatal(observation)

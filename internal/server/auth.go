@@ -21,7 +21,7 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var AdminActions = map[string]bool{"RegisterCluster": true, "ListClusters": true, "CreatePool": true, "ListPools": true, "AdoptSupplyGroup": true, "ListSupplyGroups": true, "SetAdmission": true, "PublishProfile": true, "AdminListProfiles": true, "AdminListBindings": true, "ListDevices": true, "AdminGetCapacity": true}
+var AdminActions = map[string]bool{"RegisterCluster": true, "ListClusters": true, "CreatePool": true, "ListPools": true, "AdoptSupplyGroup": true, "ListSupplyGroups": true, "SetAdmission": true, "CreateProfile": true, "PreviewProfile": true, "SetProfileState": true, "DeleteProfile": true, "AdminListProfiles": true, "AdminListBindings": true, "ListDevices": true, "AdminGetCapacity": true}
 var TenantActions = map[string]bool{"ListProfiles": true, "GetProfile": true, "ResolveGpuRequest": true, "GetCapacity": true, "CheckGpuFit": true, "GetGpuUsage": true, "ListGpuUsages": true, "ListBindings": true}
 
 func LoadServerTLS(c *conf.Security) (*tls.Config, error) {
