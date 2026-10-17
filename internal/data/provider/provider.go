@@ -643,7 +643,11 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 				}
 				var claim *biz.Claim
 				for i := range claims {
-					if claims[i].DeviceID == binding.PhysicalDeviceID && claims[i].NodeUID == node.UID && claims[i].Source == "runtime" {
+					// Historical assignment can remain unknown when a running
+					// container's GPU env was invalid. Current positive CRI exit
+					// and allocation absence can still retire that exact claim;
+					// a previous valid runtime allocation is not required.
+					if claims[i].Pod == *binding.Pod && claims[i].DeviceID == binding.PhysicalDeviceID && claims[i].NodeUID == node.UID {
 						claim = &claims[i]
 						break
 					}
