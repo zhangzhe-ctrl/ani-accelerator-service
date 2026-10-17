@@ -68,6 +68,8 @@ type nodeSnapshot struct {
 	Resources              *pr.ListPodResourcesResponse
 	Containers             []*cri.Container
 	Statuses               map[string]*cri.ContainerStatusResponse
+	HistoricalStatuses     map[string]bool
+	UnknownPodContainers   map[string][]string
 	ObservedAt             time.Time
 	ResourcesOK, RuntimeOK bool
 }

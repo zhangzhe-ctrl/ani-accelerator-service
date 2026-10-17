@@ -91,7 +91,7 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 	pb.RegisterAcceleratorUsageServiceServer(grpcServer, handler)
 	adminServer := server.NewAdminServer(bc.Server.Admin, readiness, observability.Gatherer(), middlewares...)
 	worker := server.NewWorker(u, db, readiness, logger, bc.Accelerator.CollectInterval.AsDuration())
-	app := kratos.New(kratos.ID(id), kratos.Name(Name), kratos.Version(Version), kratos.Logger(logger), kratos.Server(grpcServer, adminServer, worker), kratos.BeforeStop(func(context.Context) error { readiness.Set(false); return nil }), kratos.AfterStop(func(ctx context.Context) error { db.Close(); return observability.Shutdown(ctx) }), kratos.StopTimeout(bc.Server.ShutdownTimeout.AsDuration()))
+	app := kratos.New(kratos.ID(id), kratos.Name(Name), kratos.Version(Version), kratos.Logger(logger), kratos.Server(grpcServer, adminServer, reader, worker), kratos.BeforeStop(func(context.Context) error { readiness.Set(false); return nil }), kratos.AfterStop(func(ctx context.Context) error { db.Close(); return observability.Shutdown(ctx) }), kratos.StopTimeout(bc.Server.ShutdownTimeout.AsDuration()))
 	complete = true
 	return app, nil
 }

@@ -46,7 +46,9 @@ type NodeSource struct {
 	CRISocket          string `json:"cri_socket"`
 }
 type Config struct {
-	Connections []Connection `json:"connections"`
+	Connections            []Connection           `json:"connections"`
+	RuntimeEventsDirectory string                 `json:"runtime_events_directory"`
+	RuntimeJournal         *journalRecoveryConfig `json:"runtime_journal"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -57,6 +59,12 @@ func LoadConfig(path string) (Config, error) {
 	}
 	defer f.Close()
 	if decodeStrict(f, &c) != nil {
+		return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
+	}
+	if c.RuntimeEventsDirectory != "" && !filepath.IsAbs(c.RuntimeEventsDirectory) {
+		return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
+	}
+	if j := c.RuntimeJournal; j != nil && (!filepath.IsAbs(j.Directory) || !filepath.IsAbs(j.JournalctlPath) || !biz.UUID(j.NodeUID) || !journalHex32.MatchString(j.MachineID)) {
 		return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
 	}
 	seen := map[string]bool{}

@@ -13,6 +13,8 @@
 | Volcano scheduler v1.15.2 + independent device plugin v1.12.0 | 上述默认注册/分配格式；额外读取三个默认 vgpu Allocatable 资源键 | [固定源码比较及真实 Queue 缺陷](volcano-v1.15.2-compatibility.md)。Allocatable 必须为正整数；原版 Whole 百分比计划被 Queue 拒绝，派生修复镜像须独立冻结 digest、baseline 和硬件证明。不能以版本相同沿用原证明；其他组合拒绝 |
 | Kubernetes PodResources v1（Go 模块 v0.35.3） | List 的 namespace/Pod name/container/resource/device_ids | 仅显式配置的 Unix socket；设备伪 ID 只证明分配存在，不能当物理 UUID；由同 Pod UID 的 CRI 事实桥接 |
 | containerd / CRI v1（Go 模块 v0.35.3） | Version 必须报告 containerd、非空 runtime 版本和 API v1；ListContainers、verbose ContainerStatus，返回容器 ID 必须一致；GPU 容器继续核对 reserved Pod UID/container metadata 与 Info[info].runtimeSpec.process.env | 按实际能力和字段校验，不锁定 containerd 小版本。`NVIDIA_VISIBLE_DEVICES=GPU-...`、`CUDA_DEVICE_MEMORY_LIMIT_0=<MiB>m`、`CUDA_DEVICE_SM_LIMIT` 仍须完整有效，MiB 不能再乘 F；其他 runtime/API、RPC 失败或状态身份不明保留未知。无 GPU 容器和 EXITED 状态不要求 GPU env；仅 Unix socket |
+| CRI v1 容器事件 | GetContainerEvents 的 sandbox metadata、container ID/name/state、FinishedAt | 连续订阅并持久保存全部已见 attempt；仅正向 EXITED 补充解除事实，当前 Running/Unknown 优先阻断 |
+| containerd 原始 system journal | 固定 journalctl 查询、trusted machine/boot/unit/uid 元数据与完整创建、退出链 | 只读实际节点 journal；用明确 TaskExit 时间恢复错过的事件，不从缺失推断，不改写运行分配或配额 |
 | NVML（Go binding v0.13.0-1） | GetUUID/GetName/GetMemoryInfo.Total | 实际本节点物理 bytes；平台 device UUID 由 cluster+Node UID+vendor UUID 派生 UUIDv8，不使用 index |
 | 硬件验收资格 | `gpu-hardware-qualification-v2` Ed25519 签名 JSON | 独立受控实验 manifest 摘要、cluster/group/baseline/spec、完整 Node UID/物理 UUID、物理 bytes/安全 MiB；绑定 baseline，无时间自动失效。旧 `gpu-hardware-consumption-v1` 保留原到期语义，须显式迁移。RPC 不能自报 VERIFIED |
 | owner 归属证明 | `acc-owner-pod-v1` Ed25519 | 签名绑定实际 Pod UID/container、原资源 ref、冻结 plan digest；普通标签不获得租户归属 |
@@ -33,6 +35,13 @@
 
 ```json
 {
+  "runtime_events_directory": "/var/lib/accelerator/runtime-exits/node-a",
+  "runtime_journal": {
+    "directory": "/host/journal/ACTUAL-MACHINE-ID",
+    "machine_id": "ACTUAL-MACHINE-ID",
+    "node_uid": "ACTUAL-NODE-UID",
+    "journalctl_path": "/usr/bin/journalctl"
+  },
   "connections": [{
     "ref": "managed:cluster-a",
     "api_server": "https://api.cluster.example:6443",
@@ -79,6 +88,10 @@ v1 仍使用 `acc-hardware-attestation-v1` 签名域及其原有效期，不会�
 验收资格与运行源健康分开判断。资格缺失/损坏/旧 v1 过期，或调度镜像、配置偏离准入 baseline，不停止 Kubernetes、PodResources、CRI 的事实采集和正向释放证明。此时库存/可售容量保持保守不完整，不凭健康水位宣称可以新增分配；单位 F 或注册格式无法核对时不重新解释分配块数。来源水位表达实际连接、节点与读取健康，不把准入配置不匹配伪装为来源失联。真实来源失联、容器未退出或仍有设备分配时仍不能确认释放。
 
 解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。release 查询不写数据库、不删除 workload、不结束 usage、不发配额释放。
+
+轮询可能错过 kubelet 清理前的短暂 EXITED 状态。生产部署应启用 CRI `GetContainerEvents` 连续采集，并把 `runtime_events_directory` 挂载到该服务独占的受管持久目录，权限 0700；多个服务不要共写目录。同节点/Unix socket 的连接别名共用一个订阅。记录保存完整容器身份及 Created/Started/Exited 状态，不保存 OCI 环境变量；状态变化原子写入并同步落盘，重启后读回。任何已知 attempt 缺少正向退出记录，或当前仍有 Running/Unknown attempt，继续保留未知占用。
+
+已经错过事件且 CRI 已清理的容器，可由 `runtime_journal` 只读查询该确切节点的原始 containerd journal。镜像须包含标准 `journalctl`，只读挂载实际 machine journal 目录，并配置真实 machine ID 和 Node UID。恢复严格核对 root/containerd.service 来源、同一 boot 下的 Pod UID/namespace/name → sandbox → container name/完整 ID → 明确退出时间的完整链；缺失、冲突、未识别格式或超时均不能释放。不导入仓外取证 JSON 冒充实时 CRI，不用 Remove/NotFound 推断退出，也不生成 ACTIVE runtime 分配。恢复事实仅补充释放证明，仍须当前节点在线、CRI/PodResources 健康且 GPU 分配已移除。历史只有 scheduler/allocation Claim 的未知绑定也适用相同正向条件。
 
 完整有效的 `RELEASE_CONFIRMED` 是已持久化的历史事实，绑定列表及其聚合不能因 120 秒采样窗口过去或当前来源失联而将其降为 UNKNOWN；返回原始 observed_at、received_at 和 release 引用，不刷新证明时间。ACTIVE 仍要求来源健康及实时新鲜度；不完整、未知或时间无效的历史记录仍保守返回不完整。该规则不改变新分配重新计占用的合并逻辑，也不替代 ObserveRelease 对当前解除条件的核验。
 

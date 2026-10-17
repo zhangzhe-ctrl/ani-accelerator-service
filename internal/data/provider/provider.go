@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/ed25519"
 	"fmt"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -21,6 +22,8 @@ type Provider struct {
 	resourceOwnerKey ed25519.PublicKey
 	repo             biz.Repository
 	freshness        time.Duration
+	runtimeEvents    *runtimeEvents
+	runtimeJournal   *journalRecoveryConfig
 }
 
 // ConfigureResourceOwnerKey is called once by composition before collection.
@@ -35,6 +38,10 @@ func (p *Provider) ConfigureResourceOwnerKey(key ed25519.PublicKey) error {
 
 func New(config Config, evidence *EvidenceStore, ownerKey ed25519.PublicKey, repo biz.Repository, freshness time.Duration) (*Provider, error) {
 	p := &Provider{connections: map[string]*kubeReader{}, inventory: nvmlInventory{}, evidence: evidence, ownerKey: ownerKey, repo: repo, freshness: freshness}
+	if config.RuntimeEventsDirectory != "" {
+		p.runtimeEvents = newRuntimeEvents(config.RuntimeEventsDirectory)
+	}
+	p.runtimeJournal = config.RuntimeJournal
 	for _, c := range config.Connections {
 		k, err := newKubeReader(c)
 		if err != nil {
@@ -306,6 +313,11 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		}
 		nodeOK := ne == nil && pe == nil && n != nil && k.nodeOnline(ctx, *n, now, p.freshness)
 		snapshot := readNode(ctx, source)
+		releaseSnapshot := snapshot
+		if p.runtimeEvents != nil {
+			p.runtimeEvents.observeSnapshot(source, snapshot)
+			releaseSnapshot = p.runtimeEvents.releaseSnapshot(source, snapshot)
+		}
 		for _, health := range []struct {
 			name string
 			ok   bool
@@ -322,7 +334,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		// Positive release evidence needs current Node UID + healthy CRI and
 		// PodResources only. Registration, F/K, and admission proofs do not
 		// participate in determining that an old allocation has disappeared.
-		proofs, err := p.releaseProofs(ctx, c.ClusterID, source, snapshot, nodeOK, now)
+		proofs, err := p.releaseProofs(ctx, c.ClusterID, source, releaseSnapshot, nodeOK, now)
 		if err != nil {
 			return batch, err
 		}
@@ -634,7 +646,7 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 				return err
 			}
 			for _, binding := range bindings {
-				if binding.Pod == nil {
+				if binding.Pod == nil || binding.State == biz.ReleaseConfirmed {
 					continue
 				}
 				claims, _, err := r.PodEvidence(ctx, *binding.Pod)
@@ -660,7 +672,33 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 					continue
 				}
 				statuses, ok := runtimeFor(snapshot, binding.Pod.UID, binding.Pod.ContainerName)
-				if !ok || len(statuses) == 0 {
+				if !ok {
+					continue
+				}
+				unmapped := snapshot.UnknownPodContainers[binding.Pod.UID]
+				if config := p.runtimeJournal; config != nil && config.NodeUID == node.UID && (needsJournalExit(statuses) || len(unmapped) > 0) {
+					recovered, complete, err := recoverJournalExit(ctx, *config, *binding.Pod)
+					if err != nil {
+						continue
+					}
+					if complete {
+						statuses = mergeJournalExits(statuses, recovered, snapshot.HistoricalStatuses, *binding.Pod)
+						covered := map[string]bool{}
+						for _, status := range statuses {
+							if status.Status.State == cri.ContainerState_CONTAINER_EXITED && status.Status.FinishedAt > 0 {
+								covered[status.Status.Id] = true
+							}
+						}
+						remaining := []string{}
+						for _, id := range unmapped {
+							if !covered[id] {
+								remaining = append(remaining, id)
+							}
+						}
+						unmapped = remaining
+					}
+				}
+				if len(statuses) == 0 || len(unmapped) > 0 {
 					continue
 				}
 				exited := true
@@ -669,11 +707,12 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 					if status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
 						exited = false
 					}
-					ids = append(ids, status.Status.Id)
+					ids = append(ids, status.Status.Id+":"+strconv.FormatInt(status.Status.FinishedAt, 10)+":"+status.Info["journal_evidence"])
 				}
 				if !exited {
 					continue
 				}
+				sort.Strings(ids)
 				digest, _ := biz.Hash(ids)
 				result = append(result, biz.ReleaseProof{Pod: *binding.Pod, DeviceID: binding.PhysicalDeviceID, NodeUID: node.UID, ObservedAt: snapshot.ObservedAt, ReceivedAt: now, EvidenceRef: "release:" + digest, RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: claim.OwnerRef, PlanDigest: claim.PlanDigest})
 			}
@@ -684,6 +723,39 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 		}
 	})
 	return result, err
+}
+
+func needsJournalExit(statuses []*cri.ContainerStatusResponse) bool {
+	if len(statuses) == 0 {
+		return true
+	}
+	for _, status := range statuses {
+		if status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
+			return true
+		}
+	}
+	return false
+}
+
+func mergeJournalExits(current, recovered []*cri.ContainerStatusResponse, historical map[string]bool, pod biz.PodRef) []*cri.ContainerStatusResponse {
+	byID := map[string]*cri.ContainerStatusResponse{}
+	for _, status := range current {
+		byID[status.Status.Id] = status
+	}
+	for _, status := range recovered {
+		if status == nil || status.Status == nil || status.Status.Id == "" || status.Status.Metadata == nil || status.Status.Metadata.Name != pod.ContainerName || status.Status.Labels["io.kubernetes.pod.uid"] != pod.UID || status.Status.Labels["io.kubernetes.pod.namespace"] != pod.Namespace || status.Status.Labels["io.kubernetes.pod.name"] != pod.Name || status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
+			return current
+		}
+		id := status.Status.Id
+		if _, exists := byID[id]; !exists || historical[id] {
+			byID[id] = status // Never replace a currently observed running attempt.
+		}
+	}
+	result := make([]*cri.ContainerStatusResponse, 0, len(byID))
+	for _, status := range byID {
+		result = append(result, status)
+	}
+	return result
 }
 func (p *Provider) String() string {
 	return fmt.Sprintf("volcano-hami-factor-v1 (%d managed connections)", len(p.connections))

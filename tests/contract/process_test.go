@@ -327,13 +327,26 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if !biz.UUID(cluster.ClusterId) || cluster.ConnectionRef != connection {
 		t.Fatal(cluster)
 	}
-	clusters := new(pb.ListClustersResponse)
-	rpc("ListClusters", "", &pb.ListClustersRequest{Context: adminRead(), Page: &pb.Page{Size: 200}}, clusters)
 	found := false
-	for _, c := range clusters.Items {
-		if c.ClusterId == cluster.ClusterId {
-			found = true
+	page := &pb.Page{Size: 200}
+	seenTokens := map[string]bool{}
+	for !found {
+		clusters := new(pb.ListClustersResponse)
+		rpc("ListClusters", "", &pb.ListClustersRequest{Context: adminRead(), Page: page}, clusters)
+		for _, c := range clusters.Items {
+			if c.ClusterId == cluster.ClusterId {
+				found = true
+				break
+			}
 		}
+		if found || clusters.NextToken == "" {
+			break
+		}
+		if seenTokens[clusters.NextToken] {
+			t.Fatal("ListClusters repeated a page token")
+		}
+		seenTokens[clusters.NextToken] = true
+		page.Token = clusters.NextToken
 	}
 	if !found {
 		t.Fatal("registered cluster absent")
