@@ -21,11 +21,11 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var AdminActions = map[string]bool{"RegisterCluster": true, "ListClusters": true, "CreatePool": true, "ListPools": true, "AdoptSupplyGroup": true, "ListSupplyGroups": true, "SetAdmission": true, "PublishProfile": true, "AdminListProfiles": true, "AdminListBindings": true, "ListDevices": true, "AdminGetCapacity": true}
+var AdminActions = map[string]bool{"RegisterCluster": true, "ListClusters": true, "CreatePool": true, "ListPools": true, "AdoptSupplyGroup": true, "ListSupplyGroups": true, "SetAdmission": true, "CreateProfile": true, "PreviewProfile": true, "SetProfileState": true, "DeleteProfile": true, "AdminListProfiles": true, "AdminListBindings": true, "ListDevices": true, "AdminGetCapacity": true}
 var TenantActions = map[string]bool{"ListProfiles": true, "GetProfile": true, "ResolveGpuRequest": true, "GetCapacity": true, "CheckGpuFit": true, "GetGpuUsage": true, "ListGpuUsages": true, "ListBindings": true}
 
 func LoadServerTLS(c *conf.Security) (*tls.Config, error) {
-	if c == nil || c.CaFile == "" || c.CertFile == "" || c.KeyFile == "" || c.GovernanceUri == "" || c.InferenceUri == "" || c.GovernanceUri == c.InferenceUri {
+	if c == nil || c.CaFile == "" || c.CertFile == "" || c.KeyFile == "" || c.GovernanceUri == "" || c.InferenceUri == "" || c.ResourceUri == "" || c.GovernanceUri == c.InferenceUri || c.ResourceUri == c.GovernanceUri || c.ResourceUri == c.InferenceUri {
 		return nil, biz.Invalid("MTLS_CONFIG_REQUIRED")
 	}
 	cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
@@ -47,7 +47,31 @@ func NewSecureGRPCServer(c *conf.Server_GRPC, security *conf.Security, middlewar
 	if err != nil {
 		return nil, err
 	}
-	return kratosgrpc.NewServer(kratosgrpc.Network(c.Network), kratosgrpc.Address(c.Addr), kratosgrpc.Timeout(c.Timeout.AsDuration()), kratosgrpc.TLSConfig(tlsConfig), kratosgrpc.Middleware(middlewares...), kratosgrpc.DisableReflection(), kratosgrpc.UnaryInterceptor(Authorize(security))), nil
+	return kratosgrpc.NewServer(kratosgrpc.Network(c.Network), kratosgrpc.Address(c.Addr), kratosgrpc.Timeout(c.Timeout.AsDuration()), kratosgrpc.TLSConfig(tlsConfig), kratosgrpc.Middleware(middlewares...), kratosgrpc.DisableReflection(), kratosgrpc.UnaryInterceptor(Authorize(security)), kratosgrpc.StreamInterceptor(AuthorizeStream(security))), nil
+}
+
+// Business RPCs are unary. Kratos also registers the streaming health Watch;
+// it must not bypass Resource's sole-method allowlist.
+func AuthorizeStream(config *conf.Security) grpc.StreamServerInterceptor {
+	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, next grpc.StreamHandler) error {
+		p, ok := peer.FromContext(stream.Context())
+		if !ok {
+			return status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
+		}
+		t, ok := p.AuthInfo.(credentials.TLSInfo)
+		if !ok || len(t.State.VerifiedChains) == 0 || len(t.State.PeerCertificates) == 0 {
+			return status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
+		}
+		leaf := t.State.PeerCertificates[0]
+		if len(leaf.URIs) != 1 {
+			return status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
+		}
+		identity := leaf.URIs[0].String()
+		if info.FullMethod != "/grpc.health.v1.Health/Watch" || (identity != config.GovernanceUri && identity != config.InferenceUri) {
+			return status.Error(codes.PermissionDenied, "ACTION_DENIED")
+		}
+		return next(srv, stream)
+	}
 }
 func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, request any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
@@ -70,10 +94,15 @@ func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 			service = "ani-governance"
 		case config.InferenceUri:
 			service = "ani-inference"
+		case config.ResourceUri:
+			service = "ani-resource-service"
 		default:
 			return nil, status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
 		}
 		if info.FullMethod == "/grpc.health.v1.Health/Check" {
+			if service == "ani-resource-service" {
+				return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
+			}
 			return next(ctx, request)
 		}
 		if !strings.HasPrefix(info.FullMethod, "/accelerator.v1.") {
@@ -102,7 +131,7 @@ func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 			return next(biz.WithCaller(ctx, caller), request)
 		}
 		if method == "ObserveRelease" {
-			if service != "ani-inference" || !biz.UUID(caller.TenantID) {
+			if (service != "ani-inference" && service != "ani-resource-service") || !biz.UUID(caller.TenantID) || read("x-ani-action") != method {
 				return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 			}
 			return next(biz.WithCaller(ctx, caller), request)

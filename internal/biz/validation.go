@@ -90,21 +90,21 @@ func ValidateActor(a *Actor) error {
 	return nil
 }
 func ValidateBaseline(b *ProviderBaseline, mode SupplyMode) error {
-	if b == nil || b.MemoryBlockMiB == 0 || b.MemoryBlockMiB > math.MaxInt32 {
-		return Precondition("MEMORY_UNIT_UNVERIFIED")
+	if b == nil || b.MemoryBlockMiB != 1 {
+		return Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	if mode != Whole && mode != Shared {
 		return Invalid("SHAPE_UNSUPPORTED")
 	}
 	// These are reviewed source contracts, not hardware verification. Scheduler
 	// and device-plugin releases are independent; unknown combinations stay closed.
-	if !UUID(b.BaselineID) || b.AdapterID != "volcano-hami-factor-v1" || (b.VolcanoVersion != "v1.12.0" && b.VolcanoVersion != "v1.15.2") || b.DevicePluginVersion != "v1.12.0" || b.RecipeVersion != "volcano-hami-v1" || b.MemoryEncoding != "VOLCANO_BLOCKS_TO_MIB" {
+	if !UUID(b.BaselineID) || b.AdapterID != "volcano-hami-mib-v1" || !Ref(b.VolcanoVersion) || !Ref(b.DevicePluginVersion) || b.RecipeVersion != "volcano-hami-mib-v1" || b.MemoryEncoding != "MIB" {
 		return Precondition("BASELINE_UNSUPPORTED")
 	}
-	if !imageDigest(b.VolcanoImageDigest) || !imageDigest(b.DevicePluginImageDigest) || !Ref(b.HamiCoreRevision) || !Ref(b.FactorEvidenceRef) || !Digest(b.NodeConfigDigest) || !Digest(b.SchedulerConfigDigest) {
+	if !imageDigest(b.VolcanoImageDigest) || !imageDigest(b.DevicePluginImageDigest) || !Ref(b.HamiCoreRevision) || !Name(b.RuntimeClassName) || !Digest(b.NodeConfigDigest) || !Digest(b.SchedulerConfigDigest) {
 		return Precondition("BASELINE_INCOMPLETE")
 	}
-	if b.MemoryScalePercent != 100 || b.CoreScalePercent != 100 || b.SplitCount == 0 || b.SplitCount > math.MaxInt32 || (mode == Whole && b.SplitCount != 1) || (mode == Shared && b.SplitCount < 2) {
+	if !b.CoreBudgetAdditive || b.MemoryScalePercent != 100 || b.CoreScalePercent != 100 || b.SplitCount == 0 || b.SplitCount > math.MaxInt32 || (mode == Whole && b.SplitCount != 1) || (mode == Shared && b.SplitCount < 2) {
 		return Precondition("CONFIG_DRIFT")
 	}
 	d, err := BaselineDigest(b)
@@ -124,22 +124,25 @@ func imageDigest(s string) bool {
 	return strings.HasPrefix(s, "sha256:") && Digest(strings.TrimPrefix(s, "sha256:"))
 }
 func ValidateSpec(s *ProfileSpec, b *ProviderBaseline) error {
-	if s == nil || !UUID(s.GroupID) || !Label(s.ModelKey) || s.MaxDevicesPerReplica != 1 {
+	if s == nil || !UUID(s.GroupID) || !Label(s.ModelKey) || s.MaxDevicesPerReplica < 1 || s.MemoryMiBPerDevice <= 0 {
 		return Invalid("SHAPE_UNSUPPORTED")
 	}
 	if err := ValidateBaseline(b, s.Mode); err != nil {
 		return err
 	}
+	if s.MemoryMiBPerDevice > math.MaxInt32 {
+		return Invalid("PROVIDER_INTEGER_OVERFLOW")
+	}
 	switch s.Mode {
 	case Whole:
-		if s.SharedMemoryMiB != 0 || s.CoreLimitPercent != 100 || s.IsolationClass != "WHOLE_DEVICE_EXCLUSIVE" {
+		if s.MemoryMiBPerDevice <= 0 || s.CoreLimitPercent != 100 || s.IsolationClass != "WHOLE_DEVICE_EXCLUSIVE" {
 			return Invalid("SHAPE_UNSUPPORTED")
 		}
 	case Shared:
-		if s.SharedMemoryMiB <= 0 || s.CoreLimitPercent < 1 || s.CoreLimitPercent > 99 || s.IsolationClass != "SOFTWARE_COOPERATIVE" {
+		if s.MaxDevicesPerReplica != 1 || s.MemoryMiBPerDevice <= 0 || s.CoreLimitPercent < 1 || s.CoreLimitPercent > 99 || s.IsolationClass != "SOFTWARE_COOPERATIVE" {
 			return Invalid("SHAPE_UNSUPPORTED")
 		}
-		if _, err := EncodeMemory(s.SharedMemoryMiB, b.MemoryBlockMiB); err != nil {
+		if _, err := EncodeMemory(s.MemoryMiBPerDevice, b.MemoryBlockMiB); err != nil {
 			return err
 		}
 	default:
@@ -148,8 +151,8 @@ func ValidateSpec(s *ProfileSpec, b *ProviderBaseline) error {
 	return nil
 }
 func EncodeMemory(m int64, f uint32) (int64, error) {
-	if f == 0 || f > math.MaxInt32 {
-		return 0, Precondition("MEMORY_UNIT_UNVERIFIED")
+	if f != 1 {
+		return 0, Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	if m <= 0 {
 		return 0, Invalid("INVALID_MEMORY")
@@ -172,8 +175,8 @@ func NormalizeMemory(n int64, unit string, f uint32) (int64, error) {
 	}
 	switch unit {
 	case "BLOCKS":
-		if f == 0 || f > math.MaxInt32 || n > math.MaxInt32 {
-			return 0, Precondition("MEMORY_UNIT_UNVERIFIED")
+		if f != 1 || n > math.MaxInt32 {
+			return 0, Precondition("MEMORY_UNIT_MISMATCH")
 		}
 		return Multiply(n, int64(f))
 	case "MIB":
@@ -184,12 +187,12 @@ func NormalizeMemory(n int64, unit string, f uint32) (int64, error) {
 		}
 		return n / (1 << 20), nil
 	default:
-		return 0, Precondition("MEMORY_UNIT_UNVERIFIED")
+		return 0, Precondition("MEMORY_UNIT_MISMATCH")
 	}
 }
 func QuantizedBlocks(bytes []uint64, f uint32) (int64, error) {
-	if f == 0 || f > math.MaxInt32 {
-		return 0, Precondition("MEMORY_UNIT_UNVERIFIED")
+	if f != 1 {
+		return 0, Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	var sum int64
 	for _, n := range bytes {
@@ -208,7 +211,7 @@ func ValidateRequest(r *GpuRequest, maxReplicas uint32) error {
 	if r == nil || !UUID(r.ClusterID) || !UUID(r.PoolID) || !UUID(r.ProfileID) || r.ProfileVersion != 1 {
 		return Invalid("INVALID_GPU_REQUEST")
 	}
-	if maxReplicas == 0 || maxReplicas > 256 || r.Replicas == 0 || r.Replicas > maxReplicas || r.DevicesPerReplica != 1 || !Name(r.ContainerName) {
+	if maxReplicas == 0 || maxReplicas > 256 || r.Replicas == 0 || r.Replicas > maxReplicas || r.DevicesPerReplica < 1 || !Name(r.ContainerName) {
 		return Invalid("SHAPE_UNSUPPORTED")
 	}
 	return nil

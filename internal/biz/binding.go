@@ -76,15 +76,15 @@ func MergeBinding(id string, claims []Claim, proof *ReleaseProof, usage *UsagePr
 	conflict := false
 	for _, c := range claims {
 		if c.OwnerRef != nil {
-			if owner != nil && (*owner != *c.OwnerRef || digest != c.PlanDigest) {
+			if owner != nil && (*owner != *c.OwnerRef || digest != c.ExecutionDigest) {
 				conflict = true
 			}
 			copy := *c.OwnerRef
 			owner = &copy
-			digest = c.PlanDigest
+			digest = c.ExecutionDigest
 		}
 	}
-	if !conflict && owner != nil && usage != nil && usage.Ref != nil && *usage.Ref == *owner && usage.Plan.ResolutionDigest == digest && usage.Plan.Request.ClusterID == first.Pod.ClusterID && usage.Plan.Request.ContainerName == first.Pod.ContainerName {
+	if !conflict && owner != nil && usage != nil && usage.Ref != nil && *usage.Ref == *owner && usage.ExecutionDigest == digest && usage.ClusterID == first.Pod.ClusterID && usage.ContainerName == first.Pod.ContainerName {
 		b.VerifiedUsageRef = owner
 	}
 	if conflict {
@@ -115,7 +115,7 @@ func ValidateObservationBatch(batch ObservationBatch) error {
 			if err := ValidateRef(c.OwnerRef); err != nil {
 				return err
 			}
-			if !Digest(c.PlanDigest) {
+			if !Digest(c.ExecutionDigest) {
 				return Invalid("INVALID_PLAN")
 			}
 		}

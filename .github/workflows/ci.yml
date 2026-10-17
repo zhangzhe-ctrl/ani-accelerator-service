@@ -46,6 +46,7 @@ jobs:
           bash scripts/migrate 0001
           bash scripts/migrate 0002
           bash scripts/migrate 0003
+          bash scripts/migrate 0004
           psql -X -v ON_ERROR_STOP=1 -f scripts/test-pg-role.sql
           dsn_file="$RUNNER_TEMP/acc-test-dsn"
           umask 077
@@ -55,6 +56,7 @@ jobs:
           PGDATABASE=accelerator_formal bash scripts/migrate 0001
           PGDATABASE=accelerator_formal bash scripts/migrate 0002
           PGDATABASE=accelerator_formal bash scripts/migrate 0003
+          PGDATABASE=accelerator_formal bash scripts/migrate 0004
           PGDATABASE=accelerator_formal psql -X -v ON_ERROR_STOP=1 -f scripts/test-pg-formal-role.sql
           formal_dsn_file="$RUNNER_TEMP/acc-formal-dsn"
           printf 'host=%s port=%s dbname=accelerator_formal user=acc_formal_runtime sslmode=disable\n' "$PGHOST" "$PGPORT" > "$formal_dsn_file"

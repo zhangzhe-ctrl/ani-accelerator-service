@@ -20,7 +20,7 @@ type testProvider struct{}
 func (testProvider) Inspect(_ context.Context, _ biz.Cluster, g biz.SupplyGroup) (biz.GroupInspection, error) {
 	i := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now()}
 	for _, n := range g.Nodes {
-		i.Nodes = append(i.Nodes, biz.InspectedNode{Node: n, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, ConfigDigest: g.Baseline.NodeConfigDigest, Labels: map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: g.Baseline.BaselineID}})
+		i.Nodes = append(i.Nodes, biz.InspectedNode{Node: n, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, ConfigDigest: g.Baseline.NodeConfigDigest, Labels: map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: g.Baseline.BaselineID}, DeviceBudgetsMiB: []int64{24576}})
 	}
 	return i, nil
 }
@@ -28,21 +28,16 @@ func (testProvider) Collect(_ context.Context, c biz.Cluster, _ []biz.SupplyGrou
 	return biz.ObservationBatch{ClusterID: c.ClusterID}, nil
 }
 
-type testEvidence struct{}
-
-func (testEvidence) Verify(_ context.Context, g biz.SupplyGroup, _ *biz.ProfileSpec, ref string) (*biz.Verification, error) {
-	return &biz.Verification{State: biz.Verified, EvidenceRef: ref, VerifiedAt: "2026-09-23T00:00:00Z", BaselineDigest: g.Baseline.BaselineDigest}, nil
-}
-
 type pgFixture struct {
-	db      *Postgres
-	u       *biz.Usecase
-	cluster *biz.Cluster
-	pool    *biz.Pool
-	group   *biz.SupplyGroup
-	profile *biz.Profile
-	plan    *biz.ResolvedPlan
-	tenant  string
+	db       *Postgres
+	u        *biz.Usecase
+	cluster  *biz.Cluster
+	pool     *biz.Pool
+	group    *biz.SupplyGroup
+	profile  *biz.Profile
+	resolved *biz.ResolvedGpuRequest
+	request  *biz.GpuRequest
+	tenant   string
 }
 
 var adminActor = biz.Actor{Type: "user", ID: "acc-test-operator"}
@@ -74,7 +69,7 @@ func pgSetup(t *testing.T) *pgFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	u, err := biz.NewUsecase(db, testProvider{}, testEvidence{}, codec, []string{connection}, 16, time.Minute)
+	u, err := biz.NewUsecase(db, testProvider{}, codec, []string{connection}, 16, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,16 +81,16 @@ func pgSetup(t *testing.T) *pgFixture {
 	if err != nil {
 		t.Fatal(err)
 	}
-	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-factor-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "test", MemoryBlockMiB: 1024, FactorEvidenceRef: "test:factor", MemoryEncoding: "VOLCANO_BLOCKS_TO_MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: strings.Repeat("d", 64), RecipeVersion: "volcano-hami-v1"}
+	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-mib-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "test", MemoryBlockMiB: 1, MemoryEncoding: "MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: strings.Repeat("c", 64), SchedulerConfigDigest: strings.Repeat("d", 64), RecipeVersion: "volcano-hami-mib-v1", RuntimeClassName: "nvidia"}
 	b.BaselineDigest, _ = biz.BaselineDigest(b)
 	g, err := u.AdoptSupplyGroup(adminContext("AdoptSupplyGroup"), adminMutation(), biz.AdoptInput{PoolID: p.PoolID, DisplayName: "group", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: "node-" + biz.NewID(), Name: "node"}}, ModelKey: "nvidia-test", Baseline: b, QueueName: "gpu"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if g.Admission != biz.Closed || g.Baseline.Verification.State != biz.NotVerified {
-		t.Fatal("adopt did not default closed/unverified")
+	if g.Admission != biz.Closed {
+		t.Fatal("adopt did not default closed")
 	}
-	profile, err := u.PublishProfile(adminContext("PublishProfile"), adminMutation(), biz.PublishInput{DisplayName: "6 GiB", Spec: &biz.ProfileSpec{GroupID: g.GroupID, Mode: biz.Shared, ModelKey: g.ModelKey, SharedMemoryMiB: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: g.Version, VerificationRef: "test:consumption"})
+	profile, err := u.CreateProfile(adminContext("CreateProfile"), adminMutation(), biz.CreateProfileInput{DisplayName: "6 GiB", Spec: &biz.ProfileSpec{GroupID: g.GroupID, Mode: biz.Shared, ModelKey: g.ModelKey, MemoryMiBPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: g.Version})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,14 +99,14 @@ func pgSetup(t *testing.T) *pgFixture {
 		t.Fatal(err)
 	}
 	r := &biz.GpuRequest{ClusterID: c.ClusterID, PoolID: p.PoolID, ProfileID: profile.ProfileID, ProfileVersion: 1, Replicas: 2, DevicesPerReplica: 1, ContainerName: "inference"}
-	plan, err := biz.BuildPlan(r, profile, g, 16)
+	resolved, err := biz.BuildResolution(r, profile, g, 16)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return &pgFixture{db, u, c, p, g, profile, plan, biz.NewID()}
+	return &pgFixture{db, u, c, p, g, profile, resolved, r, biz.NewID()}
 }
 func (f *pgFixture) projection(revision uint64) *biz.UsageProjection {
-	p := &biz.UsageProjection{Ref: &biz.UsageRef{TenantID: f.tenant, OwnerService: "ani-inference", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}, Revision: revision, State: biz.UsageState(revision), Plan: f.plan, SourceOperationCreatedAt: "2026-09-23T00:00:00Z"}
+	p := &biz.UsageProjection{Ref: &biz.UsageRef{TenantID: f.tenant, OwnerService: "ani-inference", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}, Revision: revision, State: biz.UsageState(revision), ProfileID: f.profile.ProfileID, ProfileVersion: f.profile.ProfileVersion, GroupID: f.group.GroupID, BaselineID: f.group.Baseline.BaselineID, ClusterID: f.cluster.ClusterID, ContainerName: f.request.ContainerName, ExecutionDigest: f.resolved.Execution.ExecutionDigest, SourceOperationCreatedAt: "2026-09-23T00:00:00Z"}
 	suffix := "accepted"
 	if revision == 2 {
 		p.EndReason = biz.OwnerReleased
@@ -248,17 +243,16 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 	p := f.projection(1)
 	p.Ref.OwnerService = ownerService
 	if ownerService == "ani-resource-service" {
-		p.Plan.Request.ContainerName = "workspace"
-		p.Plan.ResolutionDigest, _ = biz.PlanDigest(p.Plan)
+		p.ContainerName = "workspace"
 	}
 	p.PayloadDigest, _ = biz.ProjectionDigest(p)
 	now := time.Now().UTC()
 	device := biz.NewID()
-	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "pod", UID: "pod-" + biz.NewID(), ContainerName: p.Plan.Request.ContainerName}
-	d := biz.DeviceRecord{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &f.group.Nodes[0], VendorDeviceID: "GPU-test", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24, MemoryBlockMiB: 1024, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest}
+	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "pod", UID: "pod-" + biz.NewID(), ContainerName: p.ContainerName}
+	d := biz.DeviceRecord{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &f.group.Nodes[0], VendorDeviceID: "GPU-test", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest}
 	batch := biz.ObservationBatch{ClusterID: f.cluster.ClusterID, Devices: []biz.DeviceRecord{d}}
 	for _, source := range []string{"scheduler", "allocation", "runtime"} {
-		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest, MemoryBlockMiB: 1024, EvidenceRef: "test:" + source, OwnerRef: p.Ref, PlanDigest: p.Plan.ResolutionDigest})
+		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "test:" + source, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest})
 	}
 	for _, source := range []string{"kubernetes", "podresources", "cri"} {
 		batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: f.cluster.ClusterID, NodeUID: f.group.Nodes[0].UID, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, Complete: true})
@@ -292,7 +286,7 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 		t.Fatal(capacity, err)
 	}
 	owner := biz.WithCaller(context.Background(), biz.Caller{Service: ownerService, Action: "ObserveRelease", TenantID: p.Ref.TenantID})
-	obs, err := f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), []biz.PodRef{pod})
+	obs, err := f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), f.cluster.ClusterID, now.Add(-time.Second).Format(time.RFC3339Nano), []biz.PodRef{pod})
 	if err != nil || obs.Finding != biz.StillPresent {
 		t.Fatal(obs, err)
 	}
@@ -313,10 +307,10 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 	store(biz.ObservationBatch{ClusterID: batch.ClusterID})
 	check(biz.Active, true)
 	later := now.Add(time.Millisecond)
-	proof := biz.ReleaseProof{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, ObservedAt: later, ReceivedAt: later, EvidenceRef: "test:positive-release", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: p.Ref, PlanDigest: p.Plan.ResolutionDigest}
+	proof := biz.ReleaseProof{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, ObservedAt: later, ReceivedAt: later, EvidenceRef: "test:positive-release", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest}
 	store(biz.ObservationBatch{ClusterID: batch.ClusterID, Releases: []biz.ReleaseProof{proof}})
 	check(biz.ReleaseConfirmed, true)
-	obs, err = f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), []biz.PodRef{pod})
+	obs, err = f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), f.cluster.ClusterID, now.Add(-time.Second).Format(time.RFC3339Nano), []biz.PodRef{pod})
 	if err != nil || obs.Finding != biz.AllocationReleased {
 		t.Fatal(obs, err)
 	}
@@ -345,8 +339,21 @@ func TestPostgresConstraintsVersionRaceAndConcurrentAssociation(t *testing.T) {
 	}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = f.db.pool.Exec(ctx, testSQL(t, "legacy_check_2.sql"), f.profile.ProfileID); err == nil {
-		t.Fatal("runtime mutated immutable profile")
+	changed := *f.profile
+	changedSpec := *changed.Spec
+	changedSpec.MemoryMiBPerDevice++
+	changed.Spec = &changedSpec
+	changed.SpecDigest, _ = biz.SpecDigest(changed.Spec, changed.BaselineID)
+	changed.Revision++
+	if err = f.db.Transact(ctx, func(tx biz.Transaction) error { return tx.UpdateProfile(ctx, changed, f.profile.Revision) }); err == nil {
+		t.Fatal("runtime mutated immutable profile resources")
+	}
+	for _, path := range [][]string{{"state"}, {"revision"}, {"spec"}} {
+		_, err := f.db.pool.Exec(ctx, testSQL(t, "corrupt_profile_catalog_json.sql"), f.profile.ProfileID, path)
+		var constraint *pgconn.PgError
+		if !errors.As(err, &constraint) || constraint.Code != "23514" {
+			t.Fatal("missing profile field bypassed catalog protection", path, err)
+		}
 	}
 	var wg sync.WaitGroup
 	results := make(chan error, 2)
@@ -371,14 +378,14 @@ func TestPostgresConstraintsVersionRaceAndConcurrentAssociation(t *testing.T) {
 	if success != 1 || conflict != 1 {
 		t.Fatal("version race", success, conflict)
 	}
-	// CLOSED prevents new resolutions but an already frozen plan still syncs.
+	// CLOSED prevents new resolutions but an already accepted execution snapshot still syncs.
 	p := f.projection(1)
 	device := biz.NewID()
 	now := time.Now().UTC()
 	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "race", UID: biz.NewID(), ContainerName: "inference"}
-	batch := biz.ObservationBatch{ClusterID: f.cluster.ClusterID, Devices: []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &f.group.Nodes[0], VendorDeviceID: "GPU-race", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano), Complete: true}}, ProviderMemoryBlocks: 24, MemoryBlockMiB: 1024, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest}}}
+	batch := biz.ObservationBatch{ClusterID: f.cluster.ClusterID, Devices: []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &f.group.Nodes[0], VendorDeviceID: "GPU-race", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano), Complete: true}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest}}}
 	for _, source := range []string{"scheduler", "allocation", "runtime"} {
-		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, Source: source, ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest, MemoryBlockMiB: 1024, EvidenceRef: "race:" + source, OwnerRef: p.Ref, PlanDigest: p.Plan.ResolutionDigest})
+		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, Source: source, ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "race:" + source, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest})
 	}
 	syncCtx := biz.WithCaller(ctx, biz.Caller{Service: "ani-governance", Action: "SyncGpuUsage"})
 	concurrentErrors := make(chan error, 10)
@@ -445,7 +452,7 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 	}
 	tenant := &biz.TenantContext{RequestID: "test", TenantID: f.tenant, Actor: &adminActor}
 	caller := biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "CheckGpuFit", TenantID: f.tenant, ClusterIDs: []string{f.cluster.ClusterID}}
-	fit, err := f.u.CheckFit(biz.WithCaller(context.Background(), caller), tenant, f.plan.Request)
+	fit, err := f.u.CheckFit(biz.WithCaller(context.Background(), caller), tenant, f.request)
 	if err != nil || fit.Status != biz.FitUnknown || fit.EstimateKnown {
 		t.Fatal("missing inventory not UNKNOWN", fit, err)
 	}
@@ -467,7 +474,7 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 	}
 	caller.Action = "ResolveGpuRequest"
 	caller.ClusterIDs = []string{f.cluster.ClusterID}
-	if _, err = f.u.Resolve(biz.WithCaller(context.Background(), caller), tenant, f.plan.Request); err == nil || err.Error() != "ADMISSION_CLOSED" {
+	if _, err = f.u.Resolve(biz.WithCaller(context.Background(), caller), tenant, f.request); err == nil || err.Error() != "ADMISSION_CLOSED" {
 		t.Fatal("closed resolves", err)
 	}
 	restricted := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "SetAdmission", ClusterIDs: []string{biz.NewID()}})
@@ -478,11 +485,12 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 		t.Fatal(closed)
 	}
 	badBaseline := *f.group.Baseline
-	badBaseline.Verification = &biz.Verification{State: biz.Verified}
-	if _, err = f.u.AdoptSupplyGroup(adminContext("AdoptSupplyGroup"), adminMutation(), biz.AdoptInput{PoolID: f.pool.PoolID, DisplayName: "bad", Mode: biz.Shared, Nodes: f.group.Nodes, ModelKey: f.group.ModelKey, Baseline: &badBaseline, QueueName: "gpu"}); err == nil || err.Error() != "VERIFICATION_READ_ONLY" {
-		t.Fatal("admin forged verification", err)
+	badBaseline.MemoryBlockMiB = 256
+	badBaseline.BaselineDigest, _ = biz.BaselineDigest(&badBaseline)
+	if _, err = f.u.AdoptSupplyGroup(adminContext("AdoptSupplyGroup"), adminMutation(), biz.AdoptInput{PoolID: f.pool.PoolID, DisplayName: "bad", Mode: biz.Shared, Nodes: f.group.Nodes, ModelKey: f.group.ModelKey, Baseline: &badBaseline, QueueName: "gpu"}); err == nil || err.Error() != "MEMORY_UNIT_MISMATCH" {
+		t.Fatal("non-MiB configuration accepted", err)
 	}
-	t.Log("CAT-05/06 AUTH-05/06: PG keyset pages, missing version/scope, unknown capacity, CLOSED/frozen plan and current-scope idempotency checks")
+	t.Log("CAT-05/06 AUTH-05/06: PG keyset pages, missing version/scope, unknown capacity, CLOSED/execution snapshot and current-scope idempotency checks")
 }
 
 //go:embed testdata/*.sql

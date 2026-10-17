@@ -11,7 +11,6 @@ import (
 type Usecase struct {
 	repo        Repository
 	provider    Provider
-	evidence    ConsumptionEvidence
 	cursor      *CursorCodec
 	connections map[string]bool
 	maxReplicas uint32
@@ -19,11 +18,11 @@ type Usecase struct {
 	now         func() time.Time
 }
 
-func NewUsecase(repo Repository, provider Provider, evidence ConsumptionEvidence, cursor *CursorCodec, connections []string, maxReplicas uint32, freshness time.Duration) (*Usecase, error) {
-	if repo == nil || provider == nil || evidence == nil || cursor == nil || maxReplicas == 0 || maxReplicas > 16 || freshness <= 0 || freshness > 5*time.Minute {
+func NewUsecase(repo Repository, provider Provider, cursor *CursorCodec, connections []string, maxReplicas uint32, freshness time.Duration) (*Usecase, error) {
+	if repo == nil || provider == nil || cursor == nil || maxReplicas == 0 || maxReplicas > 16 || freshness <= 0 || freshness > 5*time.Minute {
 		return nil, Invalid("INVALID_RUNTIME_CONFIG")
 	}
-	u := &Usecase{repo: repo, provider: provider, evidence: evidence, cursor: cursor, maxReplicas: maxReplicas, freshness: freshness, connections: map[string]bool{}, now: time.Now}
+	u := &Usecase{repo: repo, provider: provider, cursor: cursor, maxReplicas: maxReplicas, freshness: freshness, connections: map[string]bool{}, now: time.Now}
 	for _, ref := range connections {
 		if !Ref(ref) || u.connections[ref] {
 			return nil, Invalid("INVALID_CONNECTION_REF")
@@ -233,9 +232,6 @@ func (u *Usecase) AdoptSupplyGroup(ctx context.Context, m *AdminMutation, a Adop
 	if err := ValidateBaseline(a.Baseline, a.Mode); err != nil {
 		return nil, err
 	}
-	if a.Baseline.Verification != nil && (a.Baseline.Verification.State != 0 && a.Baseline.Verification.State != NotVerified || a.Baseline.Verification.EvidenceRef != "" || a.Baseline.Verification.VerifiedAt != "" || a.Baseline.Verification.BaselineDigest != "") {
-		return nil, Invalid("VERIFICATION_READ_ONLY")
-	}
 	a.Nodes = append([]NodeRef{}, a.Nodes...)
 	sort.Slice(a.Nodes, func(i, j int) bool { return a.Nodes[i].UID < a.Nodes[j].UID })
 	names := map[string]bool{}
@@ -263,7 +259,6 @@ func (u *Usecase) AdoptSupplyGroup(ctx context.Context, m *AdminMutation, a Adop
 		return prior, err
 	}
 	b := *a.Baseline
-	b.Verification = &Verification{State: NotVerified}
 	g := &SupplyGroup{GroupID: NewID(), PoolID: p.PoolID, ClusterID: p.ClusterID, DisplayName: a.DisplayName, Mode: a.Mode, Nodes: a.Nodes, ModelKey: a.ModelKey, Baseline: &b, Admission: Closed, QueueName: a.QueueName, Version: 1, AdoptedAt: u.now().UTC().Format(time.RFC3339Nano)}
 	inspection, err := u.inspect(ctx, *c, *g, false)
 	if err != nil {
@@ -310,20 +305,19 @@ func (u *Usecase) checkInspection(g SupplyGroup, labels bool, i GroupInspection)
 	return nil
 }
 
-type PublishInput struct {
+type CreateProfileInput struct {
 	DisplayName          string       `json:"display_name"`
 	Spec                 *ProfileSpec `json:"spec"`
 	ExpectedGroupVersion uint64       `json:"expected_group_version"`
-	VerificationRef      string       `json:"verification_ref"`
 }
 
-func (u *Usecase) PublishProfile(ctx context.Context, m *AdminMutation, a PublishInput) (*Profile, error) {
-	if a.Spec == nil || !UUID(a.Spec.GroupID) || !Text(a.DisplayName, 128) || a.ExpectedGroupVersion == 0 || !Ref(a.VerificationRef) {
+func (u *Usecase) CreateProfile(ctx context.Context, m *AdminMutation, a CreateProfileInput) (*Profile, error) {
+	if a.Spec == nil || !UUID(a.Spec.GroupID) || !Text(a.DisplayName, 128) || a.ExpectedGroupVersion == 0 {
 		return nil, Invalid("INVALID_PROFILE")
 	}
 	var g *SupplyGroup
 	var c *Cluster
-	prior, err := prepareMutation[Profile](ctx, u, m, "PublishProfile", a, func(r Reader) error {
+	prior, err := prepareMutation[Profile](ctx, u, m, "CreateProfile", a, func(r Reader) error {
 		var err error
 		g, err = r.Group(ctx, a.Spec.GroupID)
 		if err != nil {
@@ -351,20 +345,10 @@ func (u *Usecase) PublishProfile(ctx context.Context, m *AdminMutation, a Publis
 	if err != nil {
 		return nil, err
 	}
-	v, err := u.evidence.Verify(ctx, *g, a.Spec, a.VerificationRef)
-	if err != nil {
+	if err = checkDeviceBudgets(a.Spec, first); err != nil {
 		return nil, err
 	}
-	if err = checkVerification(v, g.Baseline.BaselineDigest, a.VerificationRef); err != nil {
-		return nil, err
-	}
-	// Verify may have read an external attestation. Re-read provider configuration
-	// afterwards, still outside PostgreSQL, then revalidate both observations at commit.
-	second, err := u.inspect(ctx, *c, *g, true)
-	if err != nil {
-		return nil, err
-	}
-	return mutate(ctx, u, m, "PublishProfile", a, func(tx Transaction) (*Profile, error) {
+	return mutate(ctx, u, m, "CreateProfile", a, func(tx Transaction) (*Profile, error) {
 		if err := tx.Lock(ctx, "group:"+g.GroupID); err != nil {
 			return nil, err
 		}
@@ -374,43 +358,21 @@ func (u *Usecase) PublishProfile(ctx context.Context, m *AdminMutation, a Publis
 		if err := u.checkInspection(*g, true, first); err != nil {
 			return nil, err
 		}
-		if err := u.checkInspection(*g, true, second); err != nil {
-			return nil, err
-		}
-		if err = tx.Lock(ctx, "shared-vector:"+g.ClusterID); err != nil {
-			return nil, err
-		}
-		if g.Mode == Shared {
-			prior, err := tx.SharedVector(ctx, g.ClusterID)
-			if err != nil {
-				return nil, err
-			}
-			if prior != nil && (prior.SharedMemoryMiB != a.Spec.SharedMemoryMiB || prior.CoreLimitPercent != a.Spec.CoreLimitPercent || prior.IsolationClass != a.Spec.IsolationClass) {
-				return nil, Conflict("SHARED_VECTOR_CONFLICT")
-			}
-		}
 		d, err := SpecDigest(a.Spec, g.Baseline.BaselineID)
 		if err != nil {
 			return nil, err
 		}
-		p := &Profile{NewID(), 1, a.DisplayName, a.Spec, g.Baseline.BaselineID, d, true}
+		p := &Profile{ProfileID: NewID(), ProfileVersion: 1, DisplayName: a.DisplayName, Spec: a.Spec, BaselineID: g.Baseline.BaselineID, SpecDigest: d, State: ProfileActive, Revision: 1}
 		if err = tx.InsertProfile(ctx, *p, g.ClusterID); err != nil {
 			return nil, err
 		}
 		prior := g.Version
 		g.Version++
-		g.Baseline.Verification = v
 		if err = tx.UpdateGroup(ctx, *g, prior); err != nil {
 			return nil, err
 		}
 		return p, nil
 	})
-}
-func checkVerification(v *Verification, digest, ref string) error {
-	if v == nil || v.State != Verified || v.BaselineDigest != digest || v.EvidenceRef != ref || !ValidTime(v.VerifiedAt) {
-		return Precondition("CONSUMPTION_NOT_VERIFIED")
-	}
-	return nil
 }
 
 type AdmissionInput struct {
@@ -445,7 +407,7 @@ func (u *Usecase) SetAdmission(ctx context.Context, m *AdminMutation, a Admissio
 				return err
 			}
 			for _, p := range ps {
-				if p.Spec.GroupID == g.GroupID {
+				if p.Spec.GroupID == g.GroupID && p.State == ProfileActive {
 					profiles = append(profiles, p)
 				}
 			}
@@ -490,33 +452,44 @@ func (u *Usecase) SetAdmission(ctx context.Context, m *AdminMutation, a Admissio
 	})
 }
 func (u *Usecase) checkActiveConfiguration(ctx context.Context, c Cluster, g SupplyGroup, p *Profile) (GroupInspection, error) {
-	if !p.Published || g.Baseline.Verification == nil {
+	if p.State != ProfileActive {
 		return GroupInspection{}, Precondition("PROFILE_NOT_ACTIVE")
 	}
 	i, err := u.inspect(ctx, c, g, true)
 	if err != nil {
 		return i, err
 	}
-	v, err := u.evidence.Verify(ctx, g, p.Spec, g.Baseline.Verification.EvidenceRef)
-	if err != nil {
-		return i, err
-	}
-	return i, checkVerification(v, g.Baseline.BaselineDigest, g.Baseline.Verification.EvidenceRef)
+	return i, checkDeviceBudgets(p.Spec, i)
 }
-func (u *Usecase) Resolve(ctx context.Context, a *TenantContext, gpu *GpuRequest) (*ResolvedPlan, error) {
+func checkDeviceBudgets(s *ProfileSpec, i GroupInspection) error {
+	count := 0
+	for _, n := range i.Nodes {
+		for _, budget := range n.DeviceBudgetsMiB {
+			count++
+			if budget <= 0 || s.MemoryMiBPerDevice > budget || (s.Mode == Whole && s.MemoryMiBPerDevice != budget) {
+				return Precondition("DEVICE_MEMORY_MISMATCH")
+			}
+		}
+	}
+	if count == 0 {
+		return Precondition("DEVICE_CAPACITY_UNKNOWN")
+	}
+	return nil
+}
+func (u *Usecase) Resolve(ctx context.Context, a *TenantContext, gpu *GpuRequest) (*ResolvedGpuRequest, error) {
 	if err := AuthorizeTenant(ctx, a, "ResolveGpuRequest"); err != nil {
 		return nil, err
 	}
 	return u.resolve(ctx, gpu)
 }
-func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedPlan, error) {
+func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedGpuRequest, error) {
 	if err := ValidateRequest(gpu, u.maxReplicas); err != nil {
 		return nil, err
 	}
 	if err := AuthorizeCluster(ctx, gpu.ClusterID); err != nil {
 		return nil, err
 	}
-	var plan *ResolvedPlan
+	var plan *ResolvedGpuRequest
 	var p *Profile
 	var g *SupplyGroup
 	var c *Cluster
@@ -567,7 +540,7 @@ func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedPlan, 
 				}
 			}
 		}
-		plan, err = BuildPlan(gpu, p, g, u.maxReplicas)
+		plan, err = BuildResolution(gpu, p, g, u.maxReplicas)
 		return err
 	})
 	return plan, err
@@ -596,7 +569,7 @@ func (u *Usecase) GetProfile(ctx context.Context, a *TenantContext, id string, v
 		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
 			return NotFound()
 		}
-		if !p.Published {
+		if p.State != ProfileActive {
 			return NotFound()
 		}
 		return nil
@@ -604,3 +577,91 @@ func (u *Usecase) GetProfile(ctx context.Context, a *TenantContext, id string, v
 	return p, err
 }
 func IsNotFound(err error) bool { var e *Error; return errors.As(err, &e) && e.Kind == "not_found" }
+
+// Mutable catalog state is separate from the immutable execution contract.
+func (u *Usecase) SetProfileState(ctx context.Context, m *AdminMutation, id string, expected uint64, desired ProfileState) (*Profile, error) {
+	if !UUID(id) || expected == 0 || (desired != ProfileActive && desired != ProfileDisabled && desired != ProfileDeleted) {
+		return nil, Invalid("INVALID_PROFILE_STATE")
+	}
+	method := "SetProfileState"
+	if desired == ProfileDeleted {
+		method = "DeleteProfile"
+	}
+	return mutate(ctx, u, m, method, []any{id, expected, desired}, func(tx Transaction) (*Profile, error) {
+		if err := tx.Lock(ctx, "profile:"+id); err != nil {
+			return nil, err
+		}
+		p, err := tx.Profile(ctx, id, 1)
+		if err != nil {
+			return nil, err
+		}
+		if p.Revision != expected {
+			return nil, Conflict("VERSION_CONFLICT")
+		}
+		if p.State == ProfileDeleted {
+			return nil, Precondition("PROFILE_DELETED")
+		}
+		p.State = desired
+		p.Revision++
+		return p, tx.UpdateProfile(ctx, *p, expected)
+	})
+}
+
+type ProfilePreview struct {
+	Spec            *ProfileSpec `json:"spec"`
+	UnusedMemoryMiB int64        `json:"unused_memory_mib"`
+	UnusedCoreUnits uint32       `json:"unused_core_units"`
+}
+
+func (u *Usecase) PreviewProfile(ctx context.Context, a *AdminRead, id string, parts uint32) (*ProfilePreview, error) {
+	if err := AuthorizeAdmin(ctx, a, "PreviewProfile"); err != nil {
+		return nil, err
+	}
+	if !UUID(id) || (parts != 2 && parts != 4 && parts != 8) {
+		return nil, Invalid("INVALID_PROFILE_PARTS")
+	}
+	var c *Cluster
+	var g *SupplyGroup
+	err := u.repo.View(ctx, func(r Reader) error {
+		var err error
+		g, err = r.Group(ctx, id)
+		if err != nil {
+			return err
+		}
+		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
+			return err
+		}
+		c, err = r.Cluster(ctx, g.ClusterID)
+		return err
+	})
+	if err != nil {
+		return nil, err
+	}
+	if g.Mode != Shared {
+		return nil, Invalid("SHAPE_UNSUPPORTED")
+	}
+	i, err := u.inspect(ctx, *c, *g, true)
+	if err != nil {
+		return nil, err
+	}
+	var usable int64
+	for _, n := range i.Nodes {
+		for _, b := range n.DeviceBudgetsMiB {
+			if b <= 0 {
+				return nil, Precondition("DEVICE_CAPACITY_UNKNOWN")
+			}
+			if usable == 0 {
+				usable = b
+			}
+			if b != usable {
+				return nil, Precondition("DEVICE_MEMORY_MISMATCH")
+			}
+		}
+	}
+	memory := usable / int64(parts)
+	cores := 100 / parts
+	if memory <= 0 || cores == 0 {
+		return nil, Invalid("SHAPE_UNSUPPORTED")
+	}
+	return &ProfilePreview{Spec: &ProfileSpec{GroupID: id, Mode: Shared, ModelKey: g.ModelKey, MemoryMiBPerDevice: memory, CoreLimitPercent: cores, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, UnusedMemoryMiB: usable - memory*int64(parts), UnusedCoreUnits: 100 - cores*parts}, nil
+}

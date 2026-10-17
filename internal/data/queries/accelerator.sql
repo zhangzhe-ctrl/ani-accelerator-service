@@ -43,9 +43,6 @@ INSERT INTO accelerator.group_nodes(cluster_id,node_uid,node_name,group_id) VALU
 -- name: InsertProfileWrite1 :exec
 INSERT INTO accelerator.profiles(profile_id,profile_version,cluster_id,group_id,mode,payload) VALUES($1,$2,$3,$4,$5,$6);
 
--- name: SharedVectorData1 :one
-SELECT payload FROM accelerator.profiles WHERE cluster_id=$1 AND mode=2 ORDER BY profile_id LIMIT 1;
-
 -- name: ReplayRecord :one
 SELECT payload_digest,result FROM accelerator.admin_idempotency WHERE actor_digest=$1 AND method=$2 AND idempotency_key=$3;
 
@@ -62,7 +59,7 @@ SELECT payload FROM accelerator.usages WHERE tenant_id=$1 AND ($2='' OR owner_se
 SELECT payload FROM accelerator.usages WHERE tenant_id=$1 AND owner_service=$2 AND resource_id=$3 FOR UPDATE;
 
 -- name: SaveUsageWrite2 :exec
-INSERT INTO accelerator.usages(tenant_id,owner_service,resource_id,create_operation_id,profile_id,profile_version,revision,plan_digest,source_created_at,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10);
+INSERT INTO accelerator.usages(tenant_id,owner_service,resource_id,create_operation_id,profile_id,profile_version,revision,execution_digest,source_created_at,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10);
 
 -- name: SaveUsageWrite3 :exec
 UPDATE accelerator.usages SET revision=$1,payload=$2 WHERE tenant_id=$3 AND owner_service=$4 AND resource_id=$5 AND create_operation_id=$6;
@@ -87,6 +84,9 @@ SELECT payload FROM accelerator.bindings WHERE device_id=$1 ORDER BY binding_id;
 
 -- name: SourceHealthData1 :many
 SELECT payload FROM accelerator.source_watermarks WHERE cluster_id=$1 ORDER BY node_uid,source;
+
+-- name: ReleaseOwnerClaimsData :many
+SELECT payload FROM accelerator.claims WHERE tenant_id=$1 AND owner_service=$2 AND resource_id=$3 AND create_operation_id=$4 ORDER BY cluster_id,pod_uid,container_name,device_id,source;
 
 -- name: PodEvidenceData1 :many
 SELECT payload FROM accelerator.claims WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 ORDER BY device_id,source;
@@ -141,3 +141,6 @@ SELECT accelerator.runtime_restricted()::boolean AS restricted;
 
 -- name: SchemaVersion :one
 SELECT COALESCE(max(version),0)::integer AS version FROM accelerator.schema_migrations;
+
+-- name: UpdateProfileCAS :execrows
+UPDATE accelerator.profiles SET payload=$1 WHERE profile_id=$2 AND (payload->>'revision')::bigint=$3::bigint;

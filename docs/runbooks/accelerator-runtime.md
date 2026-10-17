@@ -1,6 +1,14 @@
 # Accelerator v1.2 运行与恢复
 
-本批只在 Fedora 隔离环境进行软件验证，不部署正式服务。生产二进制只装配 PostgreSQL、固定 provider 读取器、mTLS 与签名证明校验器；测试注入位于 `_test.go`，没有配置绕过。无 GPU 的安装应保持无正式供给或 CLOSED/NOT_VERIFIED。
+历史 ACC-V12-01 批次仅在 Fedora 隔离环境进行软件验证；2026-10-17 的真实单节点 GPU 部署与回执见[执行状态](../execution/status.md)。生产二进制只装配 PostgreSQL、固定 provider 读取器、mTLS 与签名证明校验器；测试注入位于 `_test.go`，没有配置绕过。无 GPU 的安装应保持无正式供给或 CLOSED/NOT_VERIFIED。
+
+2026-10-17 用户要求保留修复版 Volcano scheduler，调度器保留结果见[保留版回执](../evidence/gpu-live-20261017/retained-receipt.json)，后续资格政策迁移及当前 ACC 镜像以[baseline 资格回执](../evidence/gpu-live-20261017/baseline-qualification-receipt.json)为准。固定调度镜像 digest 为 `sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442`，源码和[最小补丁](../evidence/gpu-live-20261017/volcano-percentage-only.patch)见兼容说明。首轮临时试验恢复原版的步骤只属历史，不能再作为当前恢复目标；已知有 Whole 百分比缺陷的 `sha256:836554c1c3286742fb6fcc721f5d3515e0e3e304a30d9cb733635f555f5ef671` 不可替换当前修复版。
+
+baseline 不可原位替换。切换 scheduler 镜像时，先关闭旧供给、停止旧写入，保留原数据库；用新数据库显式执行已有迁移并生成新 cluster/group/baseline/profile，重新采集绑定实际新镜像的硬件实验、签署证明并 Publish/OPEN/Resolve，再验证真实工作负载。不能修改旧 JSON/SQL 或把旧实验重新贴上新镜像摘要。单 T4 的 K=1 整卡与 K=10 共享分别验收，结束时只开放与实际节点配置匹配的组，避免重复计算物理供给。
+
+硬件验收资格采用无时间自动失效的 v2，绑定实际 baseline/规格/节点/物理设备；关键环境变化才按新 baseline 重新验收。运行健康继续按实时采样判断，资格不通过不停止占用和释放事实采集。旧 v1 文件仍保持其原到期语义；迁移由受控签名者核对原实验及当前配置后显式签发 v2，保留真实验收时间和原始实验，不改写旧文件冒充续期或重验。该迁移不改业务数据库、profile 或 baseline。mTLS 证书仍按证书期限更新，不能与硬件资格混为一谈。当前资格、证书期限与镜像投递范围记录在回执中；仅在节点导入镜像时，不称为 registry 发布。
+
+迁移使用新 ConfigMap 并更新受管挂载，保留原 ConfigMap 和签名。恢复 ACC 时同时核对二进制支持的资格格式与实际挂载，旧版仅支持 v1 的二进制不能直接搭配 v2 文件；调度器仍保留上述修复镜像。
 
 ## 配置与启动
 
@@ -41,6 +49,8 @@ GRANT UPDATE ON accelerator.supply_groups, accelerator.usages,
 本批 `make test-recovery` 要求明确 `ACC_TEST_PG_CONTAINER=acc-v12-01-*` 且容器 `ani.task=ACC-V12-01-*`，以及 `ACC_TEST_EVIDENCE_DIR`；仅在该任务容器中新建独立恢复库，比较 13 张表，最后删除恢复库。它保存 populated dump 与注入失败日志，不删除源库。`tests/contract` 在真实 PG 事务提交前、提交后响应送达前杀真实服务进程，验证 rollback、耐久终态与原报文重试。
 
 采集失联不删除历史 occupancy。新的失败接收保留最后可信 observed_at；received_at 不能当新观测。重连从数据库的 binding/claim/水位继续；解除必须覆盖指定 Pod/container/device、Node UID，且有在线节点、CRI 正向退出与 PodResources 无分配。API NotFound、单次无记录、普通退出/重启不构成业务实例删除或退款。
+
+已完整确认的历史释放保持原状态及证明时间，不随实时采样 TTL 过期。2026-10-17 修复了绑定查询将这类历史记录误降为 UNKNOWN 的问题；旧失败响应保留，修复后用相同 binding/Pod UID、原证明引用和时间重新读取验证。活动绑定的新鲜度与来源健康检查继续生效。
 
 ## 软件门禁与证据
 

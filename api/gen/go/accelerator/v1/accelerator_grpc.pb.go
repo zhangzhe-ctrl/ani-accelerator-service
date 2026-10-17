@@ -26,7 +26,10 @@ const (
 	AcceleratorAdminService_AdoptSupplyGroup_FullMethodName  = "/accelerator.v1.AcceleratorAdminService/AdoptSupplyGroup"
 	AcceleratorAdminService_ListSupplyGroups_FullMethodName  = "/accelerator.v1.AcceleratorAdminService/ListSupplyGroups"
 	AcceleratorAdminService_SetAdmission_FullMethodName      = "/accelerator.v1.AcceleratorAdminService/SetAdmission"
-	AcceleratorAdminService_PublishProfile_FullMethodName    = "/accelerator.v1.AcceleratorAdminService/PublishProfile"
+	AcceleratorAdminService_CreateProfile_FullMethodName     = "/accelerator.v1.AcceleratorAdminService/CreateProfile"
+	AcceleratorAdminService_PreviewProfile_FullMethodName    = "/accelerator.v1.AcceleratorAdminService/PreviewProfile"
+	AcceleratorAdminService_SetProfileState_FullMethodName   = "/accelerator.v1.AcceleratorAdminService/SetProfileState"
+	AcceleratorAdminService_DeleteProfile_FullMethodName     = "/accelerator.v1.AcceleratorAdminService/DeleteProfile"
 	AcceleratorAdminService_AdminListProfiles_FullMethodName = "/accelerator.v1.AcceleratorAdminService/AdminListProfiles"
 	AcceleratorAdminService_AdminListBindings_FullMethodName = "/accelerator.v1.AcceleratorAdminService/AdminListBindings"
 	AcceleratorAdminService_ListDevices_FullMethodName       = "/accelerator.v1.AcceleratorAdminService/ListDevices"
@@ -54,7 +57,10 @@ type AcceleratorAdminServiceClient interface {
 	// 只关新解析，不声称维护。
 	SetAdmission(ctx context.Context, in *SetAdmissionRequest, opts ...grpc.CallOption) (*SupplyGroup, error)
 	// 首次固定规格发布，核验F整除与真实K。
-	PublishProfile(ctx context.Context, in *PublishProfileRequest, opts ...grpc.CallOption) (*GpuProfile, error)
+	CreateProfile(ctx context.Context, in *CreateProfileRequest, opts ...grpc.CallOption) (*GpuProfile, error)
+	PreviewProfile(ctx context.Context, in *PreviewProfileRequest, opts ...grpc.CallOption) (*ProfilePreview, error)
+	SetProfileState(ctx context.Context, in *SetProfileStateRequest, opts ...grpc.CallOption) (*GpuProfile, error)
+	DeleteProfile(ctx context.Context, in *DeleteProfileRequest, opts ...grpc.CallOption) (*GpuProfile, error)
 	// 平台目录，不使用虚假租户上下文。
 	AdminListProfiles(ctx context.Context, in *AdminListProfilesRequest, opts ...grpc.CallOption) (*ListProfilesResponse, error)
 	// 平台设备消费者及未关联占用。
@@ -143,10 +149,40 @@ func (c *acceleratorAdminServiceClient) SetAdmission(ctx context.Context, in *Se
 	return out, nil
 }
 
-func (c *acceleratorAdminServiceClient) PublishProfile(ctx context.Context, in *PublishProfileRequest, opts ...grpc.CallOption) (*GpuProfile, error) {
+func (c *acceleratorAdminServiceClient) CreateProfile(ctx context.Context, in *CreateProfileRequest, opts ...grpc.CallOption) (*GpuProfile, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GpuProfile)
-	err := c.cc.Invoke(ctx, AcceleratorAdminService_PublishProfile_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, AcceleratorAdminService_CreateProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *acceleratorAdminServiceClient) PreviewProfile(ctx context.Context, in *PreviewProfileRequest, opts ...grpc.CallOption) (*ProfilePreview, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ProfilePreview)
+	err := c.cc.Invoke(ctx, AcceleratorAdminService_PreviewProfile_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *acceleratorAdminServiceClient) SetProfileState(ctx context.Context, in *SetProfileStateRequest, opts ...grpc.CallOption) (*GpuProfile, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GpuProfile)
+	err := c.cc.Invoke(ctx, AcceleratorAdminService_SetProfileState_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *acceleratorAdminServiceClient) DeleteProfile(ctx context.Context, in *DeleteProfileRequest, opts ...grpc.CallOption) (*GpuProfile, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GpuProfile)
+	err := c.cc.Invoke(ctx, AcceleratorAdminService_DeleteProfile_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -214,7 +250,10 @@ type AcceleratorAdminServiceServer interface {
 	// 只关新解析，不声称维护。
 	SetAdmission(context.Context, *SetAdmissionRequest) (*SupplyGroup, error)
 	// 首次固定规格发布，核验F整除与真实K。
-	PublishProfile(context.Context, *PublishProfileRequest) (*GpuProfile, error)
+	CreateProfile(context.Context, *CreateProfileRequest) (*GpuProfile, error)
+	PreviewProfile(context.Context, *PreviewProfileRequest) (*ProfilePreview, error)
+	SetProfileState(context.Context, *SetProfileStateRequest) (*GpuProfile, error)
+	DeleteProfile(context.Context, *DeleteProfileRequest) (*GpuProfile, error)
 	// 平台目录，不使用虚假租户上下文。
 	AdminListProfiles(context.Context, *AdminListProfilesRequest) (*ListProfilesResponse, error)
 	// 平台设备消费者及未关联占用。
@@ -254,8 +293,17 @@ func (UnimplementedAcceleratorAdminServiceServer) ListSupplyGroups(context.Conte
 func (UnimplementedAcceleratorAdminServiceServer) SetAdmission(context.Context, *SetAdmissionRequest) (*SupplyGroup, error) {
 	return nil, status.Error(codes.Unimplemented, "method SetAdmission not implemented")
 }
-func (UnimplementedAcceleratorAdminServiceServer) PublishProfile(context.Context, *PublishProfileRequest) (*GpuProfile, error) {
-	return nil, status.Error(codes.Unimplemented, "method PublishProfile not implemented")
+func (UnimplementedAcceleratorAdminServiceServer) CreateProfile(context.Context, *CreateProfileRequest) (*GpuProfile, error) {
+	return nil, status.Error(codes.Unimplemented, "method CreateProfile not implemented")
+}
+func (UnimplementedAcceleratorAdminServiceServer) PreviewProfile(context.Context, *PreviewProfileRequest) (*ProfilePreview, error) {
+	return nil, status.Error(codes.Unimplemented, "method PreviewProfile not implemented")
+}
+func (UnimplementedAcceleratorAdminServiceServer) SetProfileState(context.Context, *SetProfileStateRequest) (*GpuProfile, error) {
+	return nil, status.Error(codes.Unimplemented, "method SetProfileState not implemented")
+}
+func (UnimplementedAcceleratorAdminServiceServer) DeleteProfile(context.Context, *DeleteProfileRequest) (*GpuProfile, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteProfile not implemented")
 }
 func (UnimplementedAcceleratorAdminServiceServer) AdminListProfiles(context.Context, *AdminListProfilesRequest) (*ListProfilesResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AdminListProfiles not implemented")
@@ -417,20 +465,74 @@ func _AcceleratorAdminService_SetAdmission_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AcceleratorAdminService_PublishProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PublishProfileRequest)
+func _AcceleratorAdminService_CreateProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CreateProfileRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(AcceleratorAdminServiceServer).PublishProfile(ctx, in)
+		return srv.(AcceleratorAdminServiceServer).CreateProfile(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: AcceleratorAdminService_PublishProfile_FullMethodName,
+		FullMethod: AcceleratorAdminService_CreateProfile_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AcceleratorAdminServiceServer).PublishProfile(ctx, req.(*PublishProfileRequest))
+		return srv.(AcceleratorAdminServiceServer).CreateProfile(ctx, req.(*CreateProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AcceleratorAdminService_PreviewProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PreviewProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AcceleratorAdminServiceServer).PreviewProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AcceleratorAdminService_PreviewProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AcceleratorAdminServiceServer).PreviewProfile(ctx, req.(*PreviewProfileRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AcceleratorAdminService_SetProfileState_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(SetProfileStateRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AcceleratorAdminServiceServer).SetProfileState(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AcceleratorAdminService_SetProfileState_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AcceleratorAdminServiceServer).SetProfileState(ctx, req.(*SetProfileStateRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _AcceleratorAdminService_DeleteProfile_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteProfileRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AcceleratorAdminServiceServer).DeleteProfile(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AcceleratorAdminService_DeleteProfile_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AcceleratorAdminServiceServer).DeleteProfile(ctx, req.(*DeleteProfileRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -543,8 +645,20 @@ var AcceleratorAdminService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _AcceleratorAdminService_SetAdmission_Handler,
 		},
 		{
-			MethodName: "PublishProfile",
-			Handler:    _AcceleratorAdminService_PublishProfile_Handler,
+			MethodName: "CreateProfile",
+			Handler:    _AcceleratorAdminService_CreateProfile_Handler,
+		},
+		{
+			MethodName: "PreviewProfile",
+			Handler:    _AcceleratorAdminService_PreviewProfile_Handler,
+		},
+		{
+			MethodName: "SetProfileState",
+			Handler:    _AcceleratorAdminService_SetProfileState_Handler,
+		},
+		{
+			MethodName: "DeleteProfile",
+			Handler:    _AcceleratorAdminService_DeleteProfile_Handler,
 		},
 		{
 			MethodName: "AdminListProfiles",
@@ -586,7 +700,7 @@ type AcceleratorCatalogServiceClient interface {
 	// 固定版本目录。
 	GetProfile(ctx context.Context, in *GetProfileRequest, opts ...grpc.CallOption) (*GpuProfile, error)
 	// 静态计划解析，无库存锁；MiB与provider块分离。
-	ResolveGpuRequest(ctx context.Context, in *ResolveGpuRequestRequest, opts ...grpc.CallOption) (*ResolvedGpuPlan, error)
+	ResolveGpuRequest(ctx context.Context, in *ResolveGpuRequestRequest, opts ...grpc.CallOption) (*ResolvedGpuRequest, error)
 	// 租户容量汇总，无设备明细。
 	GetCapacity(ctx context.Context, in *GetCapacityRequest, opts ...grpc.CallOption) (*CapacityView, error)
 	// 估计不是准入锁，允许容量不足等待。
@@ -621,9 +735,9 @@ func (c *acceleratorCatalogServiceClient) GetProfile(ctx context.Context, in *Ge
 	return out, nil
 }
 
-func (c *acceleratorCatalogServiceClient) ResolveGpuRequest(ctx context.Context, in *ResolveGpuRequestRequest, opts ...grpc.CallOption) (*ResolvedGpuPlan, error) {
+func (c *acceleratorCatalogServiceClient) ResolveGpuRequest(ctx context.Context, in *ResolveGpuRequestRequest, opts ...grpc.CallOption) (*ResolvedGpuRequest, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ResolvedGpuPlan)
+	out := new(ResolvedGpuRequest)
 	err := c.cc.Invoke(ctx, AcceleratorCatalogService_ResolveGpuRequest_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -662,7 +776,7 @@ type AcceleratorCatalogServiceServer interface {
 	// 固定版本目录。
 	GetProfile(context.Context, *GetProfileRequest) (*GpuProfile, error)
 	// 静态计划解析，无库存锁；MiB与provider块分离。
-	ResolveGpuRequest(context.Context, *ResolveGpuRequestRequest) (*ResolvedGpuPlan, error)
+	ResolveGpuRequest(context.Context, *ResolveGpuRequestRequest) (*ResolvedGpuRequest, error)
 	// 租户容量汇总，无设备明细。
 	GetCapacity(context.Context, *GetCapacityRequest) (*CapacityView, error)
 	// 估计不是准入锁，允许容量不足等待。
@@ -683,7 +797,7 @@ func (UnimplementedAcceleratorCatalogServiceServer) ListProfiles(context.Context
 func (UnimplementedAcceleratorCatalogServiceServer) GetProfile(context.Context, *GetProfileRequest) (*GpuProfile, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetProfile not implemented")
 }
-func (UnimplementedAcceleratorCatalogServiceServer) ResolveGpuRequest(context.Context, *ResolveGpuRequestRequest) (*ResolvedGpuPlan, error) {
+func (UnimplementedAcceleratorCatalogServiceServer) ResolveGpuRequest(context.Context, *ResolveGpuRequestRequest) (*ResolvedGpuRequest, error) {
 	return nil, status.Error(codes.Unimplemented, "method ResolveGpuRequest not implemented")
 }
 func (UnimplementedAcceleratorCatalogServiceServer) GetCapacity(context.Context, *GetCapacityRequest) (*CapacityView, error) {

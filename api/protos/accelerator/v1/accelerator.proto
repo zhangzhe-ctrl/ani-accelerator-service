@@ -23,12 +23,7 @@ enum AdmissionState {
   ADMISSION_OPEN = 2; // 配置及发布验证通过后开放
 }
 
-enum VerificationState {
-  VERIFICATION_UNSPECIFIED = 0; // 缺少验证
-  NOT_VERIFIED = 1; // 不得发布消费能力
-  VERIFIED = 2; // 有对应基线实际证据
-  UNSUPPORTED = 3; // 当前能力不支持
-}
+
 
 enum UsageState {
   USAGE_STATE_UNSPECIFIED = 0; // 拒绝
@@ -67,779 +62,814 @@ enum ReleaseFinding {
 // 用户主体不等于直接调用服务身份；不透传Bearer。
 message Actor {
   // 必填；来自现有Principal.Actor的主体类型。
-  string type = 1;
+  string type = 1 [json_name = "type"];
   // 必填；主体ID，不强制UUID。
-  string id = 2;
+  string id = 2 [json_name = "id"];
 }
 
 // 租户读取/解析由Gov委托；释放观察也须验证直接owner身份。
 message TenantContext {
   // 必填；日志关联，非幂等键。
-  string request_id = 1;
+  string request_id = 1 [json_name = "request_id"];
   // 必填；Gov持久resource_tenant_id UUID，不是内部uint32主键。
-  string tenant_id = 2;
+  string tenant_id = 2 [json_name = "tenant_id"];
   // 必填；来自已验证入口。
-  Actor actor = 3;
+  Actor actor = 3 [json_name = "actor"];
 }
 
 // 仅精确Gov服务证书委托平台范围，无假tenant。
 message AdminRead {
   // 必填。
-  string request_id = 1;
+  string request_id = 1 [json_name = "request_id"];
   // 必填；Gov已验证的管理员，GPU侧再查允许动作。
-  Actor actor = 2;
+  Actor actor = 2 [json_name = "actor"];
 }
 
 // 初始化和入口开关写入；不表示允许在线改配置。
 message AdminMutation {
   // 必填；平台管理员委托。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 必填UUID；actor+方法内去重，同键异报文拒绝。
-  string idempotency_key = 2;
+  string idempotency_key = 2 [json_name = "idempotency_key"];
 }
 
 // 不是跨页事务快照；next_token为空终止。
 message Page {
   // 0默认50，最大200。
-  uint32 size = 1;
+  uint32 size = 1 [json_name = "size"];
   // 不透明游标，可空；绑定主体、筛选和排序。
-  string token = 2;
+  string token = 2 [json_name = "token"];
 }
 
 // 只用于服务端生成的受管渲染字段，不接受客户端任意覆盖。
 message KeyValue {
   // 非空，键在所属集合内唯一；必须命中受管白名单。
-  string key = 1;
+  string key = 1 [json_name = "key"];
   // 非空；标签/注解/资源值分别遵守对应语法。
-  string value = 2;
+  string value = 2 [json_name = "value"];
 }
 
 // 首期只读元数据，来源失败保留未知，不凭时间到期退资源。
 message Observation {
   // 是否覆盖本次查询所需全部来源；false不能显示资源耗尽。
-  bool complete = 1;
+  bool complete = 1 [json_name = "complete"];
   // 最后可信来源时间；无数据时空，不用收到时间冒充。
-  string observed_at = 2;
+  string observed_at = 2 [json_name = "observed_at"];
   // GPU服务接收时间；无数据可空。
-  string received_at = 3;
+  string received_at = 3 [json_name = "received_at"];
   // 稳定原因码，如SOURCE_UNKNOWN、BINDING_EVIDENCE_CONFLICT。
-  repeated string issues = 4;
+  repeated string issues = 4 [json_name = "issues"];
   // 本次观测摘要/水位引用，可空；不是容量锁。
-  string snapshot_ref = 5;
+  string snapshot_ref = 5 [json_name = "snapshot_ref"];
 }
 
 // 验收范围绑定硬件、运行时、配置组合。
-message Verification {
-  // 只读；初始化受控核对产生，不允许任意请求置VERIFIED。
-  VerificationState state = 1;
-  // VERIFIED时必填；实际测试记录引用，不含凭据。
-  string evidence_ref = 2;
-  // VERIFIED时必填。
-  string verified_at = 3;
-  // VERIFIED时必填，SHA256小写hex64。
-  string baseline_digest = 4;
-}
+
 
 // factor是单位换算，不是超配参数；开启后冻结。同一供给组所有节点必须一致。
 message ProviderBaseline {
   // 平台UUID，稳定身份；也可作为受管节点label值。
-  string baseline_id = 1;
+  string baseline_id = 1 [json_name = "baseline_id"];
   // 首期固定volcano-hami-factor-v1。
-  string adapter_id = 2;
+  string adapter_id = 2 [json_name = "adapter_id"];
   // 实际部署版本，禁止latest。
-  string volcano_version = 3;
+  string volcano_version = 3 [json_name = "volcano_version"];
   // 实际镜像sha256引用。
-  string volcano_image_digest = 4;
+  string volcano_image_digest = 4 [json_name = "volcano_image_digest"];
   // 实际版本；不默认等于文档核查v1.12.0。
-  string device_plugin_version = 5;
+  string device_plugin_version = 5 [json_name = "device_plugin_version"];
   // 实际镜像sha256引用。
-  string device_plugin_image_digest = 6;
+  string device_plugin_image_digest = 6 [json_name = "device_plugin_image_digest"];
   // 镜像可追溯的HAMi-core版本/提交。
-  string hami_core_revision = 7;
-  // F，有效gpu-memory-factor；>0且<=2147483647。
-  uint32 memory_block_mib = 8;
+  string hami_core_revision = 7 [json_name = "hami_core_revision"];
+  // 实际 gpu-memory-factor，唯一支持值为1。
+  uint32 memory_block_mib = 8 [json_name = "memory_block_mib"];
   // 实际进程参数/加载配置及运行换算核对依据。
-  string factor_evidence_ref = 9;
+  reserved 9;
+  reserved "factor_evidence_ref";
   // 首期固定VOLCANO_BLOCKS_TO_MIB；只有验证过才开放。
-  string memory_encoding = 10;
+  string memory_encoding = 10 [json_name = "memory_encoding"];
   // 整卡1，共享>=2；实际devicesplitcount；同组节点一致。
-  uint32 split_count = 11;
+  uint32 split_count = 11 [json_name = "split_count"];
   // 首期100，即1倍，无超配。
-  uint32 memory_scale_percent = 12;
+  uint32 memory_scale_percent = 12 [json_name = "memory_scale_percent"];
   // 首期100。
-  uint32 core_scale_percent = 13;
+  uint32 core_scale_percent = 13 [json_name = "core_scale_percent"];
   // 只有该后端已验证可按硬预算相加时true；不能由界面随意勾选。
-  bool core_budget_additive = 14;
+  bool core_budget_additive = 14 [json_name = "core_budget_additive"];
   // 已加载节点配置摘要。
-  string node_config_digest = 15;
+  string node_config_digest = 15 [json_name = "node_config_digest"];
   // 实际调度配置摘要。
-  string scheduler_config_digest = 16;
+  string scheduler_config_digest = 16 [json_name = "scheduler_config_digest"];
   // 服务端注册的不可变渲染规则版本。
-  string recipe_version = 17;
+  string recipe_version = 17 [json_name = "recipe_version"];
   // 规范化上述静态配置及硬件验证范围的SHA256；不含观测时间。
-  string baseline_digest = 18;
-  // 发布前必须VERIFIED，证据与baseline_digest一致。
-  Verification verification = 19;
+  string baseline_digest = 18 [json_name = "baseline_digest"];
+  // 配置身份不包含测试资格。
+  reserved 19;
+  reserved "verification";
+  string runtime_class_name = 20 [json_name = "runtime_class_name"];
 }
 
 // Node重建不得自动继承旧供给归属。
 message NodeRef {
   // K8s Node UID；必填，按不透明字符串。
-  string uid = 1;
+  string uid = 1 [json_name = "uid"];
   // 必填；仅定位，不能代替UID。
-  string name = 2;
+  string name = 2 [json_name = "name"];
 }
 
 // GPU服务保存集群引用，不提供集群创建。
 message Cluster {
   // 平台UUID。
-  string cluster_id = 1;
+  string cluster_id = 1 [json_name = "cluster_id"];
   // 1..64字符。
-  string display_name = 2;
+  string display_name = 2 [json_name = "display_name"];
   // 受管凭据引用，仅管理员可见，不返回secret。
-  string connection_ref = 3;
+  string connection_ref = 3 [json_name = "connection_ref"];
   // 从1递增，防止覆盖。
-  uint64 version = 4;
+  uint64 version = 4 [json_name = "version"];
 }
 
 // 本地登记，不写K8s。
 message RegisterClusterRequest {
   // 必填。
-  AdminMutation mutation = 1;
+  AdminMutation mutation = 1 [json_name = "mutation"];
   // 必填1..64。
-  string display_name = 2;
+  string display_name = 2 [json_name = "display_name"];
   // 必填，命中受管凭据引用范围。
-  string connection_ref = 3;
+  string connection_ref = 3 [json_name = "connection_ref"];
 }
 
 // 平台集群列表。
 message ListClustersRequest {
   // 必填。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 可省略默认分页。
-  Page page = 2;
+  Page page = 2 [json_name = "page"];
 }
 
 // 不包含凭据正文。
 message ListClustersResponse {
   // 只读列表。
-  repeated Cluster items = 1;
+  repeated Cluster items = 1 [json_name = "items"];
   // 空表示结束。
-  string next_token = 2;
+  string next_token = 2 [json_name = "next_token"];
 }
 
 // 管理范围，首期一个默认池即可，不等于Queue。
 message Pool {
   // 平台UUID。
-  string pool_id = 1;
+  string pool_id = 1 [json_name = "pool_id"];
   // 平台集群UUID。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 1..64字符。
-  string display_name = 3;
+  string display_name = 3 [json_name = "display_name"];
 }
 
 // 创建池不创建设备。
 message CreatePoolRequest {
   // 必填。
-  AdminMutation mutation = 1;
+  AdminMutation mutation = 1 [json_name = "mutation"];
   // 必填；已有受管集群。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 必填1..64。
-  string display_name = 3;
+  string display_name = 3 [json_name = "display_name"];
 }
 
 // 仅平台管理范围。
 message ListPoolsRequest {
   // 必填。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 必填。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 默认分页。
-  Page page = 3;
+  Page page = 3 [json_name = "page"];
 }
 
 // 池列表。
 message ListPoolsResponse {
   // 池列表。
-  repeated Pool items = 1;
+  repeated Pool items = 1 [json_name = "items"];
   // 分页标记。
-  string next_token = 2;
+  string next_token = 2 [json_name = "next_token"];
 }
 
 // 初始化ADOPT_EXISTING；登记后先CLOSED，经固定规格验证再OPEN。
 message SupplyGroup {
   // UUID。
-  string group_id = 1;
+  string group_id = 1 [json_name = "group_id"];
   // 所属池UUID。
-  string pool_id = 2;
+  string pool_id = 2 [json_name = "pool_id"];
   // 与池一致。
-  string cluster_id = 3;
+  string cluster_id = 3 [json_name = "cluster_id"];
   // 1..64。
-  string display_name = 4;
+  string display_name = 4 [json_name = "display_name"];
   // 整卡或固定共享，不动态转换。
-  SupplyMode mode = 5;
+  SupplyMode mode = 5 [json_name = "mode"];
   // 非空；节点不能同时属于两组。
-  repeated NodeRef nodes = 6;
+  repeated NodeRef nodes = 6 [json_name = "nodes"];
   // 该组支持的已核验型号类别；全部节点匹配。
-  string model_key = 7;
+  string model_key = 7 [json_name = "model_key"];
   // 冻结运行基线。
-  ProviderBaseline baseline = 8;
+  ProviderBaseline baseline = 8 [json_name = "baseline"];
   // 只影响新解析。
-  AdmissionState admission = 9;
+  AdmissionState admission = 9 [json_name = "admission"];
   // 现有受管Queue，验证真实路由，非套餐限额。
-  string queue_name = 10;
+  string queue_name = 10 [json_name = "queue_name"];
   // 从1开始；每次允许的元数据变更递增。
-  uint64 version = 11;
+  uint64 version = 11 [json_name = "version"];
   // 首次核对时间。
-  string adopted_at = 12;
+  string adopted_at = 12 [json_name = "adopted_at"];
 }
 
 // 只核对已有安装，不改变ConfigMap、不重启。一次核对和落库后返回组；后续用查询读取。
 message AdoptSupplyGroupRequest {
   // 必填。
-  AdminMutation mutation = 1;
+  AdminMutation mutation = 1 [json_name = "mutation"];
   // 已有池UUID。
-  string pool_id = 2;
+  string pool_id = 2 [json_name = "pool_id"];
   // 1..64。
-  string display_name = 3;
+  string display_name = 3 [json_name = "display_name"];
   // 必填。
-  SupplyMode mode = 4;
+  SupplyMode mode = 4 [json_name = "mode"];
   // 1..1024，去重，同型号且未属于其他组。
-  repeated NodeRef nodes = 5;
+  repeated NodeRef nodes = 5 [json_name = "nodes"];
   // 必填，与实际发现一致。
-  string model_key = 6;
+  string model_key = 6 [json_name = "model_key"];
   // 必填；服务端从实际配置及初始化证据复核，不能相信自报验证结果。
-  ProviderBaseline baseline = 7;
+  ProviderBaseline baseline = 7 [json_name = "baseline"];
   // 必填受管队列。
-  string queue_name = 8;
+  string queue_name = 8 [json_name = "queue_name"];
 }
 
 // 平台静态组查询。
 message ListSupplyGroupsRequest {
   // 必填。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 必填。
-  string pool_id = 2;
+  string pool_id = 2 [json_name = "pool_id"];
   // 默认分页。
-  Page page = 3;
+  Page page = 3 [json_name = "page"];
 }
 
 // 组配置仅管理员可见。
 message ListSupplyGroupsResponse {
   // 静态组列表。
-  repeated SupplyGroup items = 1;
+  repeated SupplyGroup items = 1 [json_name = "items"];
   // 分页。
-  string next_token = 2;
+  string next_token = 2 [json_name = "next_token"];
 }
 
 // 不驱逐，不撤销已接受计划。
 message SetAdmissionRequest {
   // 必填。
-  AdminMutation mutation = 1;
+  AdminMutation mutation = 1 [json_name = "mutation"];
   // 必填UUID。
-  string group_id = 2;
+  string group_id = 2 [json_name = "group_id"];
   // 必填>0。
-  uint64 expected_version = 3;
+  uint64 expected_version = 3 [json_name = "expected_version"];
   // OPEN需验证配置和规格；CLOSED不等于设备隔离。
-  AdmissionState desired = 4;
+  AdmissionState desired = 4 [json_name = "desired"];
   // 必填1..512，审计。
-  string reason = 5;
+  string reason = 5 [json_name = "reason"];
 }
 
 // 固定显存规格，不再按父卡临时quarter换算。
 message ProfileSpec {
   // 静态组UUID。
-  string group_id = 1;
+  string group_id = 1 [json_name = "group_id"];
   // 与组一致。
-  SupplyMode mode = 2;
+  SupplyMode mode = 2 [json_name = "mode"];
   // 与组核对。
-  string model_key = 3;
-  // 共享>0且整除F；整卡必须0。
-  int64 shared_memory_mib = 4;
+  string model_key = 3 [json_name = "model_key"];
+  // 每卡具体显存MiB；共享和整卡均为正整数。
+  reserved 4;
+  reserved "shared_memory_mib";
+  int64 memory_mib_per_device = 8 [json_name = "memory_mib_per_device"];
   // 共享1..99；整卡100。
-  uint32 core_limit_percent = 5;
-  // 首期固定1；多设备另验收。
-  uint32 max_devices_per_replica = 6;
+  uint32 core_limit_percent = 5 [json_name = "core_limit_percent"];
+  // 整卡能力为正整数上限；共享固定1。申请数量不得超过此值。
+  uint32 max_devices_per_replica = 6 [json_name = "max_devices_per_replica"];
   // 整卡WHOLE_DEVICE_EXCLUSIVE；软件共享SOFTWARE_COOPERATIVE。
-  string isolation_class = 7;
+  string isolation_class = 7 [json_name = "isolation_class"];
 }
 
 // 版本和单位为后续扩展保留，不开启在线改规格。
 message GpuProfile {
   // UUID。
-  string profile_id = 1;
+  string profile_id = 1 [json_name = "profile_id"];
   // 首期1，不使用latest。
-  uint64 profile_version = 2;
+  uint64 profile_version = 2 [json_name = "profile_version"];
   // 1..128，允许显示一张逻辑GPU。
-  string display_name = 3;
+  string display_name = 3 [json_name = "display_name"];
   // 不可变规范参数。
-  ProfileSpec spec = 4;
+  ProfileSpec spec = 4 [json_name = "spec"];
   // 对应已验证组基线。
-  string baseline_id = 5;
+  string baseline_id = 5 [json_name = "baseline_id"];
   // 规范静态内容SHA256，排除观测时间/当前状态。
-  string spec_digest = 6;
+  string spec_digest = 6 [json_name = "spec_digest"];
   // 只读；发布不等于在线切卡。
-  bool published = 7;
+  reserved 7;
+  reserved "published";
+  ProfileState state = 8 [json_name = "state"];
+  uint64 revision = 9 [json_name = "revision"];
 }
 
-// 首期首次发布，服务生成ID/version；同集群仅一共享向量。配置验证不是普通管理员布尔开关。
-message PublishProfileRequest {
+// 创建不可变资源参数；同组可并存多个规格。
+message CreateProfileRequest {
   // 必填。
-  AdminMutation mutation = 1;
+  AdminMutation mutation = 1 [json_name = "mutation"];
   // 必填1..128。
-  string display_name = 2;
+  string display_name = 2 [json_name = "display_name"];
   // 必填。
-  ProfileSpec spec = 3;
+  ProfileSpec spec = 3 [json_name = "spec"];
   // 必填>0。
-  uint64 expected_group_version = 4;
-  // 固定规格+组+基线真实消费验收引用。
-  string verification_ref = 5;
+  uint64 expected_group_version = 4 [json_name = "expected_group_version"];
+  // 已删除测试资格字段。
+  reserved 5;
+  reserved "verification_ref";
 }
 
 // Gov租户委托读取。
 message ListProfilesRequest {
   // 必填；只列授权已发布项。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 必填UUID。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 可UNSPECIFIED表示两种，返回仍不含未支持项。
-  SupplyMode mode = 3;
+  SupplyMode mode = 3 [json_name = "mode"];
   // 默认分页。
-  Page page = 4;
+  Page page = 4 [json_name = "page"];
 }
 
 // 产品GPU目录。
 message ListProfilesResponse {
   // 脱敏目录，不包括原始节点与配置证据。
-  repeated GpuProfile items = 1;
+  repeated GpuProfile items = 1 [json_name = "items"];
   // 分页。
-  string next_token = 2;
+  string next_token = 2 [json_name = "next_token"];
+  // 与本页items按顺序一一对应；只读目录归属，不进入GPU plan。
+  repeated ProfileScope scopes = 3 [json_name = "scopes"];
+}
+
+// 由Profile所属Group/Pool的同一只读快照确定，不由调用者填写。
+message ProfileScope {
+  string profile_id = 1 [json_name = "profile_id"];
+  uint64 profile_version = 2 [json_name = "profile_version"];
+  string spec_digest = 3 [json_name = "spec_digest"];
+  string cluster_id = 4 [json_name = "cluster_id"];
+  string pool_id = 5 [json_name = "pool_id"];
 }
 
 // 平台目录查询，不伪造租户调用租户Catalog。
 message AdminListProfilesRequest {
   // 必填平台上下文。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 必填UUID。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 默认分页。
-  Page page = 3;
+  Page page = 3 [json_name = "page"];
 }
 
 // 不存在或不可见均NotFound。
 message GetProfileRequest {
   // 必填。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 必填。
-  string profile_id = 2;
+  string profile_id = 2 [json_name = "profile_id"];
   // 必填>0。
-  uint64 profile_version = 3;
+  uint64 profile_version = 3 [json_name = "profile_version"];
 }
 
 // 不含tenant/charge/factor/raw GPU资源；普通用户不能指定设备UUID。
 message GpuRequest {
   // 必填UUID。
-  string cluster_id = 1;
+  string cluster_id = 1 [json_name = "cluster_id"];
   // 必填UUID；与集群一致。
-  string pool_id = 2;
+  string pool_id = 2 [json_name = "pool_id"];
   // 必填UUID。
-  string profile_id = 3;
+  string profile_id = 3 [json_name = "profile_id"];
   // 必填具体版本。
-  uint64 profile_version = 4;
+  uint64 profile_version = 4 [json_name = "profile_version"];
   // 首期固定1..16；真实owner仍须验收对应副本上限。
-  uint32 replicas = 5;
-  // 首期必须1；>1返回SHAPE_UNSUPPORTED。
-  uint32 devices_per_replica = 6;
+  uint32 replicas = 5 [json_name = "replicas"];
+  // 每Pod设备数：整卡正整数且不超过Profile上限，共享固定1。
+  uint32 devices_per_replica = 6 [json_name = "devices_per_replica"];
   // 必填合法K8s容器名；每Pod只有这一GPU容器。
-  string container_name = 7;
+  string container_name = 7 [json_name = "container_name"];
 }
 
 // 仅适配器转换一次。provider的int32换算界限也必须校验。
-message MemoryEncoding {
-  // F必填>0，来自冻结组基线。
-  uint32 memory_block_mib = 1;
-  // 共享q=m/F>0；整卡0，改用百分比。
-  int64 memory_blocks_per_device = 2;
-  // 共享m=q*F；整卡0，不计共享额度。
-  int64 shared_memory_mib = 3;
-  // 共享0；整卡100。
-  uint32 memory_percentage = 4;
-  // 首期EXACT；不隐式向上/向下取整。
-  string policy = 5;
-}
+
 
 // 给Gov业务适配器使用的请求向量；不是运行指标。
-message ResourceTotals {
-  // 共享replicas*devices；整卡0。
-  int64 logical_device_count = 1;
-  // 整卡replicas*devices；共享0。
-  int64 exclusive_device_count = 2;
-  // 共享全部副本m总量；不含整卡显存。
-  int64 shared_memory_mib = 3;
-}
+
 
 // 不含资源ID/PodUID或强制ordinal；保持Inference自身控制器与重启策略。
-message RuntimeFragment {
-  // 首期volcano。
-  string scheduler_name = 1;
-  // 冻结设施路由；owner映射现有PodGroup。
-  string queue_name = 2;
-  // 必需静态组/型号/基线选择；只能收紧，不能删改范围。
-  repeated KeyValue node_labels = 3;
-  // 受管静态模式注解，运行身份随后注入。
-  repeated KeyValue pod_annotations = 4;
-  // 每个副本的GPU限制；共享memory为块数。
-  repeated KeyValue limits_per_container = 5;
-  // 如基线不需要可空。
-  string runtime_class_name = 6;
-  // 冻结渲染版本。
-  string recipe_version = 7;
-}
+
 
 // 历史重试直接使用，不按最新factor重算。
-message ResolvedGpuPlan {
-  // 固定1。
-  uint32 schema_version = 1;
-  // 已规范化的GPU原请求。
-  GpuRequest request = 2;
-  // 不可变规格快照；哈希只取静态字段。
-  GpuProfile profile = 3;
-  // 冻结F/q/m。
-  MemoryEncoding encoding = 4;
-  // 按安全整数计算。
-  ResourceTotals totals = 5;
-  // 已冻结受管字段。
-  RuntimeFragment runtime = 6;
-  // 真实运行基线SHA256。
-  string baseline_digest = 7;
-  // 规范不可变计划SHA256；不含时间、临时身份、当前容量或published状态；不是鉴权令牌。
-  string resolution_digest = 8;
+
+
+enum ProfileState {
+  PROFILE_STATE_UNSPECIFIED = 0;
+  PROFILE_ACTIVE = 1;
+  PROFILE_DISABLED = 2;
+  PROFILE_DELETED = 3;
+}
+
+message GpuExecution {
+  string scheduler_name = 1 [json_name = "scheduler_name"];
+  string queue_name = 2 [json_name = "queue_name"];
+  string runtime_class_name = 3 [json_name = "runtime_class_name"];
+  map<string, string> node_selector = 4 [json_name = "node_selector"];
+  map<string, string> pod_annotations = 5 [json_name = "pod_annotations"];
+  map<string, string> resources = 6 [json_name = "resources"];
+  string execution_digest = 7 [json_name = "execution_digest"];
+}
+
+message GpuDisplay {
+  string profile_id = 1 [json_name = "profile_id"];
+  uint64 profile_version = 2 [json_name = "profile_version"];
+  string profile_name = 3 [json_name = "profile_name"];
+  string model_key = 4 [json_name = "model_key"];
+  SupplyMode mode = 5 [json_name = "mode"];
+}
+
+message GpuQuotaItem {
+  string quota_code = 1 [json_name = "quota_code"];
+  int64 units = 2 [json_name = "units"];
+}
+
+message ResolvedGpuRequest {
+  GpuExecution execution = 1 [json_name = "execution"];
+  repeated GpuQuotaItem quota_items = 2 [json_name = "quota_items"];
+  GpuDisplay selection = 3 [json_name = "selection"];
+}
+
+message PreviewProfileRequest {
+  AdminRead context = 1 [json_name = "context"];
+  string group_id = 2 [json_name = "group_id"];
+  uint32 parts = 3 [json_name = "parts"];
+}
+
+message ProfilePreview {
+  ProfileSpec spec = 1 [json_name = "spec"];
+  int64 unused_memory_mib = 2 [json_name = "unused_memory_mib"];
+  uint32 unused_core_units = 3 [json_name = "unused_core_units"];
+}
+
+message SetProfileStateRequest {
+  AdminMutation mutation = 1 [json_name = "mutation"];
+  string profile_id = 2 [json_name = "profile_id"];
+  uint64 expected_revision = 3 [json_name = "expected_revision"];
+  ProfileState desired = 4 [json_name = "desired"];
+}
+
+message DeleteProfileRequest {
+  AdminMutation mutation = 1 [json_name = "mutation"];
+  string profile_id = 2 [json_name = "profile_id"];
+  uint64 expected_revision = 3 [json_name = "expected_revision"];
 }
 
 // 事务外解析，不占额、不锁设备；配置未知/漂移拒绝。
 message ResolveGpuRequestRequest {
   // 必填可信租户。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 必填。
-  GpuRequest gpu = 2;
+  GpuRequest gpu = 2 [json_name = "gpu"];
 }
 
 // 单设备异常不能污染其他设备容量查询。
 message DeviceCapacity {
   // 内部物理设备ID，仅Admin明细。
-  string device_id = 1;
+  string device_id = 1 [json_name = "device_id"];
   // 指定规格当前固定配置份数。
-  int64 nominal_units = 2;
+  int64 nominal_units = 2 [json_name = "nominal_units"];
   // 去重真实分配数，不包含未放置申请。
-  int64 known_committed_units = 3;
+  int64 known_committed_units = 3 [json_name = "known_committed_units"];
   // 仅合格设备的估计值，不是锁。
-  int64 known_free_units = 4;
+  int64 known_free_units = 4 [json_name = "known_free_units"];
   // 经验证的预算<=量化可表达容量。
-  int64 safe_memory_budget_mib = 5;
+  int64 safe_memory_budget_mib = 5 [json_name = "safe_memory_budget_mib"];
   // 已归一化一次的设备承诺。
-  int64 committed_memory_mib = 6;
+  int64 committed_memory_mib = 6 [json_name = "committed_memory_mib"];
   // 原始上报，非MiB。
-  int64 provider_memory_blocks = 7;
+  int64 provider_memory_blocks = 7 [json_name = "provider_memory_blocks"];
   // 该样本的冻结F。
-  uint32 memory_block_mib = 8;
+  uint32 memory_block_mib = 8 [json_name = "memory_block_mib"];
   // blocks*F，不反推精确物理容量。
-  int64 reported_memory_mib = 9;
+  int64 reported_memory_mib = 9 [json_name = "reported_memory_mib"];
   // 该设备数据完整可信；false不贡献可用估计。
-  bool complete = 10;
+  bool complete = 10 [json_name = "complete"];
   // 异常/排除原因，不使用空闲0掩盖。
-  repeated string issues = 11;
+  repeated string issues = 11 [json_name = "issues"];
 }
 
 // 租户额度不包含在本响应；没有authoritative lock。
 message CapacityView {
   // UUID。
-  string profile_id = 1;
+  string profile_id = 1 [json_name = "profile_id"];
   // 指定版本。
-  uint64 profile_version = 2;
+  uint64 profile_version = 2 [json_name = "profile_version"];
   // 返回的供给类别。
-  SupplyMode mode = 3;
+  SupplyMode mode = 3 [json_name = "mode"];
   // 去重真实设备数，故障设备仍在清单。
-  int64 physical_device_count = 4;
+  int64 physical_device_count = 4 [json_name = "physical_device_count"];
   // 名义指定规格供给数。
-  int64 nominal_units = 5;
+  int64 nominal_units = 5 [json_name = "nominal_units"];
   // 已知真实承诺数。
-  int64 known_committed_units = 6;
+  int64 known_committed_units = 6 [json_name = "known_committed_units"];
   // 估计值；complete=false时只是已知范围。
-  int64 known_free_units = 7;
+  int64 known_free_units = 7 [json_name = "known_free_units"];
   // 已观察但未放置的请求，不分摊到父卡。
-  int64 unplaced_requested_units = 8;
+  int64 unplaced_requested_units = 8 [json_name = "unplaced_requested_units"];
   // 必填。
-  Observation observation = 9;
+  Observation observation = 9 [json_name = "observation"];
   // 仅独立AdminGetCapacity可包含；租户恒空。
-  repeated DeviceCapacity devices = 10;
+  repeated DeviceCapacity devices = 10 [json_name = "devices"];
 }
 
 // 租户只看授权汇总，不用bool开放设备明细。
 message GetCapacityRequest {
   // 必填。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 必填且可见。
-  string profile_id = 2;
+  string profile_id = 2 [json_name = "profile_id"];
   // 必填。
-  uint64 profile_version = 3;
+  uint64 profile_version = 3 [json_name = "profile_version"];
 }
 
 // 修复v1.1管理员无合法上下文问题。
 message AdminGetCapacityRequest {
   // 必填，无tenant字段。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 必填。
-  string profile_id = 2;
+  string profile_id = 2 [json_name = "profile_id"];
   // 必填。
-  uint64 profile_version = 3;
+  uint64 profile_version = 3 [json_name = "profile_version"];
   // 平台权限已验证后才允许逐设备详情。
-  bool include_devices = 4;
+  bool include_devices = 4 [json_name = "include_devices"];
 }
 
 // 静态形态受支持且额度通过，WAIT_FOR_CAPACITY可以提交。
 message GpuFit {
   // 当前GPU形态估计；不能替代Quota或实际调度。
-  FitStatus status = 1;
+  FitStatus status = 1 [json_name = "status"];
   // 当前条件参考；未知时0不表示全池耗尽。
-  int64 estimated_replicas = 2;
+  int64 estimated_replicas = 2 [json_name = "estimated_replicas"];
   // false显示未知。
-  bool estimate_known = 3;
+  bool estimate_known = 3 [json_name = "estimate_known"];
   // 稳定原因；CPU/网络/存储未检查须说明。
-  repeated string reasons = 4;
+  repeated string reasons = 4 [json_name = "reasons"];
   // 观测新鲜度。
-  Observation observation = 5;
+  Observation observation = 5 [json_name = "observation"];
 }
 
 // 只读，不能修改状态或先扣额。
 message CheckGpuFitRequest {
   // 必填。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 必填。
-  GpuRequest gpu = 2;
+  GpuRequest gpu = 2 [json_name = "gpu"];
 }
 
 // 仅平台设备明细接口，不直接返回到租户API。
 message PhysicalDevice {
   // 平台UUID，稳定物理身份。
-  string device_id = 1;
+  string device_id = 1 [json_name = "device_id"];
   // 集群UUID。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 已核验静态组UUID；未纳管设备可空。
-  string group_id = 3;
+  string group_id = 3 [json_name = "group_id"];
   // 实际位置。
-  NodeRef node = 4;
+  NodeRef node = 4 [json_name = "node"];
   // 供应商UUID，不能用node/index猜。
-  string vendor_device_id = 5;
+  string vendor_device_id = 5 [json_name = "vendor_device_id"];
   // 归一化型号类别。
-  string model_key = 6;
+  string model_key = 6 [json_name = "model_key"];
   // NVML等真实来源，<=2^63-1；不由blocks反推。
-  uint64 physical_memory_bytes = 7;
+  uint64 physical_memory_bytes = 7 [json_name = "physical_memory_bytes"];
   // HEALTHY/UNHEALTHY/UNKNOWN；不清除既有占用。
-  string health = 8;
+  string health = 8 [json_name = "health"];
   // 物理信息来源状态。
-  Observation observation = 9;
+  Observation observation = 9 [json_name = "observation"];
 }
 
 // 平台设备列表。
 message ListDevicesRequest {
   // 必填。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 必填。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 可空，空为集群内受权范围。
-  string group_id = 3;
+  string group_id = 3 [json_name = "group_id"];
   // 默认分页。
-  Page page = 4;
+  Page page = 4 [json_name = "page"];
 }
 
 // 设备列表。
 message ListDevicesResponse {
   // 设备列表。
-  repeated PhysicalDevice items = 1;
+  repeated PhysicalDevice items = 1 [json_name = "items"];
   // 分页。
-  string next_token = 2;
+  string next_token = 2 [json_name = "next_token"];
 }
 
 // 使用关联键，不是一个需要预注册才能获得的设备权利。
 message GpuUsageRef {
   // 资源租户UUID，必填。
-  string tenant_id = 1;
+  string tenant_id = 1 [json_name = "tenant_id"];
   // 首期ani-inference；投影直接调用者仍是ani-governance。
-  string owner_service = 2;
+  string owner_service = 2 [json_name = "owner_service"];
   // Gov生成UUID，稳定业务实例身份。
-  string resource_id = 3;
+  string resource_id = 3 [json_name = "resource_id"];
   // 原创建UUID，不能用DELETE操作ID。
-  string create_operation_id = 4;
+  string create_operation_id = 4 [json_name = "create_operation_id"];
 }
 
 // 只是申请关联读模型；ENDED不清除实际绑定，不触发退款。
 message GpuUsageProjection {
   // 必填；同资源不得换原创建复活。
-  GpuUsageRef ref = 1;
+  GpuUsageRef ref = 1 [json_name = "ref"];
   // 只能1或2；不是worker generation。
-  uint64 revision = 2;
+  uint64 revision = 2 [json_name = "revision"];
   // 1=DECLARED，2=ENDED。
-  UsageState state = 3;
+  UsageState state = 3 [json_name = "state"];
   // 两种revision都携带同一静态计划，允许结束先到。
-  ResolvedGpuPlan plan = 4;
+  reserved 4;
+  reserved "plan";
+  string profile_id = 10 [json_name = "profile_id"];
+  uint64 profile_version = 11 [json_name = "profile_version"];
+  string group_id = 12 [json_name = "group_id"];
+  string baseline_id = 13 [json_name = "baseline_id"];
+  string cluster_id = 14 [json_name = "cluster_id"];
+  string container_name = 15 [json_name = "container_name"];
+  string execution_digest = 16 [json_name = "execution_digest"];
   // DECLARED必须UNSPECIFIED；ENDED必须有明确依据。
-  UsageEndReason end_reason = 5;
+  UsageEndReason end_reason = 5 [json_name = "end_reason"];
   // 必填；原受理/未发撤销/最终释放账本事实引用。
-  string source_fact_ref = 6;
+  string source_fact_ref = 6 [json_name = "source_fact_ref"];
   // 原CREATE操作持久创建时间；两个revision固定相同，不冒充资源结束时间。
-  string source_operation_created_at = 7;
+  string source_operation_created_at = 7 [json_name = "source_operation_created_at"];
   // 全部规范语义字段摘要；同revision必须一致；传输request-id不计。
-  string payload_digest = 8;
+  string payload_digest = 8 [json_name = "payload_digest"];
 }
 
 // 不检查空闲，不调用owner，不参与创建前置。
 message SyncGpuUsageRequest {
   // 日志关联，可随重试变化。
-  string request_id = 1;
+  string request_id = 1 [json_name = "request_id"];
   // 必填；仅Gov精确mTLS身份可以写。
-  GpuUsageProjection projection = 2;
+  GpuUsageProjection projection = 2 [json_name = "projection"];
 }
 
 // 响应仅确认投影持久接纳，不代表工作负载运行/释放。
 message SyncGpuUsageResponse {
   // 原引用。
-  GpuUsageRef ref = 1;
+  GpuUsageRef ref = 1 [json_name = "ref"];
   // GPU端当前最大已接纳revision。
-  uint64 applied_revision = 2;
+  uint64 applied_revision = 2 [json_name = "applied_revision"];
   // 当前投影状态。
-  UsageState state = 3;
+  UsageState state = 3 [json_name = "state"];
   // 同内容/旧版本幂等返回。
-  bool replayed = 4;
+  bool replayed = 4 [json_name = "replayed"];
 }
 
 // 尚未同步返回投影未就绪，不代表业务资源不存在。
 message GetGpuUsageRequest {
   // 必填；与ref租户一致。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 必填。
-  GpuUsageRef ref = 2;
+  GpuUsageRef ref = 2 [json_name = "ref"];
 }
 
 // 仅当前租户投影；业务实例列表仍由Inference提供。
 message ListGpuUsagesRequest {
   // 必填。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 可空或允许owner，不能扩大tenant。
-  string owner_service = 2;
+  string owner_service = 2 [json_name = "owner_service"];
   // UNSPECIFIED表示全部状态。
-  UsageState state = 3;
+  UsageState state = 3 [json_name = "state"];
   // 默认分页。
-  Page page = 4;
+  Page page = 4 [json_name = "page"];
 }
 
 // 不是申请额度账本。
 message ListGpuUsagesResponse {
   // 投影列表。
-  repeated GpuUsageProjection items = 1;
+  repeated GpuUsageProjection items = 1 [json_name = "items"];
   // 分页。
-  string next_token = 2;
+  string next_token = 2 [json_name = "next_token"];
 }
 
 // 删除范围覆盖所有相关Pod，包括曾经替换的Pod。
 message PodRef {
   // UUID。
-  string cluster_id = 1;
+  string cluster_id = 1 [json_name = "cluster_id"];
   // 非空合法namespace。
-  string namespace = 2;
+  string namespace = 2 [json_name = "namespace"];
   // 非空，仅定位。
-  string name = 3;
+  string name = 3 [json_name = "name"];
   // 实际Pod UID，必填。
-  string uid = 4;
+  string uid = 4 [json_name = "uid"];
   // 实际GPU容器名。
-  string container_name = 5;
+  string container_name = 5 [json_name = "container_name"];
 }
 
 // 真实绑定可先于投影落库；一个使用多来源必须先去重。
 message GpuBinding {
   // 平台实际使用记录UUID。
-  string binding_id = 1;
+  string binding_id = 1 [json_name = "binding_id"];
   // 可缺省：投影/归属尚未核验；缺省不影响容量计数。
-  GpuUsageRef verified_usage_ref = 2;
+  GpuUsageRef verified_usage_ref = 2 [json_name = "verified_usage_ref"];
   // 真实Pod引用。
-  PodRef pod = 3;
+  PodRef pod = 3 [json_name = "pod"];
   // 管理员及内部可见；租户BFF移除。
-  string physical_device_id = 4;
+  string physical_device_id = 4 [json_name = "physical_device_id"];
   // 实际分配状态，不是业务Ready。
-  AllocationState state = 5;
+  AllocationState state = 5 [json_name = "state"];
   // 归一化的该设备承诺；仅runtime利用率不作依据。
-  int64 memory_mib = 6;
+  int64 memory_mib = 6 [json_name = "memory_mib"];
   // 该分配计算参数，范围0..100，不承诺吞吐。
-  uint32 core_limit_percent = 7;
+  uint32 core_limit_percent = 7 [json_name = "core_limit_percent"];
   // 解释来源单位时使用的冻结基线。
-  string source_baseline_digest = 8;
+  string source_baseline_digest = 8 [json_name = "source_baseline_digest"];
   // 原始blocks来源所用F；已归一化值不能再乘。
-  uint32 source_memory_block_mib = 9;
+  uint32 source_memory_block_mib = 9 [json_name = "source_memory_block_mib"];
   // 实际adapter原始证据引用。
-  string evidence_ref = 10;
+  string evidence_ref = 10 [json_name = "evidence_ref"];
   // 可信完整度。
-  Observation observation = 11;
+  Observation observation = 11 [json_name = "observation"];
 }
 
 // 不能通过未验证Pod标签猜租户；原始未关联记录仅内部/Admin可看。
 message ListBindingsRequest {
   // 必填。
-  TenantContext context = 1;
+  TenantContext context = 1 [json_name = "context"];
   // 必填；只能返回可信关联到该租户的事实。
-  GpuUsageRef ref = 2;
+  GpuUsageRef ref = 2 [json_name = "ref"];
   // 默认分页。
-  Page page = 3;
+  Page page = 3 [json_name = "page"];
 }
 
 // 允许平台读取未关联真实占用；不能自动推导未知租户。
 message AdminListBindingsRequest {
   // 必填平台上下文。
-  AdminRead context = 1;
+  AdminRead context = 1 [json_name = "context"];
   // 必填UUID。
-  string cluster_id = 2;
+  string cluster_id = 2 [json_name = "cluster_id"];
   // 可空；指定时必须属于集群。
-  string physical_device_id = 3;
+  string physical_device_id = 3 [json_name = "physical_device_id"];
   // 默认分页。
-  Page page = 4;
+  Page page = 4 [json_name = "page"];
 }
 
 // 只读关联绑定。
 message ListBindingsResponse {
   // BFF必须移除内部物理身份/拓扑。
-  repeated GpuBinding items = 1;
+  repeated GpuBinding items = 1 [json_name = "items"];
   // 分页。
-  string next_token = 2;
+  string next_token = 2 [json_name = "next_token"];
   // 缺失投影不等于零实际占用。
-  Observation observation = 3;
+  Observation observation = 3 [json_name = "observation"];
 }
 
 // 无需已存在使用关联；范围完整性和无未知在途写由owner证明。
 message ObserveReleaseRequest {
   // 必填。
-  string request_id = 1;
+  string request_id = 1 [json_name = "request_id"];
   // 必填；直接mTLS调用方必须是该owner。
-  GpuUsageRef ref = 2;
+  GpuUsageRef ref = 2 [json_name = "ref"];
   // 必填UUID，明确关闭操作。
-  string delete_operation_id = 3;
-  // owner掌握的完整实际范围；非空。没有外部创建则使用owner内部未执行证明，不调用空列表假释放。
-  repeated PodRef pods = 4;
+  string delete_operation_id = 3 [json_name = "delete_operation_id"];
+  // owner持久掌握的完整历史Pod范围；从未观察到Pod时可空。
+  repeated PodRef pods = 4 [json_name = "pods"];
+  // 必填；ACC还会从已知owner claims补全范围，拒绝跨集群冲突。
+  string cluster_id = 6 [json_name = "cluster_id"];
+  // 必填RFC3339Nano。owner已封闭创建且清理API对象后持久化的时间。
+  // 所有受管GPU节点的来源水位必须完整、新鲜且不早于此时间。
+  string sealed_at = 7 [json_name = "sealed_at"];
 }
 
 // ALLOCATION_RELEASED只证明检查范围解除，不决定退款或证明owner未来不会创建。
 message ReleaseObservation {
   // 结果证据UUID。
-  string evidence_id = 1;
+  string evidence_id = 1 [json_name = "evidence_id"];
   // 对应资源引用。
-  GpuUsageRef ref = 2;
+  GpuUsageRef ref = 2 [json_name = "ref"];
   // 正常解除、仍存在或未知。
-  ReleaseFinding finding = 3;
+  ReleaseFinding finding = 3 [json_name = "finding"];
   // 已确认残留设备分配的Pod，不只查当前GPU进程。
-  repeated string active_pod_uids = 4;
+  repeated string active_pod_uids = 4 [json_name = "active_pod_uids"];
   // 缺少可信证据的节点。
-  repeated string uncertain_node_uids = 5;
+  repeated string uncertain_node_uids = 5 [json_name = "uncertain_node_uids"];
   // 必填。
-  Observation observation = 6;
+  Observation observation = 6 [json_name = "observation"];
   // 稳定证据摘要，绑定检查范围。
-  string evidence_digest = 7;
+  string evidence_digest = 7 [json_name = "evidence_digest"];
 }
 
 // 全部方法只接受Gov可信管理员委托；初始化也可由同校验CLI完成。
@@ -859,7 +889,10 @@ service AcceleratorAdminService {
   // 只关新解析，不声称维护。
   rpc SetAdmission(SetAdmissionRequest) returns (SupplyGroup);
   // 首次固定规格发布，核验F整除与真实K。
-  rpc PublishProfile(PublishProfileRequest) returns (GpuProfile);
+  rpc CreateProfile(CreateProfileRequest) returns (GpuProfile);
+  rpc PreviewProfile(PreviewProfileRequest) returns (ProfilePreview);
+  rpc SetProfileState(SetProfileStateRequest) returns (GpuProfile);
+  rpc DeleteProfile(DeleteProfileRequest) returns (GpuProfile);
   // 平台目录，不使用虚假租户上下文。
   rpc AdminListProfiles(AdminListProfilesRequest) returns (ListProfilesResponse);
   // 平台设备消费者及未关联占用。
@@ -877,7 +910,7 @@ service AcceleratorCatalogService {
   // 固定版本目录。
   rpc GetProfile(GetProfileRequest) returns (GpuProfile);
   // 静态计划解析，无库存锁；MiB与provider块分离。
-  rpc ResolveGpuRequest(ResolveGpuRequestRequest) returns (ResolvedGpuPlan);
+  rpc ResolveGpuRequest(ResolveGpuRequestRequest) returns (ResolvedGpuRequest);
   // 租户容量汇总，无设备明细。
   rpc GetCapacity(GetCapacityRequest) returns (CapacityView);
   // 估计不是准入锁，允许容量不足等待。

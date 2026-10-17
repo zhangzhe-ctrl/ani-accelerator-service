@@ -1,13 +1,13 @@
 # ACC-V12-01 依赖许可证据
 
-2026-09-23，Fedora，cyclonedx-gomod v1.12.0。We examined the 41 non-main runtime components in the Linux/amd64 module graph. 以下为工具检测到的 SPDX license evidence 分类，非本项目许可授权。
+2026-10-18，Fedora，cyclonedx-gomod v1.12.0。We examined the 46 non-main runtime components in the Linux/amd64 module graph. 以下为工具检测到的 SPDX license evidence 分类，非本项目许可授权。
 
 | Detected SPDX license | Components |
 | --- | --- |
-| Apache-2.0 | 21 |
+| Apache-2.0 | 23 |
 | BSD-2-Clause | 1 |
-| BSD-3-Clause | 9 |
-| MIT | 10 |
+| BSD-3-Clause | 10 |
+| MIT | 12 |
 | no detected evidence | 0 |
 
 `make audit` 会将分类数、component 总数与实际重新生成 BOM 逐项核对，不能沿用旧 layout 数量。BOM 为 `docs/scaffold/bom.cdx.json`；主模块尚无项目级 LICENSE，未把上游模板 MIT notice 当成本服务的项目许可。工具没有发现 runtime component 缺少许可证据。

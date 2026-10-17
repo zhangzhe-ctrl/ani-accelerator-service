@@ -1,0 +1,17 @@
+syntax = "proto3";
+package accelerator.command.v1;
+option go_package = "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/command/v1;commandv1";
+
+// Persisted command acceptance; not GPU readiness or completed deletion.
+message DurableOwnerAck {
+  string operation_id = 1 [json_name = "operation_id"];
+  string resource_id = 2 [json_name = "resource_id"];
+  bool accepted = 3 [json_name = "accepted"];
+}
+
+message GpuDeleteAcceptance {
+  string delete_operation_id = 1 [json_name = "delete_operation_id"];
+  string resource_id = 2 [json_name = "resource_id"];
+  string result = 3 [json_name = "result"];
+  string dispatch_operation_id = 4 [json_name = "dispatch_operation_id"];
+}

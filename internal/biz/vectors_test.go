@@ -9,11 +9,11 @@ import (
 )
 
 func TestContractVectors(t *testing.T) {
-	b := baselineForTest(1024, Shared)
-	p := testPlan(t, Shared, 1024)
-	projection := &UsageProjection{Ref: &UsageRef{testID, "ani-inference", testID, testID}, Revision: 2, State: Ended, Plan: p, EndReason: OwnerReleased, SourceFactRef: "quota-operation:" + testID + ":gpu-fully-released", SourceOperationCreatedAt: "2026-09-23T00:00:00Z"}
+	b := baselineForTest(1, Shared)
+	p := testPlan(t, Shared, 1)
+	projection := testProjection(t)
 	projection.PayloadDigest, _ = ProjectionDigest(projection)
-	vector := map[string]any{"schema": "acc-c14n-v1", "baseline": b, "plan": p, "projection": projection, "construction": "deterministic software fixture; no hardware verification"}
+	vector := map[string]any{"schema": "acc-execution-v1", "baseline": b, "resolution": p, "projection": projection, "construction": "deterministic software fixture; no hardware verification"}
 	canonical, err := Canonical(map[string]any{"z": int64(9223372036854775807), "a": "<&中文>", "b": true})
 	if err != nil {
 		t.Fatal(err)

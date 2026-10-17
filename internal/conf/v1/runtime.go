@@ -21,19 +21,21 @@ func (c *Bootstrap) ValidateRuntime() error {
 	if c.Accelerator.ResourceOwnerPublicKeyFile != "" && !filepath.IsAbs(c.Accelerator.ResourceOwnerPublicKeyFile) {
 		return fmt.Errorf("Resource owner public key must use an absolute path")
 	}
-	for _, path := range []string{s.CaFile, s.CertFile, s.KeyFile, s.CursorKeyFile, c.Accelerator.ProviderConfigFile, c.Accelerator.AttestationsDir, c.Accelerator.AttestationPublicKeyFile, c.Accelerator.OwnerPublicKeyFile} {
+	for _, path := range []string{s.CaFile, s.CertFile, s.KeyFile, s.CursorKeyFile, c.Accelerator.ProviderConfigFile, c.Accelerator.OwnerPublicKeyFile} {
 		if !filepath.IsAbs(path) {
 			return fmt.Errorf("runtime secret/config references must be absolute paths")
 		}
 	}
-	for _, identity := range []string{s.GovernanceUri, s.InferenceUri} {
+	identities := map[string]bool{}
+	for _, identity := range []string{s.GovernanceUri, s.InferenceUri, s.ResourceUri} {
 		u, err := url.Parse(identity)
 		if err != nil || u.Scheme != "spiffe" || u.Host == "" || u.Path == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
 			return fmt.Errorf("exact SPIFFE service URI is required")
 		}
-	}
-	if s.GovernanceUri == s.InferenceUri {
-		return fmt.Errorf("service identities must be distinct")
+		if identities[identity] {
+			return fmt.Errorf("service identities must be distinct")
+		}
+		identities[identity] = true
 	}
 	if c.Accelerator.MaxReplicas == 0 || c.Accelerator.MaxReplicas > 16 {
 		return fmt.Errorf("max_replicas must be 1..16")

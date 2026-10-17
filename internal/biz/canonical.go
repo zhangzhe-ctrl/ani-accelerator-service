@@ -75,8 +75,6 @@ func BaselineDigest(b *ProviderBaseline) (string, error) {
 	}
 	c := *b
 	c.BaselineDigest = ""
-	c.Verification = nil
-	c.FactorEvidenceRef = ""
 	return Hash(c)
 }
 func SpecDigest(s *ProfileSpec, baselineID string) (string, error) {
@@ -95,44 +93,38 @@ func sortedFields(fields []KeyValue) ([]KeyValue, error) {
 	}
 	return c, nil
 }
-func PlanDigest(p *ResolvedPlan) (string, error) {
-	if p == nil || p.Profile == nil || p.Runtime == nil {
-		return "", Invalid("INVALID_PLAN")
+
+// ExecutionDigest commits only to these six execution fields. Catalog state,
+// display values and future protobuf fields cannot silently alter this contract.
+func ExecutionDigest(e *GpuExecution) (string, error) {
+	if e == nil {
+		return "", Invalid("INVALID_EXECUTION")
 	}
-	c := *p
-	c.ResolutionDigest = ""
-	profile := *p.Profile
-	profile.Published = false
-	c.Profile = &profile
-	r := *p.Runtime
-	c.Runtime = &r
-	var err error
-	if r.NodeLabels, err = sortedFields(r.NodeLabels); err != nil {
+	fields := map[string]any{"scheduler_name": e.SchedulerName, "queue_name": e.QueueName, "runtime_class_name": e.RuntimeClassName, "node_selector": e.NodeSelector, "pod_annotations": e.PodAnnotations, "resources": e.Resources}
+	b, err := Canonical(fields)
+	if err != nil {
 		return "", err
 	}
-	if r.PodAnnotations, err = sortedFields(r.PodAnnotations); err != nil {
-		return "", err
-	}
-	if r.LimitsPerContainer, err = sortedFields(r.LimitsPerContainer); err != nil {
-		return "", err
-	}
-	return Hash(c)
+	h := sha256.Sum256(append([]byte("acc-execution-v1\n"), b...))
+	return hex.EncodeToString(h[:]), nil
 }
 func ProjectionDigest(p *UsageProjection) (string, error) {
-	if p == nil || p.Plan == nil {
+	if p == nil {
 		return "", Invalid("INVALID_PROJECTION")
 	}
-	c := *p
-	c.PayloadDigest = ""
-	// The validated plan digest commits to its canonical content independently
-	// of array ordering and published state. Hash that content exactly once.
 	return Hash(struct {
-		Ref        *UsageRef  `json:"ref"`
-		Revision   uint64     `json:"revision"`
-		State      UsageState `json:"state"`
-		PlanDigest string     `json:"plan_digest"`
-		EndReason  EndReason  `json:"end_reason"`
-		Fact       string     `json:"source_fact_ref"`
-		Created    string     `json:"source_operation_created_at"`
-	}{c.Ref, c.Revision, c.State, c.Plan.ResolutionDigest, c.EndReason, c.SourceFactRef, c.SourceOperationCreatedAt})
+		Ref             *UsageRef  `json:"ref"`
+		Revision        uint64     `json:"revision"`
+		State           UsageState `json:"state"`
+		ProfileID       string     `json:"profile_id"`
+		ProfileVersion  uint64     `json:"profile_version"`
+		GroupID         string     `json:"group_id"`
+		BaselineID      string     `json:"baseline_id"`
+		ClusterID       string     `json:"cluster_id"`
+		ContainerName   string     `json:"container_name"`
+		ExecutionDigest string     `json:"execution_digest"`
+		EndReason       EndReason  `json:"end_reason"`
+		Fact            string     `json:"source_fact_ref"`
+		Created         string     `json:"source_operation_created_at"`
+	}{p.Ref, p.Revision, p.State, p.ProfileID, p.ProfileVersion, p.GroupID, p.BaselineID, p.ClusterID, p.ContainerName, p.ExecutionDigest, p.EndReason, p.SourceFactRef, p.SourceOperationCreatedAt})
 }

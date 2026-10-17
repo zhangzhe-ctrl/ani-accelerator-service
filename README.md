@@ -2,9 +2,9 @@
 
 Accelerator v1.2 独立 Go 服务，管理 GPU 供给目录、固定规格、设备与实际绑定、容量、使用投影和释放观察。实现 Admin 12、Catalog 5、Usage 5，共 22 个 mTLS gRPC RPC；使用真实 PostgreSQL 持久化及只读 provider 适配。
 
-Go module：`github.com/zhangzhe-ctrl/ani-accelerator-service`，Go `1.26.7`。运行不依赖生成本仓的 layout。`cmd/ani-accelerator-service` 显式装配；biz 保持纯领域规则，service 适配 protobuf，data 管 PG/外部读取，server 管身份与生命周期。
+Go module：`github.com/zhangzhe-ctrl/ani-accelerator-service`，Go `1.26.9`。运行不依赖生成本仓的 layout。`cmd/ani-accelerator-service` 显式装配；biz 保持纯领域规则，service 适配 protobuf，data 管 PG/外部读取，server 管身份与生命周期。
 
-当前无 GPU 环境。软件验收、硬件验证、外部服务集成和发布分别记账，见 [执行状态](docs/execution/status.md) 与 [验收矩阵](docs/plans/accelerator-v1.2-acceptance.md)。生产没有测试绕过，未经有效硬件消费证明的供给保持 CLOSED/NOT_VERIFIED。受控回放不证明真实模型加载或推理。
+软件验收、真实 GPU 验证、外部服务集成和发布分别记账，见 [执行状态](docs/execution/status.md) 与 [验收矩阵](docs/plans/accelerator-v1.2-acceptance.md)。2026-10-17 已在单节点 Tesla T4 上完成共享、正式百分比整卡计划的真实 GPU 与 ACC 主链验证，并保留修复版 Volcano scheduler；[保留版回执](docs/evidence/gpu-live-20261017/retained-receipt.json)记录 GPU 原始验收，[baseline 资格回执](docs/evidence/gpu-live-20261017/baseline-qualification-receipt.json)记录无时间自动失效的 v2 资格及采集/释放解耦后的部署验证。生产没有测试绕过，未经有效硬件验收资格的供给保持 CLOSED/NOT_VERIFIED；资格持续匹配 baseline，运行健康独立按实时采样判断。受控回放不证明真实模型加载或推理，ACC 验收也不替代 Governance/Inference 产品链路验收。
 
 - [接入合同：22 RPC、权限、摘要、幂等、owner 附件与释放责任](docs/contracts/accelerator-consumer-contract.md)
 - [固定 baseline/plan/projection 测试向量](docs/contracts/accelerator-vectors.json)

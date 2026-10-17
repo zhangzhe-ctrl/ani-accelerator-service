@@ -16,14 +16,6 @@ const (
 	Open   AdmissionState = 2
 )
 
-type VerificationState int32
-
-const (
-	NotVerified VerificationState = 1
-	Verified    VerificationState = 2
-	Unsupported VerificationState = 3
-)
-
 type UsageState int32
 
 const (
@@ -95,32 +87,25 @@ type Observation struct {
 	Issues      []string `json:"issues"`
 	SnapshotRef string   `json:"snapshot_ref"`
 }
-type Verification struct {
-	State          VerificationState `json:"state"`
-	EvidenceRef    string            `json:"evidence_ref"`
-	VerifiedAt     string            `json:"verified_at"`
-	BaselineDigest string            `json:"baseline_digest"`
-}
 type ProviderBaseline struct {
-	BaselineID              string        `json:"baseline_id"`
-	AdapterID               string        `json:"adapter_id"`
-	VolcanoVersion          string        `json:"volcano_version"`
-	VolcanoImageDigest      string        `json:"volcano_image_digest"`
-	DevicePluginVersion     string        `json:"device_plugin_version"`
-	DevicePluginImageDigest string        `json:"device_plugin_image_digest"`
-	HamiCoreRevision        string        `json:"hami_core_revision"`
-	MemoryBlockMiB          uint32        `json:"memory_block_mib"`
-	FactorEvidenceRef       string        `json:"factor_evidence_ref"`
-	MemoryEncoding          string        `json:"memory_encoding"`
-	SplitCount              uint32        `json:"split_count"`
-	MemoryScalePercent      uint32        `json:"memory_scale_percent"`
-	CoreScalePercent        uint32        `json:"core_scale_percent"`
-	CoreBudgetAdditive      bool          `json:"core_budget_additive"`
-	NodeConfigDigest        string        `json:"node_config_digest"`
-	SchedulerConfigDigest   string        `json:"scheduler_config_digest"`
-	RecipeVersion           string        `json:"recipe_version"`
-	BaselineDigest          string        `json:"baseline_digest"`
-	Verification            *Verification `json:"verification"`
+	BaselineID              string `json:"baseline_id"`
+	AdapterID               string `json:"adapter_id"`
+	VolcanoVersion          string `json:"volcano_version"`
+	VolcanoImageDigest      string `json:"volcano_image_digest"`
+	DevicePluginVersion     string `json:"device_plugin_version"`
+	DevicePluginImageDigest string `json:"device_plugin_image_digest"`
+	HamiCoreRevision        string `json:"hami_core_revision"`
+	MemoryBlockMiB          uint32 `json:"memory_block_mib"`
+	MemoryEncoding          string `json:"memory_encoding"`
+	SplitCount              uint32 `json:"split_count"`
+	MemoryScalePercent      uint32 `json:"memory_scale_percent"`
+	CoreScalePercent        uint32 `json:"core_scale_percent"`
+	CoreBudgetAdditive      bool   `json:"core_budget_additive"`
+	NodeConfigDigest        string `json:"node_config_digest"`
+	SchedulerConfigDigest   string `json:"scheduler_config_digest"`
+	RecipeVersion           string `json:"recipe_version"`
+	RuntimeClassName        string `json:"runtime_class_name"`
+	BaselineDigest          string `json:"baseline_digest"`
 }
 type NodeRef struct {
 	UID  string `json:"uid"`
@@ -155,7 +140,7 @@ type ProfileSpec struct {
 	GroupID              string     `json:"group_id"`
 	Mode                 SupplyMode `json:"mode"`
 	ModelKey             string     `json:"model_key"`
-	SharedMemoryMiB      int64      `json:"shared_memory_mib"`
+	MemoryMiBPerDevice   int64      `json:"memory_mib_per_device"`
 	CoreLimitPercent     uint32     `json:"core_limit_percent"`
 	MaxDevicesPerReplica uint32     `json:"max_devices_per_replica"`
 	IsolationClass       string     `json:"isolation_class"`
@@ -167,7 +152,18 @@ type Profile struct {
 	Spec           *ProfileSpec `json:"spec"`
 	BaselineID     string       `json:"baseline_id"`
 	SpecDigest     string       `json:"spec_digest"`
-	Published      bool         `json:"published"`
+	State          ProfileState `json:"state"`
+	Revision       uint64       `json:"revision"`
+}
+
+// ProfileScope is catalog metadata, deliberately separate from the immutable
+// Profile embedded in a resolved plan and its digest.
+type ProfileScope struct {
+	ProfileID      string `json:"profile_id"`
+	ProfileVersion uint64 `json:"profile_version"`
+	SpecDigest     string `json:"spec_digest"`
+	ClusterID      string `json:"cluster_id"`
+	PoolID         string `json:"pool_id"`
 }
 type GpuRequest struct {
 	ClusterID         string `json:"cluster_id"`
@@ -178,36 +174,38 @@ type GpuRequest struct {
 	DevicesPerReplica uint32 `json:"devices_per_replica"`
 	ContainerName     string `json:"container_name"`
 }
-type MemoryEncoding struct {
-	MemoryBlockMiB        uint32 `json:"memory_block_mib"`
-	MemoryBlocksPerDevice int64  `json:"memory_blocks_per_device"`
-	SharedMemoryMiB       int64  `json:"shared_memory_mib"`
-	MemoryPercentage      uint32 `json:"memory_percentage"`
-	Policy                string `json:"policy"`
+type ProfileState int32
+
+const (
+	ProfileActive   ProfileState = 1
+	ProfileDisabled ProfileState = 2
+	ProfileDeleted  ProfileState = 3
+)
+
+type GpuExecution struct {
+	SchedulerName    string            `json:"scheduler_name"`
+	QueueName        string            `json:"queue_name"`
+	RuntimeClassName string            `json:"runtime_class_name"`
+	NodeSelector     map[string]string `json:"node_selector"`
+	PodAnnotations   map[string]string `json:"pod_annotations"`
+	Resources        map[string]string `json:"resources"`
+	ExecutionDigest  string            `json:"execution_digest"`
 }
-type ResourceTotals struct {
-	LogicalDeviceCount   int64 `json:"logical_device_count"`
-	ExclusiveDeviceCount int64 `json:"exclusive_device_count"`
-	SharedMemoryMiB      int64 `json:"shared_memory_mib"`
+type GpuDisplay struct {
+	ProfileID      string     `json:"profile_id"`
+	ProfileVersion uint64     `json:"profile_version"`
+	ProfileName    string     `json:"profile_name"`
+	ModelKey       string     `json:"model_key"`
+	Mode           SupplyMode `json:"mode"`
 }
-type RuntimeFragment struct {
-	SchedulerName      string     `json:"scheduler_name"`
-	QueueName          string     `json:"queue_name"`
-	NodeLabels         []KeyValue `json:"node_labels"`
-	PodAnnotations     []KeyValue `json:"pod_annotations"`
-	LimitsPerContainer []KeyValue `json:"limits_per_container"`
-	RuntimeClassName   string     `json:"runtime_class_name"`
-	RecipeVersion      string     `json:"recipe_version"`
+type GpuQuotaItem struct {
+	QuotaCode string `json:"quota_code"`
+	Units     int64  `json:"units"`
 }
-type ResolvedPlan struct {
-	SchemaVersion    uint32           `json:"schema_version"`
-	Request          *GpuRequest      `json:"request"`
-	Profile          *Profile         `json:"profile"`
-	Encoding         *MemoryEncoding  `json:"encoding"`
-	Totals           *ResourceTotals  `json:"totals"`
-	Runtime          *RuntimeFragment `json:"runtime"`
-	BaselineDigest   string           `json:"baseline_digest"`
-	ResolutionDigest string           `json:"resolution_digest"`
+type ResolvedGpuRequest struct {
+	Execution  *GpuExecution  `json:"execution"`
+	QuotaItems []GpuQuotaItem `json:"quota_items"`
+	Selection  *GpuDisplay    `json:"selection"`
 }
 type PhysicalDevice struct {
 	DeviceID            string       `json:"device_id"`
@@ -227,14 +225,20 @@ type UsageRef struct {
 	CreateOperationID string `json:"create_operation_id"`
 }
 type UsageProjection struct {
-	Ref                      *UsageRef     `json:"ref"`
-	Revision                 uint64        `json:"revision"`
-	State                    UsageState    `json:"state"`
-	Plan                     *ResolvedPlan `json:"plan"`
-	EndReason                EndReason     `json:"end_reason"`
-	SourceFactRef            string        `json:"source_fact_ref"`
-	SourceOperationCreatedAt string        `json:"source_operation_created_at"`
-	PayloadDigest            string        `json:"payload_digest"`
+	Ref                      *UsageRef  `json:"ref"`
+	Revision                 uint64     `json:"revision"`
+	State                    UsageState `json:"state"`
+	ProfileID                string     `json:"profile_id"`
+	ProfileVersion           uint64     `json:"profile_version"`
+	GroupID                  string     `json:"group_id"`
+	BaselineID               string     `json:"baseline_id"`
+	ClusterID                string     `json:"cluster_id"`
+	ContainerName            string     `json:"container_name"`
+	ExecutionDigest          string     `json:"execution_digest"`
+	EndReason                EndReason  `json:"end_reason"`
+	SourceFactRef            string     `json:"source_fact_ref"`
+	SourceOperationCreatedAt string     `json:"source_operation_created_at"`
+	PayloadDigest            string     `json:"payload_digest"`
 }
 type SyncResult struct {
 	Ref             *UsageRef  `json:"ref"`

@@ -9,6 +9,7 @@ import (
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
 type Accelerator struct {
@@ -25,7 +26,7 @@ func NewAccelerator(u *biz.Usecase) *Accelerator { return &Accelerator{u: u} }
 // Domain validation is always performed after this copy. No generated type
 // crosses the service/biz boundary, and no opaque JSON enters a use case.
 func invoke[O any, I any, D any](request proto.Message, run func(*I) (*D, error)) (*O, error) {
-	if request == nil || !request.ProtoReflect().IsValid() {
+	if request == nil || !request.ProtoReflect().IsValid() || unknownFields(request.ProtoReflect()) {
 		return nil, kerrors.BadRequest("INVALID_REQUEST", "INVALID_REQUEST")
 	}
 	b, err := json.Marshal(request)
@@ -151,15 +152,15 @@ func (s *Accelerator) SetAdmission(ctx context.Context, q *pb.SetAdmissionReques
 	}
 	return invoke[pb.SupplyGroup](q, func(a *input) (*biz.SupplyGroup, error) { return s.u.SetAdmission(ctx, a.Mutation, a.AdmissionInput) })
 }
-func (s *Accelerator) PublishProfile(ctx context.Context, q *pb.PublishProfileRequest) (*pb.GpuProfile, error) {
+func (s *Accelerator) CreateProfile(ctx context.Context, q *pb.CreateProfileRequest) (*pb.GpuProfile, error) {
 	type input struct {
 		mutationInput
-		biz.PublishInput
+		biz.CreateProfileInput
 	}
-	return invoke[pb.GpuProfile](q, func(a *input) (*biz.Profile, error) { return s.u.PublishProfile(ctx, a.Mutation, a.PublishInput) })
+	return invoke[pb.GpuProfile](q, func(a *input) (*biz.Profile, error) { return s.u.CreateProfile(ctx, a.Mutation, a.CreateProfileInput) })
 }
 func (s *Accelerator) AdminListProfiles(ctx context.Context, q *pb.AdminListProfilesRequest) (*pb.ListProfilesResponse, error) {
-	return invoke[pb.ListProfilesResponse](q, func(a *adminInput) (*biz.ListResult[biz.Profile], error) {
+	return invoke[pb.ListProfilesResponse](q, func(a *adminInput) (*biz.ProfileListResult, error) {
 		return s.u.AdminListProfiles(ctx, a.Context, a.ClusterID, a.Page)
 	})
 }
@@ -179,7 +180,7 @@ func (s *Accelerator) AdminGetCapacity(ctx context.Context, q *pb.AdminGetCapaci
 	})
 }
 func (s *Accelerator) ListProfiles(ctx context.Context, q *pb.ListProfilesRequest) (*pb.ListProfilesResponse, error) {
-	return invoke[pb.ListProfilesResponse](q, func(a *tenantInput) (*biz.ListResult[biz.Profile], error) {
+	return invoke[pb.ListProfilesResponse](q, func(a *tenantInput) (*biz.ProfileListResult, error) {
 		return s.u.ListProfiles(ctx, a.Context, a.ClusterID, a.Mode, a.Page)
 	})
 }
@@ -188,8 +189,8 @@ func (s *Accelerator) GetProfile(ctx context.Context, q *pb.GetProfileRequest) (
 		return s.u.GetProfile(ctx, a.Context, a.ProfileID, a.ProfileVersion)
 	})
 }
-func (s *Accelerator) ResolveGpuRequest(ctx context.Context, q *pb.ResolveGpuRequestRequest) (*pb.ResolvedGpuPlan, error) {
-	return invoke[pb.ResolvedGpuPlan](q, func(a *tenantInput) (*biz.ResolvedPlan, error) { return s.u.Resolve(ctx, a.Context, a.Gpu) })
+func (s *Accelerator) ResolveGpuRequest(ctx context.Context, q *pb.ResolveGpuRequestRequest) (*pb.ResolvedGpuRequest, error) {
+	return invoke[pb.ResolvedGpuRequest](q, func(a *tenantInput) (*biz.ResolvedGpuRequest, error) { return s.u.Resolve(ctx, a.Context, a.Gpu) })
 }
 func (s *Accelerator) GetCapacity(ctx context.Context, q *pb.GetCapacityRequest) (*pb.CapacityView, error) {
 	return invoke[pb.CapacityView](q, func(a *tenantInput) (*biz.CapacityView, error) {
@@ -225,8 +226,70 @@ func (s *Accelerator) ObserveRelease(ctx context.Context, q *pb.ObserveReleaseRe
 		Ref               *biz.UsageRef `json:"ref"`
 		DeleteOperationID string        `json:"delete_operation_id"`
 		Pods              []biz.PodRef  `json:"pods"`
+		ClusterID         string        `json:"cluster_id"`
+		SealedAt          string        `json:"sealed_at"`
 	}
 	return invoke[pb.ReleaseObservation](q, func(a *input) (*biz.ReleaseObservation, error) {
-		return s.u.ObserveRelease(ctx, a.RequestID, a.Ref, a.DeleteOperationID, a.Pods)
+		return s.u.ObserveRelease(ctx, a.RequestID, a.Ref, a.DeleteOperationID, a.ClusterID, a.SealedAt, a.Pods)
 	})
+}
+
+func (s *Accelerator) PreviewProfile(ctx context.Context, q *pb.PreviewProfileRequest) (*pb.ProfilePreview, error) {
+	type input struct {
+		Context *biz.AdminRead `json:"context"`
+		GroupID string         `json:"group_id"`
+		Parts   uint32         `json:"parts"`
+	}
+	return invoke[pb.ProfilePreview](q, func(a *input) (*biz.ProfilePreview, error) {
+		return s.u.PreviewProfile(ctx, a.Context, a.GroupID, a.Parts)
+	})
+}
+func (s *Accelerator) SetProfileState(ctx context.Context, q *pb.SetProfileStateRequest) (*pb.GpuProfile, error) {
+	type input struct {
+		mutationInput
+		ProfileID        string           `json:"profile_id"`
+		ExpectedRevision uint64           `json:"expected_revision"`
+		Desired          biz.ProfileState `json:"desired"`
+	}
+	return invoke[pb.GpuProfile](q, func(a *input) (*biz.Profile, error) {
+		return s.u.SetProfileState(ctx, a.Mutation, a.ProfileID, a.ExpectedRevision, a.Desired)
+	})
+}
+func (s *Accelerator) DeleteProfile(ctx context.Context, q *pb.DeleteProfileRequest) (*pb.GpuProfile, error) {
+	type input struct {
+		mutationInput
+		ProfileID        string `json:"profile_id"`
+		ExpectedRevision uint64 `json:"expected_revision"`
+	}
+	return invoke[pb.GpuProfile](q, func(a *input) (*biz.Profile, error) {
+		return s.u.SetProfileState(ctx, a.Mutation, a.ProfileID, a.ExpectedRevision, biz.ProfileDeleted)
+	})
+}
+
+func unknownFields(m protoreflect.Message) bool {
+	if len(m.GetUnknown()) != 0 {
+		return true
+	}
+	invalid := false
+	m.Range(func(f protoreflect.FieldDescriptor, v protoreflect.Value) bool {
+		if f.IsMap() {
+			if f.MapValue().Kind() == protoreflect.MessageKind {
+				v.Map().Range(func(_ protoreflect.MapKey, x protoreflect.Value) bool {
+					invalid = unknownFields(x.Message())
+					return !invalid
+				})
+			}
+		} else if f.IsList() && f.Kind() == protoreflect.MessageKind {
+			for i := 0; i < v.List().Len(); i++ {
+				if unknownFields(v.List().Get(i).Message()) {
+					invalid = true
+					break
+				}
+			}
+		} else if f.Kind() == protoreflect.MessageKind {
+			invalid = unknownFields(v.Message())
+		}
+		return !invalid
+	})
+	return invalid
 }
