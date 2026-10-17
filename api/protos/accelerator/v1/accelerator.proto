@@ -845,8 +845,13 @@ message ObserveReleaseRequest {
   GpuUsageRef ref = 2 [json_name = "ref"];
   // 必填UUID，明确关闭操作。
   string delete_operation_id = 3 [json_name = "delete_operation_id"];
-  // owner掌握的完整实际范围；非空。没有外部创建则使用owner内部未执行证明，不调用空列表假释放。
+  // owner持久掌握的完整历史Pod范围；从未观察到Pod时可空。
   repeated PodRef pods = 4 [json_name = "pods"];
+  // 必填；ACC还会从已知owner claims补全范围，拒绝跨集群冲突。
+  string cluster_id = 6 [json_name = "cluster_id"];
+  // 必填RFC3339Nano。owner已封闭创建且清理API对象后持久化的时间。
+  // 所有受管GPU节点的来源水位必须完整、新鲜且不早于此时间。
+  string sealed_at = 7 [json_name = "sealed_at"];
 }
 
 // ALLOCATION_RELEASED只证明检查范围解除，不决定退款或证明owner未来不会创建。

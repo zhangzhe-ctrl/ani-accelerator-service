@@ -84,7 +84,7 @@ func (u *Usecase) ListUsages(ctx context.Context, a *TenantContext, owner string
 	}
 	return res, err
 }
-func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *UsageRef, deleteID string, pods []PodRef) (*ReleaseObservation, error) {
+func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *UsageRef, deleteID, clusterID, sealedAt string, pods []PodRef) (*ReleaseObservation, error) {
 	if err := ValidateRef(ref); err != nil {
 		return nil, err
 	}
@@ -92,7 +92,8 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 	if !ok || c.Service != ref.OwnerService || c.Action != "ObserveRelease" || c.TenantID != ref.TenantID {
 		return nil, Denied()
 	}
-	if !Ref(requestID) || !UUID(deleteID) || deleteID == ref.CreateOperationID || len(pods) == 0 || len(pods) > 4096 {
+	fence, fenceErr := time.Parse(time.RFC3339Nano, sealedAt)
+	if !Ref(requestID) || !UUID(deleteID) || deleteID == ref.CreateOperationID || !UUID(clusterID) || fenceErr != nil || fence.IsZero() || fence.After(u.now().Add(5*time.Second)) || len(pods) > 4096 {
 		return nil, Invalid("INVALID_RELEASE_SCOPE")
 	}
 	pods = append([]PodRef{}, pods...)
@@ -101,6 +102,9 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 		if err := ValidatePod(p); err != nil {
 			return nil, err
 		}
+		if p.ClusterID != clusterID {
+			return nil, Invalid("POD_SCOPE_MISMATCH")
+		}
 		if i > 0 && podKey(pods[i-1]) == podKey(p) {
 			return nil, Invalid("DUPLICATE_POD")
 		}
@@ -108,12 +112,126 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 	result := &ReleaseObservation{Ref: ref, Finding: AllocationReleased, Observation: &Observation{Complete: true}}
 	var evidence []string
 	err := u.repo.View(ctx, func(r Reader) error {
+		if _, err := r.Cluster(ctx, clusterID); err != nil {
+			return err
+		}
+		// Read the complete owner scope even before an asynchronous Usage exists.
+		// A caller-supplied Pod list cannot omit a historical or replaced Pod.
+		ownerClaims, err := r.OwnerClaims(ctx, *ref)
+		if err != nil {
+			return err
+		}
+		scope := map[string]PodRef{}
 		for _, p := range pods {
-			claims, releases, err := r.PodEvidence(ctx, p)
+			scope[podKey(p)] = p
+		}
+		for _, claim := range ownerClaims {
+			if claim.Pod.ClusterID != clusterID {
+				return Denied()
+			}
+			scope[podKey(claim.Pod)] = claim.Pod
+		}
+		watermarks, err := r.SourceHealth(ctx, clusterID)
+		if err != nil {
+			return err
+		}
+		nodes, err := releaseNodes(ctx, r, clusterID)
+		if err != nil {
+			return err
+		}
+		for _, claim := range ownerClaims {
+			nodes[claim.NodeUID] = true
+		}
+		unknown := func(issue, node string) {
+			result.Observation.Complete = false
+			result.Observation.Issues = append(result.Observation.Issues, issue)
+			if node != "" {
+				result.UncertainNodeUIDs = append(result.UncertainNodeUIDs, node)
+			}
+		}
+		if len(nodes) == 0 {
+			unknown("SCOPE_UNOBSERVED", "")
+		}
+		for node := range nodes {
+			if !nodeSourcesHealthy(watermarks, node, u.now(), u.freshness) {
+				unknown("SOURCE_UNKNOWN", node)
+			}
+			for _, source := range []string{"kubernetes", "podresources", "cri"} {
+				found := false
+				for _, watermark := range watermarks {
+					if watermark.NodeUID != node || watermark.Source != source {
+						continue
+					}
+					found = true
+					if !watermark.Complete || watermark.ObservedAt.Before(fence) {
+						unknown("SOURCE_BEFORE_SEAL", node)
+					}
+					receivedAt := watermark.ReceivedAt
+					watermark.ReceivedAt = time.Time{}
+					digest, err := Hash(watermark)
+					if err != nil {
+						return err
+					}
+					evidence = append(evidence, digest)
+					result.Observation.ObservedAt = oldest(result.Observation.ObservedAt, watermark.ObservedAt.UTC().Format(time.RFC3339Nano))
+					result.Observation.ReceivedAt = oldest(result.Observation.ReceivedAt, receivedAt.UTC().Format(time.RFC3339Nano))
+				}
+				if !found {
+					unknown("SOURCE_UNKNOWN", node)
+				}
+			}
+		}
+		// Unattributed live allocations can belong to an unseen short-lived Pod.
+		// Complete watermarks alone never erase those persisted facts.
+		for after := ""; ; {
+			bindings, err := r.Bindings(ctx, BindingFilter{ClusterID: clusterID}, after, 200)
 			if err != nil {
 				return err
 			}
-			watermarks, err := r.SourceHealth(ctx, p.ClusterID)
+			for _, binding := range bindings {
+				if binding.Pod == nil {
+					if binding.State != ReleaseConfirmed {
+						unknown("OWNERSHIP_UNVERIFIED", "")
+					}
+					continue
+				}
+				if binding.VerifiedUsageRef != nil {
+					if *binding.VerifiedUsageRef == *ref {
+						scope[podKey(*binding.Pod)] = *binding.Pod
+					}
+					continue
+				}
+				claims, _, err := r.PodEvidence(ctx, *binding.Pod)
+				if err != nil {
+					return err
+				}
+				trusted := false
+				var owner *UsageRef
+				for _, claim := range claims {
+					if claim.OwnerRef != nil {
+						if owner != nil && *owner != *claim.OwnerRef {
+							unknown("OWNERSHIP_CONFLICT", claim.NodeUID)
+						}
+						owner = claim.OwnerRef
+						trusted = true
+					}
+				}
+				if !trusted && binding.State != ReleaseConfirmed {
+					unknown("OWNERSHIP_UNVERIFIED", "")
+				}
+			}
+			if len(bindings) < 200 {
+				break
+			}
+			after = bindings[len(bindings)-1].BindingID
+		}
+		pods = pods[:0]
+		for _, p := range scope {
+			pods = append(pods, p)
+		}
+		sort.Slice(pods, func(i, j int) bool { return podKey(pods[i]) < podKey(pods[j]) })
+		for _, p := range pods {
+			claims, releases, err := r.PodEvidence(ctx, p)
 			if err != nil {
 				return err
 			}
@@ -132,10 +250,6 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 				if proof.OwnerRef != nil && *proof.OwnerRef == *ref && proof.RuntimeExited && proof.AllocationAbsent && proof.NodeOnline {
 					proofs[proof.DeviceID] = proof
 				}
-			}
-			if len(devices) == 0 {
-				result.Observation.Complete = false
-				result.Observation.Issues = append(result.Observation.Issues, "SCOPE_UNOBSERVED")
 			}
 			for device, cs := range devices {
 				proof, hasProof := proofs[device]
@@ -167,7 +281,9 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 					}
 					evidence = append(evidence, digest)
 				}
-				released := hasProof && merged.State == ReleaseConfirmed && fresh(proof.ObservedAt, u.now(), u.freshness) && nodeSourcesHealthy(watermarks, proof.NodeUID, u.now(), u.freshness)
+				// A positive exit fact is durable. Fresh complete source watermarks
+				// cover the seal; a later claim below still invalidates this proof.
+				released := hasProof && merged.State == ReleaseConfirmed && nodeSourcesHealthy(watermarks, proof.NodeUID, u.now(), u.freshness)
 				active := false
 				trusted := false
 				uncertainNode := ""
@@ -227,18 +343,53 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 		result.Finding = ReleaseUnknown
 	}
 	result.EvidenceDigest, err = Hash(struct {
-		Ref      *UsageRef      `json:"ref"`
-		DeleteID string         `json:"delete_operation_id"`
-		Pods     []PodRef       `json:"pods"`
-		Evidence []string       `json:"source_digests"`
-		Finding  ReleaseFinding `json:"finding"`
-	}{ref, deleteID, pods, evidence, result.Finding})
+		Ref       *UsageRef      `json:"ref"`
+		DeleteID  string         `json:"delete_operation_id"`
+		ClusterID string         `json:"cluster_id"`
+		SealedAt  string         `json:"sealed_at"`
+		Pods      []PodRef       `json:"pods"`
+		Evidence  []string       `json:"source_digests"`
+		Finding   ReleaseFinding `json:"finding"`
+	}{ref, deleteID, clusterID, sealedAt, pods, evidence, result.Finding})
 	if err != nil {
 		return nil, err
 	}
 	result.EvidenceID = NewID()
 	result.Observation.SnapshotRef = result.EvidenceDigest
 	return result, nil
+}
+
+// Every adopted GPU node remains in scope even when its group is closed.
+func releaseNodes(ctx context.Context, r Reader, cluster string) (map[string]bool, error) {
+	nodes := map[string]bool{}
+	for poolAfter := ""; ; {
+		pools, err := r.Pools(ctx, cluster, poolAfter, 200)
+		if err != nil {
+			return nil, err
+		}
+		for _, pool := range pools {
+			for groupAfter := ""; ; {
+				groups, err := r.Groups(ctx, pool.PoolID, groupAfter, 200)
+				if err != nil {
+					return nil, err
+				}
+				for _, group := range groups {
+					for _, node := range group.Nodes {
+						nodes[node.UID] = true
+					}
+				}
+				if len(groups) < 200 {
+					break
+				}
+				groupAfter = groups[len(groups)-1].GroupID
+			}
+		}
+		if len(pools) < 200 {
+			break
+		}
+		poolAfter = pools[len(pools)-1].PoolID
+	}
+	return nodes, nil
 }
 func podKey(p PodRef) string { return p.ClusterID + "/" + p.UID + "/" + p.ContainerName }
 func fresh(observed, now time.Time, ttl time.Duration) bool {

@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
@@ -444,11 +445,46 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if fit.Status != pb.FitStatus_FIT_ESTIMATE || !fit.EstimateKnown || fit.EstimatedReplicas != 3 {
 		t.Fatal(fit)
 	}
-	release := &pb.ObserveReleaseRequest{RequestId: "contract", Ref: copyAs[pb.GpuUsageRef](t, ref), DeleteOperationId: biz.NewID(), Pods: []*pb.PodRef{copyAs[pb.PodRef](t, pod)}}
+	release := &pb.ObserveReleaseRequest{RequestId: "contract", Ref: copyAs[pb.GpuUsageRef](t, ref), DeleteOperationId: biz.NewID(), ClusterId: cluster.ClusterId, SealedAt: time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), Pods: []*pb.PodRef{copyAs[pb.PodRef](t, pod)}}
 	observation := new(pb.ReleaseObservation)
 	rpc("ObserveRelease", tenant, release, observation)
 	if observation.Finding != pb.ReleaseFinding_ALLOCATION_STILL_PRESENT {
 		t.Fatal(observation)
+	}
+	// Resource has a distinct certificate and can only observe its own ref.
+	resourceCert, resourceKey := r.PKI.Issue(t, "resource", "spiffe://ani.internal/service/ani-resource-service", false)
+	resourceClient := conn(t, r, resourceCert, resourceKey)
+	resourceCtx, resourceCancel := context.WithTimeout(callContext("ObserveRelease", tenant), 5*time.Second)
+	if err := resourceClient.Invoke(resourceCtx, methodPath("ObserveRelease"), release, new(pb.ReleaseObservation)); status.Code(err) != codes.PermissionDenied {
+		t.Fatal("Resource certificate accepted foreign owner ref", err)
+	}
+	resourceRelease := proto.Clone(release).(*pb.ObserveReleaseRequest)
+	resourceRelease.Ref = &pb.GpuUsageRef{TenantId: tenant, OwnerService: "ani-resource-service", ResourceId: biz.NewID(), CreateOperationId: biz.NewID()}
+	resourceRelease.Pods = nil
+	resourceObservation := new(pb.ReleaseObservation)
+	if err := resourceClient.Invoke(resourceCtx, methodPath("ObserveRelease"), resourceRelease, resourceObservation); err != nil || resourceObservation.Finding != pb.ReleaseFinding_ALLOCATION_RELEASED || !resourceObservation.Observation.Complete {
+		t.Fatal("Resource never-allocated fenced scope rejected", resourceObservation, err)
+	}
+	resourceCancel()
+	for _, action := range []string{"ListClusters", "SyncGpuUsage"} {
+		ctx, cancel := context.WithTimeout(callContext(action, tenant), time.Second)
+		err := resourceClient.Invoke(ctx, methodPath(action), &pb.SyncGpuUsageRequest{}, new(pb.SyncGpuUsageResponse))
+		cancel()
+		if status.Code(err) != codes.PermissionDenied {
+			t.Fatal("Resource certificate widened method allowlist", action, err)
+		}
+	}
+	healthCtx, healthCancel := context.WithTimeout(context.Background(), time.Second)
+	if _, err := healthpb.NewHealthClient(resourceClient).Check(healthCtx, &healthpb.HealthCheckRequest{}); status.Code(err) != codes.PermissionDenied {
+		t.Fatal("Resource health method widened allowlist", err)
+	}
+	watch, watchErr := healthpb.NewHealthClient(resourceClient).Watch(healthCtx, &healthpb.HealthCheckRequest{})
+	if watchErr == nil {
+		_, watchErr = watch.Recv()
+	}
+	healthCancel()
+	if status.Code(watchErr) != codes.PermissionDenied {
+		t.Fatal("Resource streaming health bypassed allowlist", watchErr)
 	}
 	projection := &biz.UsageProjection{Ref: ref, Revision: 2, State: biz.Ended, ProfileID: profile.ProfileId, ProfileVersion: profile.ProfileVersion, GroupID: group.GroupId, BaselineID: b.BaselineID, ClusterID: cluster.ClusterId, ContainerName: "inference", ExecutionDigest: plan.Execution.ExecutionDigest, EndReason: biz.OwnerReleased, SourceFactRef: "quota-operation:" + ref.CreateOperationID + ":gpu-fully-released", SourceOperationCreatedAt: "2026-09-23T00:00:00Z"}
 	projection.PayloadDigest, _ = biz.ProjectionDigest(projection)
@@ -509,12 +545,12 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		t.Fatal("untrusted CA accepted")
 	}
 	emptyScope := proto.Clone(release).(*pb.ObserveReleaseRequest)
-	emptyScope.Pods = nil
+	emptyScope.SealedAt = ""
 	ctx, cancel = context.WithTimeout(callContext("ObserveRelease", tenant), time.Second)
 	err = owner.Invoke(ctx, methodPath("ObserveRelease"), emptyScope, new(pb.ReleaseObservation))
 	cancel()
 	if status.Code(err) != codes.InvalidArgument {
-		t.Fatal("empty release scope accepted", err)
+		t.Fatal("missing creation seal accepted", err)
 	}
 	// Two real server processes race against the same PG receiver state.
 	r2 := *r

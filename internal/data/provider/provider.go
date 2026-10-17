@@ -118,8 +118,8 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 		if found == nil || !k.nodeOnline(ctx, *found, time.Now(), p.freshness) {
 			return inspection, biz.Precondition("NODE_UNKNOWN")
 		}
-		if g.Baseline.VolcanoVersion == "v1.15.2" {
-			// This scheduler ignores the register annotation unless all three
+		if g.Baseline.VolcanoVersion == "v1.15.2" || g.Baseline.VolcanoVersion == "v1.16.0" {
+			// These schedulers ignore the register annotation unless all three
 			// device-plugin resources are present and positive in Allocatable.
 			for _, name := range []string{"volcano.sh/vgpu-number", "volcano.sh/vgpu-memory", "volcano.sh/vgpu-cores"} {
 				quantity, err := resource.ParseQuantity(found.Status.Allocatable[name])

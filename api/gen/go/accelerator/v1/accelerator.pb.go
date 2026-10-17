@@ -5106,8 +5106,13 @@ type ObserveReleaseRequest struct {
 	Ref *GpuUsageRef `protobuf:"bytes,2,opt,name=ref,proto3" json:"ref,omitempty"`
 	// 必填UUID，明确关闭操作。
 	DeleteOperationId string `protobuf:"bytes,3,opt,name=delete_operation_id,proto3" json:"delete_operation_id,omitempty"`
-	// owner掌握的完整实际范围；非空。没有外部创建则使用owner内部未执行证明，不调用空列表假释放。
-	Pods          []*PodRef `protobuf:"bytes,4,rep,name=pods,proto3" json:"pods,omitempty"`
+	// owner持久掌握的完整历史Pod范围；从未观察到Pod时可空。
+	Pods []*PodRef `protobuf:"bytes,4,rep,name=pods,proto3" json:"pods,omitempty"`
+	// 必填；ACC还会从已知owner claims补全范围，拒绝跨集群冲突。
+	ClusterId string `protobuf:"bytes,6,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
+	// 必填RFC3339Nano。owner已封闭创建且清理API对象后持久化的时间。
+	// 所有受管GPU节点的来源水位必须完整、新鲜且不早于此时间。
+	SealedAt      string `protobuf:"bytes,7,opt,name=sealed_at,proto3" json:"sealed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -5168,6 +5173,20 @@ func (x *ObserveReleaseRequest) GetPods() []*PodRef {
 		return x.Pods
 	}
 	return nil
+}
+
+func (x *ObserveReleaseRequest) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *ObserveReleaseRequest) GetSealedAt() string {
+	if x != nil {
+		return x.SealedAt
+	}
+	return ""
 }
 
 // ALLOCATION_RELEASED只证明检查范围解除，不决定退款或证明owner未来不会创建。
@@ -5719,14 +5738,18 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\n" +
 	"next_token\x18\x02 \x01(\tR\n" +
 	"next_token\x12=\n" +
-	"\vobservation\x18\x03 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\xc4\x01\n" +
+	"\vobservation\x18\x03 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\x82\x02\n" +
 	"\x15ObserveReleaseRequest\x12\x1e\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\n" +
 	"request_id\x12-\n" +
 	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x120\n" +
 	"\x13delete_operation_id\x18\x03 \x01(\tR\x13delete_operation_id\x12*\n" +
-	"\x04pods\x18\x04 \x03(\v2\x16.accelerator.v1.PodRefR\x04pods\"\xe4\x02\n" +
+	"\x04pods\x18\x04 \x03(\v2\x16.accelerator.v1.PodRefR\x04pods\x12\x1e\n" +
+	"\n" +
+	"cluster_id\x18\x06 \x01(\tR\n" +
+	"cluster_id\x12\x1c\n" +
+	"\tsealed_at\x18\a \x01(\tR\tsealed_at\"\xe4\x02\n" +
 	"\x12ReleaseObservation\x12 \n" +
 	"\vevidence_id\x18\x01 \x01(\tR\vevidence_id\x12-\n" +
 	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x128\n" +

@@ -23,6 +23,7 @@ type Reader interface {
 	DeviceBindings(context.Context, string) ([]Binding, error)
 	SourceHealth(context.Context, string) ([]SourceWatermark, error)
 	PodEvidence(context.Context, PodRef) ([]Claim, []ReleaseProof, error)
+	OwnerClaims(context.Context, UsageRef) ([]Claim, error)
 }
 type Transaction interface {
 	Reader

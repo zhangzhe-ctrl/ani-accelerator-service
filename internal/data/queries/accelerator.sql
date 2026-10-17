@@ -85,6 +85,9 @@ SELECT payload FROM accelerator.bindings WHERE device_id=$1 ORDER BY binding_id;
 -- name: SourceHealthData1 :many
 SELECT payload FROM accelerator.source_watermarks WHERE cluster_id=$1 ORDER BY node_uid,source;
 
+-- name: ReleaseOwnerClaimsData :many
+SELECT payload FROM accelerator.claims WHERE tenant_id=$1 AND owner_service=$2 AND resource_id=$3 AND create_operation_id=$4 ORDER BY cluster_id,pod_uid,container_name,device_id,source;
+
 -- name: PodEvidenceData1 :many
 SELECT payload FROM accelerator.claims WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 ORDER BY device_id,source;
 

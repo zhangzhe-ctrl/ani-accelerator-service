@@ -15,7 +15,7 @@ import (
 // The external Kubernetes HTTP source is the only substitute. Baseline
 // production and the real provider reader use the same public projection.
 func TestSchedulerConfigBaselineAndReaderUseOneDigest(t *testing.T) {
-	for _, version := range []string{"v1.12.0", "v1.15.2"} {
+	for _, version := range []string{"v1.12.0", "v1.15.2", "v1.16.0"} {
 		t.Run(version, func(t *testing.T) {
 			document := "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n  - name: nodeorder\n    arguments:\n      podaffinity.weight: 1\n"
 			data := map[string]string{schedulerconfig.DataKey: document, "protected": "encoding=v1"}

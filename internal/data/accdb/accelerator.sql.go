@@ -492,6 +492,35 @@ func (q *Queries) ReconcileBindingWrite4(ctx context.Context, bindingID string, 
 	return err
 }
 
+const releaseOwnerClaimsData = `-- name: ReleaseOwnerClaimsData :many
+SELECT payload FROM accelerator.claims WHERE tenant_id=$1 AND owner_service=$2 AND resource_id=$3 AND create_operation_id=$4 ORDER BY cluster_id,pod_uid,container_name,device_id,source
+`
+
+func (q *Queries) ReleaseOwnerClaimsData(ctx context.Context, tenantID *string, ownerService *string, resourceID *string, createOperationID *string) ([][]byte, error) {
+	rows, err := q.db.Query(ctx, releaseOwnerClaimsData,
+		tenantID,
+		ownerService,
+		resourceID,
+		createOperationID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := [][]byte{}
+	for rows.Next() {
+		var payload []byte
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+		items = append(items, payload)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rememberWrite1 = `-- name: RememberWrite1 :exec
 INSERT INTO accelerator.admin_idempotency(actor_digest,method,idempotency_key,payload_digest,result) VALUES($1,$2,$3,$4,$5)
 `

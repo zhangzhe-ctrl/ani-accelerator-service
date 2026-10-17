@@ -16,6 +16,7 @@ security:
   key_file: "${MTLS_KEY_FILE:/run/secrets/accelerator/server.key}"
   governance_uri: "spiffe://ani.internal/service/ani-governance"
   inference_uri: "spiffe://ani.internal/service/ani-inference"
+  resource_uri: "spiffe://ani.internal/service/ani-resource-service"
   cursor_key_file: "${CURSOR_KEY_FILE:/run/secrets/accelerator/cursor-key}"
   grants: []
 accelerator:

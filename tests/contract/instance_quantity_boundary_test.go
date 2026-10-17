@@ -338,7 +338,7 @@ func TestInstanceQuantityBoundaryRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceUri: c.GovernanceURI, InferenceUri: "spiffe://ani.internal/service/ani-inference", Grants: []*conf.DelegationGrant{{ActorType: c.PlatformActorType, ActorId: c.PlatformActorID, Platform: true, Actions: []string{"AdminListProfiles", "ListPools", "ListSupplyGroups"}, ClusterIds: []string{c.ClusterID}}, {ActorType: c.ActorType, ActorId: c.ActorID, Actions: []string{"ListProfiles", "GetProfile", "ResolveGpuRequest"}, TenantIds: []string{c.TenantID}, ClusterIds: []string{c.ClusterID}}}}
+	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceUri: c.GovernanceURI, InferenceUri: "spiffe://ani.internal/service/ani-inference", ResourceUri: "spiffe://ani.internal/service/ani-resource-service", Grants: []*conf.DelegationGrant{{ActorType: c.PlatformActorType, ActorId: c.PlatformActorID, Platform: true, Actions: []string{"AdminListProfiles", "ListPools", "ListSupplyGroups"}, ClusterIds: []string{c.ClusterID}}, {ActorType: c.ActorType, ActorId: c.ActorID, Actions: []string{"ListProfiles", "GetProfile", "ResolveGpuRequest"}, TenantIds: []string{c.TenantID}, ClusterIds: []string{c.ClusterID}}}}
 	tlsConfig, err := server.LoadServerTLS(security)
 	if err != nil {
 		t.Fatal(err)

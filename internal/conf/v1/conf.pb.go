@@ -144,6 +144,7 @@ type Security struct {
 	InferenceUri  string                 `protobuf:"bytes,5,opt,name=inference_uri,json=inferenceUri,proto3" json:"inference_uri,omitempty"`
 	CursorKeyFile string                 `protobuf:"bytes,6,opt,name=cursor_key_file,json=cursorKeyFile,proto3" json:"cursor_key_file,omitempty"`
 	Grants        []*DelegationGrant     `protobuf:"bytes,7,rep,name=grants,proto3" json:"grants,omitempty"`
+	ResourceUri   string                 `protobuf:"bytes,8,opt,name=resource_uri,json=resourceUri,proto3" json:"resource_uri,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -225,6 +226,13 @@ func (x *Security) GetGrants() []*DelegationGrant {
 		return x.Grants
 	}
 	return nil
+}
+
+func (x *Security) GetResourceUri() string {
+	if x != nil {
+		return x.ResourceUri
+	}
+	return ""
 }
 
 type DelegationGrant struct {
@@ -588,7 +596,7 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\bsecurity\x18\x03 \x01(\v2\x11.conf.v1.SecurityR\bsecurity\x126\n" +
 	"\vaccelerator\x18\x04 \x01(\v2\x14.conf.v1.AcceleratorR\vaccelerator\"%\n" +
 	"\bDatabase\x12\x19\n" +
-	"\bdsn_file\x18\x01 \x01(\tR\adsnFile\"\x81\x02\n" +
+	"\bdsn_file\x18\x01 \x01(\tR\adsnFile\"\xa4\x02\n" +
 	"\bSecurity\x12\x17\n" +
 	"\aca_file\x18\x01 \x01(\tR\x06caFile\x12\x1b\n" +
 	"\tcert_file\x18\x02 \x01(\tR\bcertFile\x12\x19\n" +
@@ -596,7 +604,8 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\x0egovernance_uri\x18\x04 \x01(\tR\rgovernanceUri\x12#\n" +
 	"\rinference_uri\x18\x05 \x01(\tR\finferenceUri\x12&\n" +
 	"\x0fcursor_key_file\x18\x06 \x01(\tR\rcursorKeyFile\x120\n" +
-	"\x06grants\x18\a \x03(\v2\x18.conf.v1.DelegationGrantR\x06grants\"\xc1\x01\n" +
+	"\x06grants\x18\a \x03(\v2\x18.conf.v1.DelegationGrantR\x06grants\x12!\n" +
+	"\fresource_uri\x18\b \x01(\tR\vresourceUri\"\xc1\x01\n" +
 	"\x0fDelegationGrant\x12\x1d\n" +
 	"\n" +
 	"actor_type\x18\x01 \x01(\tR\tactorType\x12\x19\n" +

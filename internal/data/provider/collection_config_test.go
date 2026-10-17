@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data"
@@ -85,7 +86,7 @@ func configurationObservation(t *testing.T, fault string, adapter *Provider, sta
 	} else if len(batch.Releases) != 1 {
 		t.Fatalf("configuration or registration failure blocked positive release proof: %+v", batch)
 	}
-	observed, err := u.ObserveRelease(owner, "configuration-release", ref, biz.NewID(), []biz.PodRef{pod})
+	observed, err := u.ObserveRelease(owner, "configuration-release", ref, biz.NewID(), cluster.ClusterID, time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), []biz.PodRef{pod})
 	if err != nil {
 		t.Fatal(err)
 	}

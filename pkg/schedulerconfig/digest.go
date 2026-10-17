@@ -25,7 +25,10 @@ type scalar struct {
 // protected projection. Only reviewed scoring settings are omitted. Version is
 // explicit: a configuration document does not identify its scheduler binary.
 func ProtectedDigest(schedulerVersion, document string) (string, error) {
-	if schedulerVersion != "v1.12.0" && schedulerVersion != "v1.15.2" {
+	// v1.16.0 (41f27d567fb5bdaf2cab01e1caaf48f7e266eefb) retains
+	// yaml.v2 and the reviewed nodeorder/binpack/deviceshare argument readers.
+	// New or unreviewed arguments remain in the protected projection.
+	if schedulerVersion != "v1.12.0" && schedulerVersion != "v1.15.2" && schedulerVersion != "v1.16.0" {
 		return "", fmt.Errorf("unsupported Volcano version %q", schedulerVersion)
 	}
 	d := yaml.NewDecoder(strings.NewReader(document))
@@ -157,7 +160,7 @@ func decode(n *yaml.Node, visiting map[*yaml.Node]bool) (any, error) {
 	}
 }
 
-// Both reviewed Volcano releases use yaml.v2 for scheduler arguments. Preserve
+// The reviewed Volcano releases use yaml.v2 for scheduler arguments. Preserve
 // its YAML 1.1 boolean semantics while using yaml.v3 nodes for strict structure
 // and duplicate-key checks. Quoted and explicitly tagged strings stay strings.
 func nativeScalar(n *yaml.Node) scalar {

@@ -131,7 +131,7 @@ func unixServer(t *testing.T, name string, register func(*grpc.Server)) string {
 }
 
 func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
-	for _, version := range []string{"v1.12.0", "v1.15.2"} {
+	for _, version := range []string{"v1.12.0", "v1.15.2", "v1.16.0"} {
 		t.Run(version, func(t *testing.T) { providerControlledSources(t, version, "") })
 	}
 }
@@ -408,7 +408,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		return
 	}
 	faults := []string{"stale", "offline", "factor"}
-	if schedulerVersion == "v1.15.2" {
+	if schedulerVersion == "v1.15.2" || schedulerVersion == "v1.16.0" {
 		faults = append(faults, "allocatable", "allocatable_zero", "allocatable_invalid")
 	}
 	for _, fault := range faults {
@@ -420,7 +420,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		if capacity().Observation.Complete {
 			t.Fatal("bad source complete", fault)
 		}
-		observation, err := u.ObserveRelease(owner, "replay", ref, biz.NewID(), []biz.PodRef{podRef})
+		observation, err := u.ObserveRelease(owner, "replay", ref, biz.NewID(), cluster.ClusterID, time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), []biz.PodRef{podRef})
 		wantFinding := biz.ReleaseUnknown
 		if strings.HasPrefix(fault, "allocatable") {
 			// Admission registration is invalid, but current independent runtime
@@ -441,7 +441,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	if v.Observation.Complete || v.KnownFreeUnits != 4 {
 		t.Fatalf("conflict was not device-local: %+v", v)
 	}
-	conflicted, err := u.ObserveRelease(owner, "replay", ref, biz.NewID(), []biz.PodRef{podRef})
+	conflicted, err := u.ObserveRelease(owner, "replay", ref, biz.NewID(), cluster.ClusterID, time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), []biz.PodRef{podRef})
 	if err != nil || conflicted.Finding != biz.ReleaseUnknown {
 		t.Fatal("conflicting evidence was not unknown", conflicted, err)
 	}
@@ -464,7 +464,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	state.apiDeleted = true
 	state.mu.Unlock()
 	collect()
-	release, err := u.ObserveRelease(owner, "replay", ref, biz.NewID(), []biz.PodRef{podRef})
+	release, err := u.ObserveRelease(owner, "replay", ref, biz.NewID(), cluster.ClusterID, time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), []biz.PodRef{podRef})
 	if err != nil || release.Finding == biz.AllocationReleased {
 		t.Fatal("API deletion falsely released", release, err)
 	}
@@ -473,7 +473,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	state.absent = true
 	state.mu.Unlock()
 	collect()
-	release, err = u.ObserveRelease(owner, "replay", ref, biz.NewID(), []biz.PodRef{podRef})
+	release, err = u.ObserveRelease(owner, "replay", ref, biz.NewID(), cluster.ClusterID, time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), []biz.PodRef{podRef})
 	if err != nil || release.Finding != biz.AllocationReleased {
 		t.Fatal(release, err)
 	}

@@ -286,7 +286,7 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 		t.Fatal(capacity, err)
 	}
 	owner := biz.WithCaller(context.Background(), biz.Caller{Service: ownerService, Action: "ObserveRelease", TenantID: p.Ref.TenantID})
-	obs, err := f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), []biz.PodRef{pod})
+	obs, err := f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), f.cluster.ClusterID, now.Add(-time.Second).Format(time.RFC3339Nano), []biz.PodRef{pod})
 	if err != nil || obs.Finding != biz.StillPresent {
 		t.Fatal(obs, err)
 	}
@@ -310,7 +310,7 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 	proof := biz.ReleaseProof{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, ObservedAt: later, ReceivedAt: later, EvidenceRef: "test:positive-release", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest}
 	store(biz.ObservationBatch{ClusterID: batch.ClusterID, Releases: []biz.ReleaseProof{proof}})
 	check(biz.ReleaseConfirmed, true)
-	obs, err = f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), []biz.PodRef{pod})
+	obs, err = f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), f.cluster.ClusterID, now.Add(-time.Second).Format(time.RFC3339Nano), []biz.PodRef{pod})
 	if err != nil || obs.Finding != biz.AllocationReleased {
 		t.Fatal(obs, err)
 	}

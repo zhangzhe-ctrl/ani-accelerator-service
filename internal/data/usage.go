@@ -103,6 +103,9 @@ func (s *pgStore) DeviceBindings(ctx context.Context, id string) ([]biz.Binding,
 func (s *pgStore) SourceHealth(ctx context.Context, cluster string) ([]biz.SourceWatermark, error) {
 	return decodeMany[biz.SourceWatermark](s.q.SourceHealthData1(ctx, cluster))
 }
+func (s *pgStore) OwnerClaims(ctx context.Context, ref biz.UsageRef) ([]biz.Claim, error) {
+	return decodeMany[biz.Claim](s.q.ReleaseOwnerClaimsData(ctx, &ref.TenantID, &ref.OwnerService, &ref.ResourceID, &ref.CreateOperationID))
+}
 func (s *pgStore) PodEvidence(ctx context.Context, p biz.PodRef) ([]biz.Claim, []biz.ReleaseProof, error) {
 	cs, err := decodeMany[biz.Claim](s.q.PodEvidenceData1(ctx, p.ClusterID, p.UID, p.ContainerName))
 	if err != nil {

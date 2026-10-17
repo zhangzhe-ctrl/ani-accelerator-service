@@ -226,9 +226,11 @@ func (s *Accelerator) ObserveRelease(ctx context.Context, q *pb.ObserveReleaseRe
 		Ref               *biz.UsageRef `json:"ref"`
 		DeleteOperationID string        `json:"delete_operation_id"`
 		Pods              []biz.PodRef  `json:"pods"`
+		ClusterID         string        `json:"cluster_id"`
+		SealedAt          string        `json:"sealed_at"`
 	}
 	return invoke[pb.ReleaseObservation](q, func(a *input) (*biz.ReleaseObservation, error) {
-		return s.u.ObserveRelease(ctx, a.RequestID, a.Ref, a.DeleteOperationID, a.Pods)
+		return s.u.ObserveRelease(ctx, a.RequestID, a.Ref, a.DeleteOperationID, a.ClusterID, a.SealedAt, a.Pods)
 	})
 }
 

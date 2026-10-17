@@ -28,7 +28,7 @@ func mustDigest(t *testing.T, version, document string) string {
 }
 
 func TestProtectedDigestReviewedScoringIsMutable(t *testing.T) {
-	for _, version := range []string{"v1.12.0", "v1.15.2"} {
+	for _, version := range []string{"v1.12.0", "v1.15.2", "v1.16.0"} {
 		t.Run(version, func(t *testing.T) {
 			base := mustDigest(t, version, protectedDocument)
 			for _, weight := range []string{"-2", "0", "3"} {
@@ -53,7 +53,7 @@ func TestProtectedDigestReviewedScoringIsMutable(t *testing.T) {
 }
 
 func TestProtectedDigestKeepsGPUAndUnknownContent(t *testing.T) {
-	for _, version := range []string{"v1.12.0", "v1.15.2"} {
+	for _, version := range []string{"v1.12.0", "v1.15.2", "v1.16.0"} {
 		base := mustDigest(t, version, protectedDocument)
 		for name, document := range map[string]string{
 			"mode":                    strings.Replace(protectedDocument, "VGPUEnable: true", "VGPUEnable: false", 1),
@@ -91,15 +91,17 @@ func TestProtectedDigestRejectsMalformedDocumentsAndTypes(t *testing.T) {
 		"action-type":     "actions: []", "metrics-type": "metrics: []", "metrics-value": "metrics:\n  interval: 10", "configuration-type": "configurations: {}",
 	} {
 		t.Run(name, func(t *testing.T) {
-			for _, version := range []string{"v1.12.0", "v1.15.2"} {
+			for _, version := range []string{"v1.12.0", "v1.15.2", "v1.16.0"} {
 				if _, err := ProtectedDigest(version, document); err == nil {
 					t.Fatal("invalid document accepted", version)
 				}
 			}
 		})
 	}
-	if _, err := ProtectedDigest("v1.13.0", protectedDocument); err == nil {
-		t.Fatal("unaudited version accepted")
+	for _, version := range []string{"v1.13.0", "v1.16.1", "v1.17.0"} {
+		if _, err := ProtectedDigest(version, protectedDocument); err == nil {
+			t.Fatal("unaudited version accepted", version)
+		}
 	}
 }
 
@@ -115,6 +117,9 @@ func TestProtectedDigestCanonicalYAMLSemantics(t *testing.T) {
 	}
 	if mustDigest(t, "v1.12.0", a) == mustDigest(t, "v1.15.2", a) {
 		t.Fatal("scheduler version is not committed")
+	}
+	if mustDigest(t, "v1.15.2", a) == mustDigest(t, "v1.16.0", a) {
+		t.Fatal("official v1.16.0 scheduler version is not committed")
 	}
 }
 
@@ -151,7 +156,7 @@ func TestProtectedDigestRejectsExcessiveAliases(t *testing.T) {
 }
 
 func TestProtectedDigestMatchesNativeYAML11BooleanTypes(t *testing.T) {
-	for _, version := range []string{"v1.12.0", "v1.15.2"} {
+	for _, version := range []string{"v1.12.0", "v1.15.2", "v1.16.0"} {
 		if mustDigest(t, version, "future: yes\n") == mustDigest(t, version, "future: 'yes'\n") {
 			t.Fatal("native boolean/string change escaped unknown-field protection")
 		}

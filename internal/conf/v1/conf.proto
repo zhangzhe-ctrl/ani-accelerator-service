@@ -26,6 +26,7 @@ message Security {
   string inference_uri = 5;
   string cursor_key_file = 6;
   repeated DelegationGrant grants = 7;
+  string resource_uri = 8;
 }
 
 message DelegationGrant {
