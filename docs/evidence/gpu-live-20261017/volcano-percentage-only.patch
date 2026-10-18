@@ -1,0 +1,11 @@
+--- a/pkg/scheduler/api/devices/nvidia/vgpu/device_info.go
++++ b/pkg/scheduler/api/devices/nvidia/vgpu/device_info.go
+@@ -148,7 +148,7 @@
+ }
+ 
+ func (gs *GPUDevices) GetIgnoredDevices() []string {
+-	return []string{}
++	return []string{deviceconfig.VolcanoVGPUMemoryPercentage}
+ }
+ 
+ func (gs *GPUDevices) AddQueueResource(pod *v1.Pod) map[string]float64 {

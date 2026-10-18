@@ -5,7 +5,7 @@ set -Eeuo pipefail
 : "${ACC_TEST_EVIDENCE_DIR:?absolute evidence directory required}"
 [[ $ACC_TEST_EVIDENCE_DIR == /* ]]
 label=$(docker inspect --format '{{ index .Config.Labels "ani.task" }}' "$ACC_TEST_PG_CONTAINER")
-[[ $label == ACC-V12-01-* || $label == gov-acc-v12-01-acc || $label == GOV-ACC-V12-01-CI ]]
+[[ $label == ACC-V12-01-* || $label == gov-acc-v12-01-acc || $label == GOV-ACC-V12-01-CI || $label == gpu-catalog-absolute-memory-20261018-provider ]]
 mkdir -p "$ACC_TEST_EVIDENCE_DIR"
 container=$ACC_TEST_PG_CONTAINER
 owner=$(docker exec "$container" sh -c 'printf "%s" "$POSTGRES_USER"')

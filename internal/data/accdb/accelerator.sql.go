@@ -492,6 +492,35 @@ func (q *Queries) ReconcileBindingWrite4(ctx context.Context, bindingID string, 
 	return err
 }
 
+const releaseOwnerClaimsData = `-- name: ReleaseOwnerClaimsData :many
+SELECT payload FROM accelerator.claims WHERE tenant_id=$1 AND owner_service=$2 AND resource_id=$3 AND create_operation_id=$4 ORDER BY cluster_id,pod_uid,container_name,device_id,source
+`
+
+func (q *Queries) ReleaseOwnerClaimsData(ctx context.Context, tenantID *string, ownerService *string, resourceID *string, createOperationID *string) ([][]byte, error) {
+	rows, err := q.db.Query(ctx, releaseOwnerClaimsData,
+		tenantID,
+		ownerService,
+		resourceID,
+		createOperationID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := [][]byte{}
+	for rows.Next() {
+		var payload []byte
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+		items = append(items, payload)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const rememberWrite1 = `-- name: RememberWrite1 :exec
 INSERT INTO accelerator.admin_idempotency(actor_digest,method,idempotency_key,payload_digest,result) VALUES($1,$2,$3,$4,$5)
 `
@@ -704,10 +733,10 @@ func (q *Queries) SaveUsageData5(ctx context.Context, tenantID *string, ownerSer
 }
 
 const saveUsageWrite2 = `-- name: SaveUsageWrite2 :exec
-INSERT INTO accelerator.usages(tenant_id,owner_service,resource_id,create_operation_id,profile_id,profile_version,revision,plan_digest,source_created_at,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+INSERT INTO accelerator.usages(tenant_id,owner_service,resource_id,create_operation_id,profile_id,profile_version,revision,execution_digest,source_created_at,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 `
 
-func (q *Queries) SaveUsageWrite2(ctx context.Context, tenantID string, ownerService string, resourceID string, createOperationID string, profileID string, profileVersion uint64, revision int32, planDigest string, sourceCreatedAt time.Time, payload []byte) error {
+func (q *Queries) SaveUsageWrite2(ctx context.Context, tenantID string, ownerService string, resourceID string, createOperationID string, profileID string, profileVersion uint64, revision int32, executionDigest string, sourceCreatedAt time.Time, payload []byte) error {
 	_, err := q.db.Exec(ctx, saveUsageWrite2,
 		tenantID,
 		ownerService,
@@ -716,7 +745,7 @@ func (q *Queries) SaveUsageWrite2(ctx context.Context, tenantID string, ownerSer
 		profileID,
 		profileVersion,
 		revision,
-		planDigest,
+		executionDigest,
 		sourceCreatedAt,
 		payload,
 	)
@@ -766,17 +795,6 @@ func (q *Queries) SchemaVersion(ctx context.Context) (int32, error) {
 	return version, err
 }
 
-const sharedVectorData1 = `-- name: SharedVectorData1 :one
-SELECT payload FROM accelerator.profiles WHERE cluster_id=$1 AND mode=2 ORDER BY profile_id LIMIT 1
-`
-
-func (q *Queries) SharedVectorData1(ctx context.Context, clusterID string) ([]byte, error) {
-	row := q.db.QueryRow(ctx, sharedVectorData1, clusterID)
-	var payload []byte
-	err := row.Scan(&payload)
-	return payload, err
-}
-
 const sourceHealthData1 = `-- name: SourceHealthData1 :many
 SELECT payload FROM accelerator.source_watermarks WHERE cluster_id=$1 ORDER BY node_uid,source
 `
@@ -813,6 +831,18 @@ func (q *Queries) UpdateGroupCAS(ctx context.Context, version uint64, payload []
 		version_2,
 		baselineDigest,
 	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const updateProfileCAS = `-- name: UpdateProfileCAS :execrows
+UPDATE accelerator.profiles SET payload=$1 WHERE profile_id=$2 AND (payload->>'revision')::bigint=$3::bigint
+`
+
+func (q *Queries) UpdateProfileCAS(ctx context.Context, payload []byte, profileID string, column3 uint64) (int64, error) {
+	result, err := q.db.Exec(ctx, updateProfileCAS, payload, profileID, column3)
 	if err != nil {
 		return 0, err
 	}

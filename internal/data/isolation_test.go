@@ -56,7 +56,7 @@ func TestPostgresExplicitTenantSQLCIsolation(t *testing.T) {
 	}); e != nil {
 		t.Fatal(e)
 	}
-	for _, path := range [][]string{{"ref"}, {"ref", "tenant_id"}, {"ref", "owner_service"}, {"ref", "resource_id"}, {"ref", "create_operation_id"}, {"plan", "request", "profile_id"}, {"plan", "resolution_digest"}, {"revision"}, {"state"}, {"source_operation_created_at"}} {
+	for _, path := range [][]string{{"ref"}, {"ref", "tenant_id"}, {"ref", "owner_service"}, {"ref", "resource_id"}, {"ref", "create_operation_id"}, {"profile_id"}, {"profile_version"}, {"execution_digest"}, {"revision"}, {"state"}, {"source_operation_created_at"}} {
 		_, e := f.db.pool.Exec(ctx, testSQL(t, "corrupt_usage_json.sql"), p.Ref.TenantID, p.Ref.OwnerService, p.Ref.ResourceID, path)
 		var constraint *pgconn.PgError
 		if !errors.As(e, &constraint) || constraint.Code != "23514" {

@@ -23,7 +23,7 @@ import (
 )
 
 // Explicitly invoked persistent B fixture. All certificates are task-local and
-// the signing CA key and hardware/owner signing keys are never written to disk.
+// the signing CA key and owner signing key are never written to disk.
 func TestJointPersistentRuntime(t *testing.T) {
 	root := os.Getenv("ACC_JOINT_ROOT")
 	if root == "" {
@@ -55,16 +55,12 @@ func TestJointPersistentRuntime(t *testing.T) {
 	}
 	cursorPath := filepath.Join(root, "cursor.key")
 	testkit.Write(t, cursorPath, cursor)
-	for _, name := range []string{"hardware.pub", "owner.pub"} {
+	for _, name := range []string{"owner.pub"} {
 		pub, _, err := ed25519.GenerateKey(rand.Reader)
 		if err != nil {
 			t.Fatal(err)
 		}
 		testkit.Write(t, filepath.Join(root, name), []byte(base64.StdEncoding.EncodeToString(pub)))
-	}
-	evidenceDir := filepath.Join(root, "attestations")
-	if e = os.Mkdir(evidenceDir, 0700); e != nil {
-		t.Fatal(e)
 	}
 	providerConfig := filepath.Join(root, "provider.json")
 	testkit.Write(t, providerConfig, []byte(`{"connections":[]}`))
@@ -82,7 +78,7 @@ func TestJointPersistentRuntime(t *testing.T) {
 		tenantActions = append(tenantActions, action)
 	}
 	sort.Strings(tenantActions)
-	cfg := &conf.Bootstrap{Server: &conf.Server{Grpc: &conf.Server_GRPC{Network: "tcp", Addr: grpcAddr, Timeout: durationpb.New(5 * time.Second)}, Admin: &conf.Server_Admin{Network: "tcp", Addr: "127.0.0.1:29093", Timeout: durationpb.New(time.Second)}, ShutdownTimeout: durationpb.New(2 * time.Second)}, Database: &conf.Database{DsnFile: os.Getenv("ACC_TEST_DSN_FILE")}, Security: &conf.Security{CaFile: pki.CAFile, CertFile: cert, KeyFile: key, GovernanceUri: "spiffe://ani.internal/service/ani-governance", InferenceUri: "spiffe://ani.internal/service/ani-inference", CursorKeyFile: cursorPath, Grants: []*conf.DelegationGrant{{ActorType: "user", ActorId: "1", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}}}}, Accelerator: &conf.Accelerator{MaxReplicas: 16, Freshness: durationpb.New(time.Minute), CollectInterval: durationpb.New(time.Second), ProviderConfigFile: providerConfig, AttestationsDir: evidenceDir, AttestationPublicKeyFile: filepath.Join(root, "hardware.pub"), OwnerPublicKeyFile: filepath.Join(root, "owner.pub")}}
+	cfg := &conf.Bootstrap{Server: &conf.Server{Grpc: &conf.Server_GRPC{Network: "tcp", Addr: grpcAddr, Timeout: durationpb.New(5 * time.Second)}, Admin: &conf.Server_Admin{Network: "tcp", Addr: "127.0.0.1:29093", Timeout: durationpb.New(time.Second)}, ShutdownTimeout: durationpb.New(2 * time.Second)}, Database: &conf.Database{DsnFile: os.Getenv("ACC_TEST_DSN_FILE")}, Security: &conf.Security{CaFile: pki.CAFile, CertFile: cert, KeyFile: key, GovernanceUri: "spiffe://ani.internal/service/ani-governance", InferenceUri: "spiffe://ani.internal/service/ani-inference", ResourceUri: "spiffe://ani.internal/service/ani-resource-service", CursorKeyFile: cursorPath, Grants: []*conf.DelegationGrant{{ActorType: "user", ActorId: "1", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}}}}, Accelerator: &conf.Accelerator{MaxReplicas: 16, Freshness: durationpb.New(time.Minute), CollectInterval: durationpb.New(time.Second), ProviderConfigFile: providerConfig, OwnerPublicKeyFile: filepath.Join(root, "owner.pub")}}
 	runtime := &testkit.Runtime{Config: cfg, PKI: pki, GovCert: govCert, GovKey: govKey, OwnerCert: ownerCert, OwnerKey: ownerKey}
 	connection := "joint-b:" + biz.NewID()
 	marker := filepath.Join(root, "interrupt.marker")

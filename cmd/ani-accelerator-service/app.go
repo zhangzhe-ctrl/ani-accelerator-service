@@ -37,15 +37,11 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 	if err != nil {
 		return nil, err
 	}
-	evidence, err := provider.NewEvidenceStore(bc.Accelerator.AttestationsDir, bc.Accelerator.AttestationPublicKeyFile)
-	if err != nil {
-		return nil, err
-	}
 	ownerKey, err := provider.ReadPublicKey(bc.Accelerator.OwnerPublicKeyFile)
 	if err != nil {
 		return nil, err
 	}
-	reader, err := provider.New(providerConfig, evidence, ownerKey, db, bc.Accelerator.Freshness.AsDuration())
+	reader, err := provider.New(providerConfig, ownerKey, db, bc.Accelerator.Freshness.AsDuration())
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +66,7 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 	for _, c := range providerConfig.Connections {
 		refs = append(refs, c.Ref)
 	}
-	u, err := biz.NewUsecase(db, reader, evidence, codec, refs, bc.Accelerator.MaxReplicas, bc.Accelerator.Freshness.AsDuration())
+	u, err := biz.NewUsecase(db, reader, codec, refs, bc.Accelerator.MaxReplicas, bc.Accelerator.Freshness.AsDuration())
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +87,7 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 	pb.RegisterAcceleratorUsageServiceServer(grpcServer, handler)
 	adminServer := server.NewAdminServer(bc.Server.Admin, readiness, observability.Gatherer(), middlewares...)
 	worker := server.NewWorker(u, db, readiness, logger, bc.Accelerator.CollectInterval.AsDuration())
-	app := kratos.New(kratos.ID(id), kratos.Name(Name), kratos.Version(Version), kratos.Logger(logger), kratos.Server(grpcServer, adminServer, worker), kratos.BeforeStop(func(context.Context) error { readiness.Set(false); return nil }), kratos.AfterStop(func(ctx context.Context) error { db.Close(); return observability.Shutdown(ctx) }), kratos.StopTimeout(bc.Server.ShutdownTimeout.AsDuration()))
+	app := kratos.New(kratos.ID(id), kratos.Name(Name), kratos.Version(Version), kratos.Logger(logger), kratos.Server(grpcServer, adminServer, reader, worker), kratos.BeforeStop(func(context.Context) error { readiness.Set(false); return nil }), kratos.AfterStop(func(ctx context.Context) error { db.Close(); return observability.Shutdown(ctx) }), kratos.StopTimeout(bc.Server.ShutdownTimeout.AsDuration()))
 	complete = true
 	return app, nil
 }

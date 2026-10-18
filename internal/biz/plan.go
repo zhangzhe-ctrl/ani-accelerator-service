@@ -1,6 +1,8 @@
 package biz
 
-import "strconv"
+import (
+	"strconv"
+)
 
 const (
 	GroupLabel    = "accelerator.ani.io/supply-group"
@@ -8,39 +10,30 @@ const (
 	BaselineLabel = "accelerator.ani.io/baseline-id"
 )
 
-func Render(s *ProfileSpec, b *ProviderBaseline, queue string) (*RuntimeFragment, *MemoryEncoding, error) {
+func Render(s *ProfileSpec, b *ProviderBaseline, queue string, devices uint32) (*GpuExecution, error) {
 	if err := ValidateSpec(s, b); err != nil {
-		return nil, nil, err
+		return nil, err
+	}
+	if devices < 1 || devices > s.MaxDevicesPerReplica || (s.Mode == Shared && devices != 1) {
+		return nil, Invalid("SHAPE_UNSUPPORTED")
 	}
 	if !Name(queue) {
-		return nil, nil, Invalid("INVALID_QUEUE")
+		return nil, Invalid("INVALID_QUEUE")
 	}
-	e := &MemoryEncoding{MemoryBlockMiB: b.MemoryBlockMiB, Policy: "EXACT"}
-	r := &RuntimeFragment{SchedulerName: "volcano", QueueName: queue, RecipeVersion: b.RecipeVersion,
-		NodeLabels:         []KeyValue{{BaselineLabel, b.BaselineID}, {ModelLabel, s.ModelKey}, {GroupLabel, s.GroupID}},
-		PodAnnotations:     []KeyValue{{"volcano.sh/vgpu-mode", "hami-core"}},
-		LimitsPerContainer: []KeyValue{{"volcano.sh/vgpu-cores", strconv.FormatUint(uint64(s.CoreLimitPercent), 10)}, {"volcano.sh/vgpu-number", "1"}}}
-	if s.Mode == Whole {
-		e.MemoryPercentage = 100
-		r.LimitsPerContainer = append(r.LimitsPerContainer, KeyValue{"volcano.sh/vgpu-memory-percentage", "100"})
-	} else {
-		q, err := EncodeMemory(s.SharedMemoryMiB, b.MemoryBlockMiB)
-		if err != nil {
-			return nil, nil, err
-		}
-		e.MemoryBlocksPerDevice = q
-		e.SharedMemoryMiB = s.SharedMemoryMiB
-		r.LimitsPerContainer = append(r.LimitsPerContainer, KeyValue{"volcano.sh/vgpu-memory", strconv.FormatInt(q, 10)})
-	}
-	r.LimitsPerContainer, _ = sortedFields(r.LimitsPerContainer)
-	return r, e, nil
+	e := &GpuExecution{SchedulerName: "volcano", QueueName: queue, RuntimeClassName: b.RuntimeClassName,
+		NodeSelector:   map[string]string{BaselineLabel: b.BaselineID, ModelLabel: s.ModelKey, GroupLabel: s.GroupID},
+		PodAnnotations: map[string]string{"volcano.sh/vgpu-mode": "hami-core"},
+		Resources:      map[string]string{"volcano.sh/vgpu-number": strconv.FormatUint(uint64(devices), 10), "volcano.sh/vgpu-memory": strconv.FormatInt(s.MemoryMiBPerDevice, 10), "volcano.sh/vgpu-cores": strconv.FormatUint(uint64(s.CoreLimitPercent), 10)}}
+	var err error
+	e.ExecutionDigest, err = ExecutionDigest(e)
+	return e, err
 }
-func BuildPlan(request *GpuRequest, profile *Profile, group *SupplyGroup, maxReplicas uint32) (*ResolvedPlan, error) {
+func BuildResolution(request *GpuRequest, profile *Profile, group *SupplyGroup, maxReplicas uint32) (*ResolvedGpuRequest, error) {
 	if err := ValidateRequest(request, maxReplicas); err != nil {
 		return nil, err
 	}
 	if profile == nil || group == nil || profile.Spec == nil || group.Baseline == nil {
-		return nil, Invalid("INVALID_PLAN")
+		return nil, Invalid("INVALID_RESOLUTION")
 	}
 	if request.ProfileID != profile.ProfileID || request.ProfileVersion != profile.ProfileVersion || request.ClusterID != group.ClusterID || request.PoolID != group.PoolID || profile.Spec.GroupID != group.GroupID || profile.Spec.Mode != group.Mode || profile.Spec.ModelKey != group.ModelKey || profile.BaselineID != group.Baseline.BaselineID {
 		return nil, Precondition("PROFILE_SCOPE_MISMATCH")
@@ -48,44 +41,20 @@ func BuildPlan(request *GpuRequest, profile *Profile, group *SupplyGroup, maxRep
 	if d, err := SpecDigest(profile.Spec, profile.BaselineID); err != nil || d != profile.SpecDigest {
 		return nil, Invalid("SPEC_DIGEST_MISMATCH")
 	}
-	r, e, err := Render(profile.Spec, group.Baseline, group.QueueName)
+	execution, err := Render(profile.Spec, group.Baseline, group.QueueName, request.DevicesPerReplica)
 	if err != nil {
 		return nil, err
 	}
-	totals := &ResourceTotals{}
-	if profile.Spec.Mode == Shared {
-		totals.LogicalDeviceCount = int64(request.Replicas)
-		totals.SharedMemoryMiB, err = Multiply(int64(request.Replicas), profile.Spec.SharedMemoryMiB)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		totals.ExclusiveDeviceCount = int64(request.Replicas)
+	code := "gpu.shared_memory_mib"
+	units, err := Multiply(int64(request.Replicas), profile.Spec.MemoryMiBPerDevice)
+	if profile.Spec.Mode == Whole {
+		code = "gpu.physical.count"
+		units, err = Multiply(int64(request.Replicas), int64(request.DevicesPerReplica))
 	}
-	p := &ResolvedPlan{SchemaVersion: 1, Request: request, Profile: profile, Encoding: e, Totals: totals, Runtime: r, BaselineDigest: group.Baseline.BaselineDigest}
-	p.ResolutionDigest, err = PlanDigest(p)
-	return p, err
-}
-
-// ValidatePlan rebuilds from the persisted immutable profile/group, not from
-// the caller's encoding, factor or resources. Admission does not invalidate an
-// already resolved plan; current evidence availability is not a sync gate.
-func ValidatePlan(p *ResolvedPlan, profile *Profile, group *SupplyGroup, maxReplicas uint32) error {
-	if p == nil || p.SchemaVersion != 1 || !Digest(p.ResolutionDigest) {
-		return Invalid("INVALID_PLAN")
-	}
-	expected, err := BuildPlan(p.Request, profile, group, maxReplicas)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	d, err := PlanDigest(p)
-	if err != nil {
-		return err
-	}
-	if d != p.ResolutionDigest || d != expected.ResolutionDigest {
-		return Invalid("PLAN_DIGEST_MISMATCH")
-	}
-	return nil
+	return &ResolvedGpuRequest{Execution: execution, QuotaItems: []GpuQuotaItem{{QuotaCode: code, Units: units}}, Selection: &GpuDisplay{ProfileID: profile.ProfileID, ProfileVersion: profile.ProfileVersion, ProfileName: profile.DisplayName, ModelKey: profile.Spec.ModelKey, Mode: profile.Spec.Mode}}, nil
 }
 func ValidateProjection(p *UsageProjection) error {
 	if p == nil {
@@ -93,6 +62,9 @@ func ValidateProjection(p *UsageProjection) error {
 	}
 	if err := ValidateRef(p.Ref); err != nil {
 		return err
+	}
+	if !UUID(p.ProfileID) || p.ProfileVersion != 1 || !UUID(p.GroupID) || !UUID(p.BaselineID) || !UUID(p.ClusterID) || !Name(p.ContainerName) || !Digest(p.ExecutionDigest) {
+		return Invalid("INVALID_PROJECTION")
 	}
 	if !ValidTime(p.SourceOperationCreatedAt) {
 		return Invalid("INVALID_SOURCE_TIME")

@@ -16,6 +16,7 @@ security:
   key_file: "${MTLS_KEY_FILE:/run/secrets/accelerator/server.key}"
   governance_uri: "spiffe://ani.internal/service/ani-governance"
   inference_uri: "spiffe://ani.internal/service/ani-inference"
+  resource_uri: "spiffe://ani.internal/service/ani-resource-service"
   cursor_key_file: "${CURSOR_KEY_FILE:/run/secrets/accelerator/cursor-key}"
   grants: []
 accelerator:
@@ -23,6 +24,4 @@ accelerator:
   freshness: 120s
   collect_interval: 10s
   provider_config_file: "${PROVIDER_CONFIG_FILE:/etc/accelerator/provider.json}"
-  attestations_dir: "${ATTESTATIONS_DIR:/etc/accelerator/attestations}"
-  attestation_public_key_file: "${ATTESTATION_PUBLIC_KEY_FILE:/etc/accelerator/hardware.pub}"
   owner_public_key_file: "${OWNER_PUBLIC_KEY_FILE:/etc/accelerator/inference.pub}"

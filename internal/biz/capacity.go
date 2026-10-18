@@ -46,6 +46,11 @@ func (u *Usecase) CheckFit(ctx context.Context, a *TenantContext, request *GpuRe
 	if err := AuthorizeTenant(ctx, a, "CheckGpuFit"); err != nil {
 		return nil, err
 	}
+	// Capacity units are per physical device, not multi-device placements.
+	// Do not turn a two-device request into a single-device replica estimate.
+	if request != nil && request.DevicesPerReplica > 1 {
+		return nil, Invalid("SHAPE_UNSUPPORTED")
+	}
 	if _, err := u.resolve(ctx, request); err != nil {
 		return nil, err
 	}
@@ -159,8 +164,8 @@ func ComputeDeviceCapacity(d DeviceRecord, s ProfileSpec, b ProviderBaseline, bi
 	}
 	if s.Mode == Whole {
 		c.NominalUnits = 1
-	} else if s.SharedMemoryMiB > 0 {
-		c.NominalUnits = min(int64(b.SplitCount), d.SafeMemoryBudgetMiB/s.SharedMemoryMiB)
+	} else if s.MemoryMiBPerDevice > 0 {
+		c.NominalUnits = min(int64(b.SplitCount), d.SafeMemoryBudgetMiB/s.MemoryMiBPerDevice)
 		if b.CoreBudgetAdditive && s.CoreLimitPercent > 0 {
 			c.NominalUnits = min(c.NominalUnits, 100/int64(s.CoreLimitPercent))
 		}
@@ -210,7 +215,7 @@ func ComputeDeviceCapacity(d DeviceRecord, s ProfileSpec, b ProviderBaseline, bi
 		if s.Mode == Whole {
 			c.KnownFreeUnits = 1 - c.KnownCommittedUnits
 		} else {
-			c.KnownFreeUnits = min(int64(b.SplitCount)-c.KnownCommittedUnits, (d.SafeMemoryBudgetMiB-c.CommittedMemoryMiB)/s.SharedMemoryMiB)
+			c.KnownFreeUnits = min(int64(b.SplitCount)-c.KnownCommittedUnits, (d.SafeMemoryBudgetMiB-c.CommittedMemoryMiB)/s.MemoryMiBPerDevice)
 			if b.CoreBudgetAdditive {
 				c.KnownFreeUnits = min(c.KnownFreeUnits, (100-cores)/int64(s.CoreLimitPercent))
 			}

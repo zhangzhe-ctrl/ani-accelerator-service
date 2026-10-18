@@ -68,6 +68,8 @@ type nodeSnapshot struct {
 	Resources              *pr.ListPodResourcesResponse
 	Containers             []*cri.Container
 	Statuses               map[string]*cri.ContainerStatusResponse
+	HistoricalStatuses     map[string]bool
+	UnknownPodContainers   map[string][]string
 	ObservedAt             time.Time
 	ResourcesOK, RuntimeOK bool
 }
@@ -91,7 +93,10 @@ func readNode(ctx context.Context, n NodeSource) nodeSnapshot {
 	call, cancel := context.WithTimeout(ctx, 3*time.Second)
 	defer cancel()
 	version, err := client.Version(call, &cri.VersionRequest{Version: "0.1.0"})
-	if err != nil || version.RuntimeName != "containerd" || version.RuntimeVersion != "2.1.5" {
+	// RuntimeVersion is diagnostic metadata, not the verbose status contract.
+	// Require containerd's CRI v1 endpoint; GPU identity and limits are still
+	// validated from each matching container's actual runtimeSpec.process.env.
+	if err != nil || version.RuntimeName != "containerd" || version.RuntimeApiVersion != "v1" || version.RuntimeVersion == "" {
 		return s
 	}
 	list, err := client.ListContainers(call, &cri.ListContainersRequest{})
@@ -102,7 +107,7 @@ func readNode(ctx context.Context, n NodeSource) nodeSnapshot {
 	s.RuntimeOK = true
 	for _, c := range s.Containers {
 		response, err := client.ContainerStatus(call, &cri.ContainerStatusRequest{ContainerId: c.Id, Verbose: true})
-		if err != nil || response.Status == nil {
+		if err != nil || response.Status == nil || c.Id == "" || response.Status.Id != c.Id {
 			s.RuntimeOK = false
 			continue
 		}

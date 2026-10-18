@@ -28,10 +28,10 @@ import (
 )
 
 // A-layer gate runs an ordinary go-built production executable. Its only
-// external substitute is a separately authenticated HTTP provider source. No
-// test evidence implementation, hardware proof or production injection RPC is
-// linked into that executable. The A DSN must name a separate database.
-func TestFormalProductionConsumptionGate(t *testing.T) {
+// external substitutes are the authenticated Kubernetes, local runtime and NVML
+// sources. No test business implementation or injection RPC is linked into the
+// executable. This is software coverage, not actual GPU validation.
+func TestFormalProductionWithoutTestProof(t *testing.T) {
 	dsn := os.Getenv("ACC_FORMAL_DSN_FILE")
 	if dsn == "" {
 		t.Skip("requires independent A-layer PostgreSQL DSN")
@@ -49,6 +49,7 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 	if err := os.Mkdir(sourceDir, 0700); err != nil {
 		t.Fatal(err)
 	}
+	nvmlDirectory := formalNVMLLibrary(t, work)
 	sourceBinary := filepath.Join(work, "source.test")
 	binary := filepath.Join(work, "ani-accelerator-service")
 	for _, args := range [][]string{{"test", "-c", "-o", sourceBinary, "./internal/data/provider"}, {"build", "-trimpath", "-o", binary, "./cmd/ani-accelerator-service"}} {
@@ -100,7 +101,7 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 		cfg := fixture.WriteConfig(t)
 		cmd := exec.Command(binary, "-conf", cfg)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
+		cmd.Env = append(os.Environ(), "GOMAXPROCS=2", "LD_LIBRARY_PATH="+nvmlDirectory)
 		stop := startFormalCommand(t, cmd, productionLog)
 		productionPID = cmd.Process.Pid
 		deadline := time.Now().Add(10 * time.Second)
@@ -138,24 +139,27 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 	group := new(pb.SupplyGroup)
 	rpc("AdoptSupplyGroup", &pb.AdoptSupplyGroupRequest{Mutation: mutation(), PoolId: pool.PoolId, DisplayName: "formal-A", Mode: pb.SupplyMode_SHARED_FIXED, Nodes: []*pb.NodeRef{copyAs[pb.NodeRef](t, input.Node)}, ModelKey: input.Model, Baseline: copyAs[pb.ProviderBaseline](t, input.Baseline), QueueName: input.Queue}, group)
 	testkit.Write(t, input.GroupFile, []byte(group.GroupId))
-	publish := &pb.PublishProfileRequest{Mutation: mutation(), DisplayName: "must-not-persist", Spec: &pb.ProfileSpec{GroupId: group.GroupId, Mode: pb.SupplyMode_SHARED_FIXED, ModelKey: input.Model, SharedMemoryMib: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: 1, VerificationRef: "formal:missing-consumption-proof"}
-	publishErr := invoke("PublishProfile", "", publish, new(pb.GpuProfile))
-	assertFormalReason(t, publishErr, codes.FailedPrecondition, "CONSUMPTION_NOT_VERIFIED")
-	openErr := invoke("SetAdmission", "", &pb.SetAdmissionRequest{Mutation: mutation(), GroupId: group.GroupId, ExpectedVersion: 1, Desired: pb.AdmissionState_ADMISSION_OPEN, Reason: "formal A gate"}, new(pb.SupplyGroup))
-	assertFormalReason(t, openErr, codes.FailedPrecondition, "PROFILE_NOT_ACTIVE")
+	profile := new(pb.GpuProfile)
+	rpc("CreateProfile", &pb.CreateProfileRequest{Mutation: mutation(), DisplayName: "no-test-proof", Spec: &pb.ProfileSpec{GroupId: group.GroupId, Mode: pb.SupplyMode_SHARED_FIXED, ModelKey: input.Model, MemoryMibPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: 1}, profile)
+	rpc("SetAdmission", &pb.SetAdmissionRequest{Mutation: mutation(), GroupId: group.GroupId, ExpectedVersion: 2, Desired: pb.AdmissionState_ADMISSION_OPEN, Reason: "formal source wiring"}, group)
 	// A tenant grant is bound to the actual registered cluster before Resolve.
 	tenant := biz.NewID()
 	fixture.Config.Security.Grants = append(fixture.Config.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: "contract-user", Actions: []string{"ResolveGpuRequest"}, TenantIds: []string{tenant}, ClusterIds: []string{cluster.ClusterId}})
 	stop()
 	stop = start()
 	defer stop()
-	request := &pb.ResolveGpuRequestRequest{Context: tenantContext(tenant), Gpu: &pb.GpuRequest{ClusterId: cluster.ClusterId, PoolId: pool.PoolId, ProfileId: biz.NewID(), ProfileVersion: 1, Replicas: 1, DevicesPerReplica: 1, ContainerName: "inference"}}
-	resolveErr := invoke("ResolveGpuRequest", tenant, request, new(pb.ResolvedGpuPlan))
-	assertFormalReason(t, resolveErr, codes.NotFound, "NOT_FOUND")
+	request := &pb.ResolveGpuRequestRequest{Context: tenantContext(tenant), Gpu: &pb.GpuRequest{ClusterId: cluster.ClusterId, PoolId: pool.PoolId, ProfileId: profile.ProfileId, ProfileVersion: 1, Replicas: 1, DevicesPerReplica: 1, ContainerName: "inference"}}
+	resolved := new(pb.ResolvedGpuRequest)
+	if err := invoke("ResolveGpuRequest", tenant, request, resolved); err != nil {
+		t.Fatal(err)
+	}
+	if resolved.GetExecution().GetResources()["volcano.sh/vgpu-memory"] != "6144" || resolved.GetExecution().GetRuntimeClassName() != "nvidia" {
+		t.Fatal(resolved)
+	}
 	profiles := new(pb.ListProfilesResponse)
 	rpc("AdminListProfiles", &pb.AdminListProfilesRequest{Context: adminRead(), ClusterId: cluster.ClusterId}, profiles)
-	if len(profiles.Items) != 0 {
-		t.Fatal("failed Publish persisted profile")
+	if len(profiles.Items) != 1 || profiles.Items[0].ProfileId != profile.ProfileId {
+		t.Fatal("created profile did not survive restart", profiles)
 	}
 	db, e := data.OpenPostgres(context.Background(), dsn)
 	if e != nil {
@@ -167,18 +171,14 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 		if e != nil {
 			return e
 		}
-		if stored.Admission != biz.Closed || stored.Version != 1 || stored.Baseline.Verification == nil || stored.Baseline.Verification.State != biz.NotVerified {
-			t.Fatal("failed Publish or OPEN mutated durable supply", stored)
+		if stored.Admission != biz.Open || stored.Version != 3 {
+			t.Fatal("created and opened supply did not persist", stored)
 		}
 		return nil
 	}); e != nil {
 		t.Fatal(e)
 	}
-	files, e := os.ReadDir(fixture.Config.Accelerator.AttestationsDir)
-	if e != nil || len(files) != 0 {
-		t.Fatal("A attestation directory was not empty", e)
-	}
-	record := map[string]any{"status": "pass", "layer": "A formal production executable", "binary_sha256": formalFileHash(t, binary), "cluster_id": cluster.ClusterId, "group_id": group.GroupId, "publish": publishErr.Error(), "publish_reason": formalReason(publishErr), "open": openErr.Error(), "open_reason": formalReason(openErr), "resolve": resolveErr.Error(), "resolve_reason": formalReason(resolveErr), "profile_count": 0, "group_version": 1, "admission": "CLOSED", "verification": "NOT_VERIFIED", "attestation_file_count": 0, "hardware": "not_verified", "source": "constructed TLS provider source; production reader and verifier unchanged"}
+	record := map[string]any{"status": "PASS", "layer": "ordinary production executable with external source substitutes", "binary_sha256": formalFileHash(t, binary), "cluster_id": cluster.ClusterId, "group_id": group.GroupId, "profile_id": profile.ProfileId, "create": "PASS", "open": "PASS", "resolve": "PASS", "profile_count": 1, "group_version": 3, "admission": "OPEN", "execution_digest": resolved.Execution.ExecutionDigest, "hardware": "NOT_RUN", "source": "constructed authenticated Kubernetes, Unix CRI/PodResources and NVML library; production business, persistence and readers unchanged"}
 	if out := os.Getenv("ACC_TEST_EVIDENCE_DIR"); out != "" {
 		if e = os.MkdirAll(out, 0700); e != nil {
 			t.Fatal(e)
@@ -192,7 +192,7 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 			testkit.Write(t, filepath.Join(out, name), b)
 		}
 	}
-	t.Logf("A formal process: Publish=%s, OPEN=%s, Resolve=%s; zero profiles; CLOSED/NOT_VERIFIED/version1 retained across restart; hardware=not_verified", formalReason(publishErr), formalReason(openErr), formalReason(resolveErr))
+	t.Log("ordinary production executable: Create/OPEN/Resolve succeed without test-proof configuration; persisted across restart; external source substitutes only; hardware NOT_RUN")
 	if hold := os.Getenv("ACC_FORMAL_HOLD_DIR"); hold != "" {
 		if !filepath.IsAbs(hold) {
 			t.Fatal("absolute task-owned hold directory required")
@@ -203,7 +203,7 @@ func TestFormalProductionConsumptionGate(t *testing.T) {
 		if e := os.MkdirAll(hold, 0700); e != nil {
 			t.Fatal(e)
 		}
-		writeJointJSON(t, filepath.Join(hold, "ready.json"), map[string]any{"address": fixture.Config.Server.Grpc.Addr, "server_name": "ani-accelerator", "ca_file": fixture.PKI.CAFile, "gov_cert_file": fixture.GovCert, "gov_key_file": fixture.GovKey, "config_file": fixture.WriteConfig(t), "binary": binary, "binary_sha256": formalFileHash(t, binary), "production_pid": productionPID, "cluster_id": cluster.ClusterId, "pool_id": pool.PoolId, "group_id": group.GroupId, "actor_type": "user", "actor_id": "1", "source_manifest": manifest, "record": record, "scope": "A formal ordinary executable; constructed read-only provider; no consumption proof"})
+		writeJointJSON(t, filepath.Join(hold, "ready.json"), map[string]any{"address": fixture.Config.Server.Grpc.Addr, "server_name": "ani-accelerator", "ca_file": fixture.PKI.CAFile, "gov_cert_file": fixture.GovCert, "gov_key_file": fixture.GovKey, "config_file": fixture.WriteConfig(t), "binary": binary, "binary_sha256": formalFileHash(t, binary), "production_pid": productionPID, "cluster_id": cluster.ClusterId, "pool_id": pool.PoolId, "group_id": group.GroupId, "actor_type": "user", "actor_id": "1", "source_manifest": manifest, "record": record, "scope": "ordinary production executable; external source substitutes; actual hardware NOT_RUN"})
 		for {
 			if _, e := os.Stat(filepath.Join(hold, "stop")); e == nil {
 				break
@@ -291,4 +291,36 @@ func formalDatabase(t *testing.T, path string) string {
 		t.Fatal("test database configuration invalid")
 	}
 	return config.Database
+}
+
+// This shared library replaces only the external NVML ABI in a separate ordinary
+// production executable. No eligibility, rendering or persistence logic is faked.
+func formalNVMLLibrary(t *testing.T, root string) string {
+	t.Helper()
+	directory := filepath.Join(root, "nvml-external-source")
+	if err := os.Mkdir(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	source := filepath.Join(directory, "nvml.c")
+	code := `#include <stdint.h>
+#include <stdio.h>
+typedef struct { uint64_t total, free, used; } memory;
+int nvmlInit(void) { return 0; }
+int nvmlInit_v2(void) { return 0; }
+int nvmlShutdown(void) { return 0; }
+int nvmlDeviceGetCount_v2(unsigned int *count) { *count = 1; return 0; }
+int nvmlDeviceGetHandleByIndex_v2(unsigned int i, void **device) { if (i) return 2; *device=(void*)1; return 0; }
+int nvmlDeviceGetUUID(void *device, char *text, unsigned int length) { snprintf(text,length,"GPU-01234567-89ab-cdef-0123-456789abcdef"); return 0; }
+int nvmlDeviceGetName(void *device, char *text, unsigned int length) { snprintf(text,length,"Test"); return 0; }
+int nvmlDeviceGetMemoryInfo(void *device, memory *info) { info->total = 24576ULL << 20; info->free=info->total; info->used=0; return 0; }
+const char *nvmlErrorString(int result) { return "external source fixture"; }
+`
+	if err := os.WriteFile(source, []byte(code), 0600); err != nil {
+		t.Fatal(err)
+	}
+	command := exec.Command("cc", "-shared", "-fPIC", "-o", filepath.Join(directory, "libnvidia-ml.so.1"), source)
+	if out, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("external NVML fixture: %v\n%s", err, out)
+	}
+	return directory
 }

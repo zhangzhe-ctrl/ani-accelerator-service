@@ -2,11 +2,12 @@
 set -Eeuo pipefail
 # Uses libpq's PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSFILE. No DSN or password is
 # passed in argv or printed. Operators must create a recovery point first.
-[[ $# == 1 && ( $1 == 0001 || $1 == 0002 || $1 == 0003 ) ]] || { echo 'usage: scripts/migrate 0001|0002|0003' >&2; exit 2; }
+[[ $# == 1 && ( $1 == 0001 || $1 == 0002 || $1 == 0003 || $1 == 0004 ) ]] || { echo 'usage: scripts/migrate 0001|0002|0003|0004' >&2; exit 2; }
 root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)
 case $1 in
   0001) migration=0001_accelerator.sql ;;
   0002) migration=0002_explicit_isolation.sql ;;
   0003) migration=0003_resource_instance_owner.sql ;;
+  0004) migration=0004_absolute_memory_catalog.sql ;;
 esac
 exec psql -X --set ON_ERROR_STOP=1 --file "$root/migrations/$migration"

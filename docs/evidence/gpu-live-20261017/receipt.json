@@ -1,0 +1,679 @@
+{
+  "schema_version": 1,
+  "kind": "acc-real-gpu-live-receipt",
+  "completed_at_utc": "2026-10-16T18:42:18.967768+00:00",
+  "user_timezone": "Asia/Shanghai",
+  "result": "pass",
+  "acceptance_scope": "ACC production entry and actual single-T4 GPU slices; external product service acceptance remains not_verified",
+  "source": {
+    "baseline_branch": "origin/codex/instance-unified-20261016",
+    "baseline_commit": "c1242866d9877d4fd5dee934ddc80e8ec8b23ad9",
+    "working_branch": "codex/acc-gpu-live-20261017",
+    "uncommitted_changes": true,
+    "committed": false,
+    "pushed": false,
+    "compiled_go_inputs": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/go-source-manifest.json",
+      "sha256": "faa2200f66b5305fd9466e65d20f4ab37aac71aec19c46cf2c0abca70a8c8b70"
+    }
+  },
+  "deployment": {
+    "context": "kubernetes-admin@ani-lab",
+    "namespace": "acc-gpu-live-20261017",
+    "node": "ani-03",
+    "node_ip": "172.16.101.12",
+    "node_uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+    "service": "acc.acc-gpu-live-20261017.svc:19090",
+    "image": "localhost/ani-accelerator@sha256:10069615d2c27855f9dae6061a60707ecacbcb14fd2f1ba6898c14f996de7c8c",
+    "binary_sha256": "d84f4c99b950fdfd7d7c14d95e2b103c3e69c3a9a4c2779c5d8dba7577b32744",
+    "delivery": "task OCI archive imported on ani-03; imagePullPolicy Never; not a registry release",
+    "postgres": "17.11, persistent PVC, explicit schema v3 migrations, restricted runtime role, verified TLS"
+  },
+  "hardware": {
+    "gpu": "Tesla T4",
+    "gpu_uuid": "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878",
+    "physical_memory_mib": 15360,
+    "driver": "580.178.04",
+    "containerd": "v2.3.4",
+    "volcano": "v1.15.2",
+    "device_plugin": "v1.12.0",
+    "factor_mib": 256,
+    "restored_split_count": 10,
+    "independent_cuda_models": [
+      {
+        "name": "iris",
+        "sha256": "0e2456b6914834b7be005b0e5e9b62a8fc3f1e6cb5c42e12f1012380b95a0139",
+        "max_cuda_reference_error": 8.715166881501091e-07
+      },
+      {
+        "name": "wine",
+        "sha256": "632322bb20ab4655266101bb59e769055476079349da9435361e2ae27995fcc4",
+        "max_cuda_reference_error": 7.476952923468616e-07
+      }
+    ],
+    "raw_shared": {
+      "path": "/home/chabking/acc-gpu-live-20261017/experiments/evidence/raw-summary.json",
+      "sha256": "397f42bb4f28518f952450a102cc78b892b10fe85be9a84e36c0172ee619106d"
+    },
+    "raw_shared_manifest": {
+      "path": "/home/chabking/acc-gpu-live-20261017/experiments/evidence/raw-manifest.json",
+      "sha256": "702c10203d8b697cb9cb7a8e429b6507895055f7689fd325d3b0e5871a929132"
+    },
+    "raw_whole": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/percentage-raw/raw-summary.json",
+      "sha256": "0f7377c8a522559fd8673e15ec88dba45f6696df5610f27e48782129e96951f6"
+    },
+    "raw_whole_manifest": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/percentage-raw/raw-manifest.json",
+      "sha256": "7b521108f0929f1a290a809d9ad743a42ba3976de4b1ebbf2e973f9c55cc9244"
+    }
+  },
+  "modes": {
+    "shared": {
+      "scope": {
+        "baseline_digest": "ec02c246201a8a9179554039a67ceb31772ae1305c5936647b6a2c728ff3dadb",
+        "cluster_id": "b161a0ad-7e55-4333-a629-2913c0f6dd75",
+        "evidence_ref": "acc-live-20261017:t4-shared-1024mib-10pct",
+        "group_id": "27ca8075-17fa-44a6-ba7c-9666e0631f6b",
+        "nodes": [
+          {
+            "uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+            "name": "ani-03"
+          }
+        ],
+        "pool_id": "55895329-a46e-4485-9d20-6dd8b485202f",
+        "required_node_labels": {
+          "accelerator.ani.io/baseline-id": "75234619-cb4c-4be5-92fa-e453f3bd1a17",
+          "accelerator.ani.io/model-key": "nvidia-tesla-t4",
+          "accelerator.ani.io/supply-group": "27ca8075-17fa-44a6-ba7c-9666e0631f6b"
+        },
+        "scope": "real sources adopted CLOSED; hardware verification pending until signed actual experiment",
+        "spec": {
+          "group_id": "27ca8075-17fa-44a6-ba7c-9666e0631f6b",
+          "mode": 2,
+          "model_key": "nvidia-tesla-t4",
+          "shared_memory_mib": 1024,
+          "core_limit_percent": 10,
+          "max_devices_per_replica": 1,
+          "isolation_class": "SOFTWARE_COOPERATIVE"
+        },
+        "spec_digest": "b5daf342a7caa91ee026f51078664a621da165b50625f437fa64594316e5704e"
+      },
+      "phases": {
+        "active": {
+          "result": "pass",
+          "nominal_units": 10,
+          "known_committed_units": 1,
+          "known_free_units": 9,
+          "complete": true,
+          "binding_id": "d846f405-5573-443a-b264-09f1fa43b034",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-active-capacity.json",
+              "sha256": "a09b3da5e614fdcda17f2a77c197ffd2a1760232052ad166634b13a3541ac19c"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-active-bindings.json",
+              "sha256": "c472d79f7f00407e983e81128df0aaeba112bc13178665d1d762743dcd98deca"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-active-release.json",
+              "sha256": "2aa2cdb167fc1cc3e8be2b64bd49fe8ccd790065b90e36968dbf0e4a22fd118b"
+            }
+          ]
+        },
+        "after-restart": {
+          "result": "pass",
+          "nominal_units": 10,
+          "known_committed_units": 1,
+          "known_free_units": 9,
+          "complete": true,
+          "binding_id": "d846f405-5573-443a-b264-09f1fa43b034",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-after-restart-capacity.json",
+              "sha256": "b8c212558150a2774dceb9623bf27d8a8162f8ca534fe41c20760f98e7d53707"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-after-restart-bindings.json",
+              "sha256": "642bac80c16e15c1c27cd98faa5d7ea29189c021e21d15c118064e872e183576"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-after-restart-release.json",
+              "sha256": "740a0e0f7f744250713011c4476cfd3f2319be9c6b9ec990102babd4cbec6c41"
+            }
+          ]
+        },
+        "released": {
+          "result": "pass",
+          "nominal_units": 10,
+          "known_committed_units": 0,
+          "known_free_units": 10,
+          "complete": true,
+          "binding_id": "d846f405-5573-443a-b264-09f1fa43b034",
+          "binding_state": "RELEASE_CONFIRMED",
+          "release_finding": "ALLOCATION_RELEASED",
+          "evidence": [
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-released-capacity.json",
+              "sha256": "54d69069b76e0a042fb75bd597dfaa22e0281d74b33b029c7480c6344f12baa0"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-released-bindings.json",
+              "sha256": "8d8790bb72dc50c9724f5a96aa0190750422b567fffde0623e0ff1c8e79a9cf3"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/phase-released-release.json",
+              "sha256": "c41e8bd2ecad5212de88ed05e9136a36d692afe7560fe0b8a43a77529591a43c"
+            }
+          ]
+        }
+      },
+      "database": "acc_live",
+      "actual_pod": {
+        "cluster_id": "b161a0ad-7e55-4333-a629-2913c0f6dd75",
+        "namespace": "acc-gpu-live-20261017",
+        "name": "acc-plan-iris",
+        "uid": "aed4d0cc-055a-4842-a190-9d05654b8ca6",
+        "container_name": "inference"
+      },
+      "hardware_proof": {
+        "evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/attestations/2477e7ea0cdab290fc750226b7c58c8ceb3a696d3b15661c1572dc90ccee6ce1.json",
+          "sha256": "5bcffc89b2ec007058531043f1279f9df2d47750ad198bfb46fbd44ca2f8be01"
+        },
+        "verified_at": "2026-10-16T17:41:31Z",
+        "expires_at": "2026-10-17T17:47:43.146236293Z"
+      },
+      "frozen_plan": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/latest-ResolveGpuRequest.response.json",
+        "sha256": "2c906b6707905535385b5a3528afb5e67fe692b7248c5180b687f7544798a6b3"
+      }
+    },
+    "whole": {
+      "scope": {
+        "baseline_digest": "b6774361e6c865326ea0fcdd68dbcb95c8607c363e24023ce96249ac0ec1fde6",
+        "candidate_encoding": {
+          "memory_block_mib": 256,
+          "memory_blocks_per_device": 0,
+          "shared_memory_mib": 0,
+          "memory_percentage": 100,
+          "policy": "EXACT"
+        },
+        "candidate_runtime": {
+          "scheduler_name": "volcano",
+          "queue_name": "default",
+          "node_labels": [
+            {
+              "key": "accelerator.ani.io/baseline-id",
+              "value": "d26c8bcf-2be9-4da6-95a4-9e37bd671a17"
+            },
+            {
+              "key": "accelerator.ani.io/model-key",
+              "value": "nvidia-tesla-t4"
+            },
+            {
+              "key": "accelerator.ani.io/supply-group",
+              "value": "2e12cfb7-ed63-40c0-a88d-1002975728d6"
+            }
+          ],
+          "pod_annotations": [
+            {
+              "key": "volcano.sh/vgpu-mode",
+              "value": "hami-core"
+            }
+          ],
+          "limits_per_container": [
+            {
+              "key": "volcano.sh/vgpu-cores",
+              "value": "100"
+            },
+            {
+              "key": "volcano.sh/vgpu-memory-percentage",
+              "value": "100"
+            },
+            {
+              "key": "volcano.sh/vgpu-number",
+              "value": "1"
+            }
+          ],
+          "runtime_class_name": "",
+          "recipe_version": "volcano-hami-v1"
+        },
+        "cluster_id": "0eb4f313-8f43-40a8-969b-52fd47b8750a",
+        "evidence_ref": "acc-live-20261017:t4-whole-percentage-patched",
+        "group_id": "2e12cfb7-ed63-40c0-a88d-1002975728d6",
+        "nodes": [
+          {
+            "uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+            "name": "ani-03"
+          }
+        ],
+        "pool_id": "d9cc81fa-b607-4045-ad75-6c277dfd76e4",
+        "required_node_labels": {
+          "accelerator.ani.io/baseline-id": "d26c8bcf-2be9-4da6-95a4-9e37bd671a17",
+          "accelerator.ani.io/model-key": "nvidia-tesla-t4",
+          "accelerator.ani.io/supply-group": "2e12cfb7-ed63-40c0-a88d-1002975728d6"
+        },
+        "scope": "real sources adopted CLOSED; candidate uses production Render; hardware verification pending until signed actual experiment",
+        "spec": {
+          "group_id": "2e12cfb7-ed63-40c0-a88d-1002975728d6",
+          "mode": 1,
+          "model_key": "nvidia-tesla-t4",
+          "shared_memory_mib": 0,
+          "core_limit_percent": 100,
+          "max_devices_per_replica": 1,
+          "isolation_class": "WHOLE_DEVICE_EXCLUSIVE"
+        },
+        "spec_digest": "5d875a57beec47202e5e52aeba8e4325f0180a7e1bc0937a5d190dd7da790c6c"
+      },
+      "phases": {
+        "active": {
+          "result": "pass",
+          "nominal_units": 1,
+          "known_committed_units": 1,
+          "known_free_units": 0,
+          "complete": true,
+          "binding_id": "f57ccb27-f38a-44d5-9721-6041b07d10e0",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-active-capacity.json",
+              "sha256": "6035fb7503d18f0111f71f0a4900d86b4eea982c9f0ee3d0a18f37a7a7cbf0a8"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-active-bindings.json",
+              "sha256": "e728a5d2e37e9878bb609cd91f32865885b74fd70077c13ee4e0a77e5974b2eb"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-active-release.json",
+              "sha256": "2ac9ad49d64c36bca7f805928ecdbedc034681906436a4435862685b02c69266"
+            }
+          ]
+        },
+        "after-restart": {
+          "result": "pass",
+          "nominal_units": 1,
+          "known_committed_units": 1,
+          "known_free_units": 0,
+          "complete": true,
+          "binding_id": "f57ccb27-f38a-44d5-9721-6041b07d10e0",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-after-restart-capacity.json",
+              "sha256": "2ceaa987265e768e622f26d2a13fc30fe86be06935d514f009284a1109e5d541"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-after-restart-bindings.json",
+              "sha256": "2b4b6ccf526205a30c83b72fbb91115eb0a6ff11312a530e72ab4174d5e3f592"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-after-restart-release.json",
+              "sha256": "f11bb7e905b18440c5da5d2492790719915498680a08fb46f1d760d66a5f21df"
+            }
+          ]
+        },
+        "released": {
+          "result": "pass",
+          "nominal_units": 1,
+          "known_committed_units": 0,
+          "known_free_units": 1,
+          "complete": true,
+          "binding_id": "f57ccb27-f38a-44d5-9721-6041b07d10e0",
+          "binding_state": "RELEASE_CONFIRMED",
+          "release_finding": "ALLOCATION_RELEASED",
+          "evidence": [
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-released-capacity.json",
+              "sha256": "5e368d130b22f93ceefdaeaceb34df46ebfcbbf5900a05bb5c343ef94a90544c"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-released-bindings.json",
+              "sha256": "3e7de4f8d7a8cd6ee5477dbb7f3873697d4cfc22564ff9322f9f1e5ad1abddf6"
+            },
+            {
+              "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-released-release.json",
+              "sha256": "3552eded1b2fb5448b7031a12326cad050db730494f1b6ab471cec4bdfe3adb2"
+            }
+          ]
+        }
+      },
+      "database": "acc_whole",
+      "actual_pod": {
+        "cluster_id": "0eb4f313-8f43-40a8-969b-52fd47b8750a",
+        "namespace": "acc-gpu-live-20261017",
+        "name": "acc-plan-whole-iris",
+        "uid": "2a0b93fb-d1db-404d-8c48-352c8b541420",
+        "container_name": "inference"
+      },
+      "hardware_proof": {
+        "evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/attestations/891f5b62a7c5a5078530d571ed927b35a2d1e3d798d9be6b7add14d76f554e7e.json",
+          "sha256": "7ea923de624241ea1412452ffc85d57dc1bb29fcd546800862eb8a44e356d2fc"
+        },
+        "verified_at": "2026-10-16T18:30:37Z",
+        "expires_at": "2026-10-17T18:30:52.600313909Z"
+      },
+      "frozen_plan": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/latest-ResolveGpuRequest.response.json",
+        "sha256": "85fe61fb4bc85bdc48f19f3fcd8b7cc4c43b67155edfc7a5b68bc00c90f4445c"
+      }
+    }
+  },
+  "whole_test_and_restoration": {
+    "schema_version": 1,
+    "kind": "acc-real-whole-percentage-acceptance-v1",
+    "result": "pass",
+    "scope": {
+      "cluster_id": "0eb4f313-8f43-40a8-969b-52fd47b8750a",
+      "pool_id": "d9cc81fa-b607-4045-ad75-6c277dfd76e4",
+      "group_id": "2e12cfb7-ed63-40c0-a88d-1002975728d6",
+      "baseline_digest": "b6774361e6c865326ea0fcdd68dbcb95c8607c363e24023ce96249ac0ec1fde6",
+      "spec_digest": "5d875a57beec47202e5e52aeba8e4325f0180a7e1bc0937a5d190dd7da790c6c"
+    },
+    "actual_pod_ref": {
+      "cluster_id": "0eb4f313-8f43-40a8-969b-52fd47b8750a",
+      "namespace": "acc-gpu-live-20261017",
+      "name": "acc-plan-whole-iris",
+      "uid": "2a0b93fb-d1db-404d-8c48-352c8b541420",
+      "container_name": "inference"
+    },
+    "binding_id": "f57ccb27-f38a-44d5-9721-6041b07d10e0",
+    "scheduler_image": "localhost/ani-vc-scheduler@sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+    "base_sha": "sha256:836554c1c3286742fb6fcc721f5d3515e0e3e304a30d9cb733635f555f5ef671",
+    "patch_sha": "0b302a2f7dd5b6d296c17f64a10ddcad9cb6b156c5f36066f737a37dc895a88c",
+    "scheduler_source_commit": "1462fb7b4835970708717456e3aed85e697ec2eb",
+    "scheduler_patch_receipt": {
+      "path": "/home/chabking/acc-gpu-live-20261017/volcano-percent-fix/evidence/receipt.json",
+      "sha256": "8bdf2f0afa4f67fed7d920c4e1655a4c40ddd460c792dc8ea968272af0d3a7da"
+    },
+    "phases": {
+      "empty": {
+        "capacity": {
+          "physical_device_count": "1",
+          "nominal_units": "1",
+          "known_committed_units": "0",
+          "known_free_units": "1",
+          "complete": true
+        },
+        "capacity_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-empty-capacity.json",
+          "sha256": "cef7e799c4f6342949e040c73f50d5293e546e0646dc428eca4f59bf8ac52c23"
+        }
+      },
+      "active": {
+        "capacity": {
+          "physical_device_count": "1",
+          "nominal_units": "1",
+          "known_committed_units": "1",
+          "known_free_units": "0",
+          "complete": true
+        },
+        "capacity_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-active-capacity.json",
+          "sha256": "6035fb7503d18f0111f71f0a4900d86b4eea982c9f0ee3d0a18f37a7a7cbf0a8"
+        },
+        "binding_id": "f57ccb27-f38a-44d5-9721-6041b07d10e0",
+        "binding_state": "ACTIVE",
+        "release_finding": "ALLOCATION_STILL_PRESENT",
+        "bindings_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-active-bindings.json",
+          "sha256": "e728a5d2e37e9878bb609cd91f32865885b74fd70077c13ee4e0a77e5974b2eb"
+        },
+        "release_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-active-release.json",
+          "sha256": "2ac9ad49d64c36bca7f805928ecdbedc034681906436a4435862685b02c69266"
+        }
+      },
+      "after-restart": {
+        "capacity": {
+          "physical_device_count": "1",
+          "nominal_units": "1",
+          "known_committed_units": "1",
+          "known_free_units": "0",
+          "complete": true
+        },
+        "capacity_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-after-restart-capacity.json",
+          "sha256": "2ceaa987265e768e622f26d2a13fc30fe86be06935d514f009284a1109e5d541"
+        },
+        "binding_id": "f57ccb27-f38a-44d5-9721-6041b07d10e0",
+        "binding_state": "ACTIVE",
+        "release_finding": "ALLOCATION_STILL_PRESENT",
+        "bindings_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-after-restart-bindings.json",
+          "sha256": "2b4b6ccf526205a30c83b72fbb91115eb0a6ff11312a530e72ab4174d5e3f592"
+        },
+        "release_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-after-restart-release.json",
+          "sha256": "f11bb7e905b18440c5da5d2492790719915498680a08fb46f1d760d66a5f21df"
+        }
+      },
+      "released": {
+        "capacity": {
+          "physical_device_count": "1",
+          "nominal_units": "1",
+          "known_committed_units": "0",
+          "known_free_units": "1",
+          "complete": true
+        },
+        "capacity_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-released-capacity.json",
+          "sha256": "5e368d130b22f93ceefdaeaceb34df46ebfcbbf5900a05bb5c343ef94a90544c"
+        },
+        "binding_id": "f57ccb27-f38a-44d5-9721-6041b07d10e0",
+        "binding_state": "RELEASE_CONFIRMED",
+        "release_finding": "ALLOCATION_RELEASED",
+        "bindings_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-released-bindings.json",
+          "sha256": "3e7de4f8d7a8cd6ee5477dbb7f3873697d4cfc22564ff9322f9f1e5ad1abddf6"
+        },
+        "release_evidence": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/phase-released-release.json",
+          "sha256": "3552eded1b2fb5448b7031a12326cad050db730494f1b6ab471cec4bdfe3adb2"
+        }
+      }
+    },
+    "percentage_raw_summary": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/percentage-raw/raw-summary.json",
+      "sha256": "0f7377c8a522559fd8673e15ec88dba45f6696df5610f27e48782129e96951f6"
+    },
+    "percentage_raw_manifest": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/percentage-raw/raw-manifest.json",
+      "sha256": "7b521108f0929f1a290a809d9ad743a42ba3976de4b1ebbf2e973f9c55cc9244"
+    },
+    "signed_scope_experiment": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/percentage-raw/acc-hardware-experiment.json",
+      "sha256": "1ce2af2a91718dc92a12bf600976129738c3cafcbb1402fce12509f701f45c1e"
+    },
+    "actual_cuda_inference": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-actual-infer.json",
+      "sha256": "032ac362c9d3d77462694a90bc5b04a317324e861b32f9b6ebd2b43d0e8f037d"
+    },
+    "positive_cri_exit": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-positive-cri-exit.json",
+      "sha256": "5fe924bef7c76648c01618751e2d7ce92ba5e7620c48311d5904bdab1a607bfa"
+    },
+    "original_stock_scheduler_failure_directory": "/home/chabking/acc-gpu-live-20261017/evidence/whole-original",
+    "same_actual_cluster_as_original": true,
+    "new_cluster_identity_is_only_isolated_test_catalog_scope": true,
+    "no_second_physical_supply_claim": true,
+    "resources": {
+      "namespace": "acc-gpu-live-20261017",
+      "whole_runtime_deployment": "acc-whole",
+      "whole_service": "acc-whole-grpc-test",
+      "database": "acc_whole",
+      "shared_database_preserved": "acc_live",
+      "whole_runtime_final_replicas": 0,
+      "whole_group_final_admission": "ADMISSION_CLOSED"
+    },
+    "restoration": {
+      "scheduler_exact_original_image_restored": true,
+      "scheduler_actual_image_id": "172.16.101.10:5000/volcanosh/vc-scheduler@sha256:836554c1c3286742fb6fcc721f5d3515e0e3e304a30d9cb733635f555f5ef671",
+      "scheduler_spec_exact_restored": true,
+      "scheduler_config_data_exact_restored": true,
+      "default_queue_spec_unchanged": true,
+      "plugin_spec_exact_restored": true,
+      "plugin_config_data_exact_restored": true,
+      "node_three_acc_labels_exact_restored": true,
+      "node_split_count": 10,
+      "memory_factor_mib": 256,
+      "gpu_memory_used_mib": 0,
+      "gpu_compute_process_count": 0,
+      "shared_admission": "ADMISSION_OPEN",
+      "shared_capacity": {
+        "physical_device_count": "1",
+        "nominal_units": "10",
+        "known_committed_units": "0",
+        "known_free_units": "10",
+        "complete": true
+      },
+      "shared_capacity_evidence": {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/shared-control/latest-AdminGetCapacity.response.json",
+        "sha256": "8a267abc354df0e8b0a5561148e45b4b67d4710379f953cd75b0f7efad836a87"
+      },
+      "evidence": {
+        "whole-restored-plugin.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-plugin.json",
+          "sha256": "950e9122845741a4ca3f8e02f63bf1c5be41078fd1116a72c4776755d019c060"
+        },
+        "whole-restored-plugin-config.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-plugin-config.json",
+          "sha256": "77289aa249d45a27625e458001686dc9589f88e912082542c97545a2712ce9e1"
+        },
+        "whole-restored-node.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-node.json",
+          "sha256": "c8a35c00a5a3b0b3b00a3d4fcfee0bc85a90d187e11ce8d7c490643804949993"
+        },
+        "whole-restored-scheduler-deployment.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-scheduler-deployment.json",
+          "sha256": "fa0bf3104f524f04e8eaab1153fe03049e026182a6bce8ec8e63be020d31dfc9"
+        },
+        "whole-restored-scheduler-pods.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-scheduler-pods.json",
+          "sha256": "dd26b47f43fafaa9bbb40925f422554ac56170b7b95daa8d1ffac86f977cdb8d"
+        },
+        "whole-restored-scheduler-config.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-scheduler-config.json",
+          "sha256": "4a1d61e5e70232c88a659ae25c0442b31a3e177b676e38d105a5467ed60075da"
+        },
+        "whole-restored-default-queue.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-default-queue.json",
+          "sha256": "0aa52990809308885c96c2a6df47dd544f7225d39d7b0c84f0e04679f87ebf06"
+        },
+        "whole-restored-acc-whole-deployment.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-acc-whole-deployment.json",
+          "sha256": "8e83350d4b1088a26bdcfa458ed5510099259cdd91c1f2fdc4fb96cfd531e946"
+        },
+        "whole-restored-databases.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-databases.json",
+          "sha256": "b07bb44accdd0816461e401bd447cd7ed9e4010907ff0f4f7d97c8f689073120"
+        },
+        "whole-restored-nvml.csv": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-nvml.csv",
+          "sha256": "8b195c35ab9c5574cc462aa814e78a8ab5576da6ab9247b4ca5445709bc361cd"
+        },
+        "whole-restored-compute-processes.csv": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-restored-compute-processes.csv",
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        "shared-ADMISSION_OPEN.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/shared-ADMISSION_OPEN.json",
+          "sha256": "635ce6c10d02d0ec1822ba05b7fe5d499da4fcb812102bab7be3a0732fc632fd"
+        },
+        "whole-ADMISSION_CLOSED.json": {
+          "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-ADMISSION_CLOSED.json",
+          "sha256": "cb7b4294194f4a439c4327f0a64848f7b9ab078d2f3341e17c294e896e9a5c59"
+        }
+      }
+    },
+    "boundaries": {
+      "stock_v1_15_2_percentage_recipe": "actual_scheduler_queue_failure_preserved",
+      "derived_scheduler_percentage_recipe": "pass_in_this_exact_gpu_runtime_baseline",
+      "governance_projection_or_quota_fact_written": false,
+      "actual_inference_business_service_end_to_end": "not_verified",
+      "owner_boundary": "task_operator_actual_Kubernetes_workload_plus_real_mTLS_and_signed_UID_assertion",
+      "multi_gpu_allocation": "not_verified",
+      "memory_quantization_tail": "not_verified"
+    },
+    "finished_at": "2026-10-16T18:41:20Z"
+  },
+  "whole_result_receipt": {
+    "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole/whole-result.json",
+    "sha256": "102efd2aad5f29592fe192ca29530260b3b9f69690da281bb69a7fa16fde47eb"
+  },
+  "code_fixes": [
+    "CRI v1 capability and actual GPU fields instead of exact containerd patch version",
+    "Fresh UID-bound NodeLease when Ready status heartbeat is old",
+    "Consumed vgpu-time marker requires success phase and original bind-time",
+    "Scheduler revision identifies allocation fact, independent of unrelated Pod ResourceVersion"
+  ],
+  "scheduler_compatibility": {
+    "original_v1_15_2_whole_percent_recipe": "blocked by ordinary scalar Queue accounting; original failure retained in evidence/whole-original",
+    "original_failure_evidence": [
+      {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole-original/whole-pending-pod.json",
+        "sha256": "12ae46cb512f99be51beedc74cd71b76e3a68389969147799a51ca2d40b9b9e3"
+      },
+      {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole-original/whole-pending-podgroup.json",
+        "sha256": "da30853ccbf18f3b4d5ae158bad1a45515e7f9d91b533949575761fdfddc213f"
+      },
+      {
+        "path": "/home/chabking/acc-gpu-live-20261017/evidence/whole-original/whole-pending-scheduler.log",
+        "sha256": "a60c80526ebf48b54ee56979a750e93d5e7db61e1c3be4afbdd23f6a2d113aa0"
+      }
+    ],
+    "patched_image": "sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+    "patch_sha256": "0b302a2f7dd5b6d296c17f64a10ddcad9cb6b156c5f36066f737a37dc895a88c",
+    "offline_red_green_receipt": {
+      "path": "/home/chabking/acc-gpu-live-20261017/volcano-percent-fix/evidence/receipt.json",
+      "sha256": "8bdf2f0afa4f67fed7d920c4e1655a4c40ddd460c792dc8ea968272af0d3a7da"
+    },
+    "production_recipe": "unchanged number=1/cores=100/memory-percentage=100; independent baseline and hardware proof required"
+  },
+  "acceptance_matrix": {
+    "GPU-LIVE-01": "pass: F256 plan, allocation and runtime MiB agree",
+    "GPU-LIVE-02": "pass: two independently trained models on the same physical GPU",
+    "GPU-LIVE-03": "pass: ten active shares, eleventh Pending; K and cores saturate together",
+    "GPU-LIVE-04": {
+      "whole_exclusion": "pass with the independently pinned scheduler patch",
+      "normal_deletion_capacity_restore": "pass",
+      "quantization_remainder": "not_verified; this card divides exactly by F256",
+      "overall": "partial"
+    }
+  },
+  "verification": {
+    "provider_regression": "pass",
+    "provider_regression_log": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/final-provider-regression.log",
+      "sha256": "3ef40f658da638dbdc7d514664972f153b99952d26b9a76fbbed80526f2ba021"
+    },
+    "actual_mtls_wrong_service_rejected": {
+      "path": "/home/chabking/acc-gpu-live-20261017/evidence/shared/wrong-service-get-capacity.log",
+      "sha256": "1bc993f188bbf69951fd7bbefc7e3346208cb28270f3651b050af6f544c9ba97"
+    },
+    "full_make_verify": "not_run; no commit requested; targeted provider and actual live slices executed"
+  },
+  "boundaries": {
+    "governance_and_inference_callers": "explicit controlled mTLS and signed-owner test clients; actual product services were not substituted inside ACC",
+    "acc_business_and_persistence": "real production composition, domain rules, migrations, PostgreSQL, provider, and GPU execution; no inventory or binding seed SQL",
+    "quota_ledger_and_refund": "not_verified; no simulated Governance usage/ledger writes",
+    "tenant_usage_binding_association": "not_verified; no fabricated usage projection",
+    "frontend_and_actual_owner_business_api": "not_verified",
+    "multiple_physical_gpus": "not_verified; one T4 only",
+    "hardware_quantization_remainder": "not_verified; F256 divides this device memory exactly",
+    "core_throughput_throttling": "not_verified; runtime SM_LIMIT and additive scheduling budget were checked",
+    "large_model_framework_and_malicious_tenant_isolation": "not_verified; independently trained small CUDA classifiers and HAMi cooperative limits"
+  },
+  "remote_evidence_host": "fedora",
+  "raw_evidence_root": "/home/chabking/acc-gpu-live-20261017",
+  "local_evidence_copy": "/home/chabking/.codex/tasks/acc-gpu-live-20261017"
+}

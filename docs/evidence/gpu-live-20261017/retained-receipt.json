@@ -1,0 +1,1465 @@
+{
+  "schema_version": 1,
+  "kind": "acc-retained-patched-scheduler-gpu-live-receipt",
+  "result": "pass",
+  "completed_at_utc": "2026-10-16T19:40:46.435825+00:00",
+  "user_timezone": "Asia/Shanghai",
+  "acceptance_scope": "Sequential Shared and formal percentage Whole on one actual T4; final Shared OPEN and Whole CLOSED.",
+  "source": {
+    "baseline_branch": "origin/codex/instance-unified-20261016",
+    "baseline_commit": "c1242866d9877d4fd5dee934ddc80e8ec8b23ad9",
+    "working_branch": "codex/acc-gpu-live-20261017",
+    "committed": false,
+    "pushed": false,
+    "original_go_source_inventory": {
+      "path": "evidence/go-source-manifest.json",
+      "sha256": "faa2200f66b5305fd9466e65d20f4ab37aac71aec19c46cf2c0abca70a8c8b70"
+    },
+    "execution_acc_binary_sha256": "d84f4c99b950fdfd7d7c14d95e2b103c3e69c3a9a4c2779c5d8dba7577b32744",
+    "final_compiled_go_inputs": {
+      "path": "evidence/retained-20261017/query-fix/go-source-manifest.json",
+      "sha256": "ec15bc635b2dce300fb3f405fb5fa9e8a8810076c5bb7a7aac8bc6b9d3e865d4"
+    },
+    "final_acc_binary_sha256": "78893cec8698549eec739bf42bae8d42814078ffe16f98be47f55b985d98dac0"
+  },
+  "scheduler": {
+    "retained": true,
+    "image_digest": "sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+    "image_reference": "172.16.101.10:5000/volcanosh/vc-scheduler:v1.15.2-ani-percent-only@sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+    "helm": {
+      "release": "ani-volcano",
+      "namespace": "volcano-system",
+      "revision": 3,
+      "scheduler_image_tag_version": "v1.15.2-ani-percent-only@sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+      "hooks_skipped": true,
+      "admission_certificate_unchanged": true,
+      "admission_ready": true,
+      "scheduler_ready": true
+    },
+    "upstream_commit": "1462fb7b4835970708717456e3aed85e697ec2eb",
+    "patch_receipt": {
+      "path": "volcano-percent-fix/evidence/receipt.json",
+      "sha256": "8bdf2f0afa4f67fed7d920c4e1655a4c40ddd460c792dc8ea968272af0d3a7da"
+    },
+    "patch": {
+      "path": "volcano-percent-fix/percentage-only.patch",
+      "sha256": "0b302a2f7dd5b6d296c17f64a10ddcad9cb6b156c5f36066f737a37dc895a88c"
+    },
+    "image_available_nodes": [
+      "ani-01",
+      "ani-02",
+      "ani-03"
+    ],
+    "registry_published": false,
+    "delivery": "Same task OCI imported to every currently eligible scheduler node; no registry release."
+  },
+  "modes": {
+    "whole": {
+      "result": "pass",
+      "database": "acc_whole_v2",
+      "scope": {
+        "cluster_id": "99695d54-5244-4337-8cf0-7a08dbdc6113",
+        "pool_id": "6e22b678-86a7-4858-91b0-8f876eae61bc",
+        "group_id": "47064281-0cc4-4f5c-8275-b4abd27ec17f",
+        "baseline_digest": "d8a60fc2b467ee23c655d394e8a857141063a3b521a3fdeefd084202d7ef1cc0",
+        "spec_digest": "583438547cadfd4e80f0b6eb8d39595621555239b584900e09e20fc5105c36d1"
+      },
+      "nodes": [
+        {
+          "uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+          "name": "ani-03"
+        }
+      ],
+      "profile": {
+        "profile_id": "b9b49282-ad4e-41ba-816b-e3c133a10044",
+        "profile_version": "1",
+        "baseline_id": "e75558f8-45e5-48d2-9f25-f016a99abcf9",
+        "spec_digest": "583438547cadfd4e80f0b6eb8d39595621555239b584900e09e20fc5105c36d1",
+        "published": true
+      },
+      "baseline": {
+        "baseline_id": "e75558f8-45e5-48d2-9f25-f016a99abcf9",
+        "adapter_id": "volcano-hami-factor-v1",
+        "volcano_version": "v1.15.2",
+        "volcano_image_digest": "sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+        "device_plugin_version": "v1.12.0",
+        "device_plugin_image_digest": "sha256:39ffb800fc5dcd31e85a0bd9f0a994f932fcb9c34028a4a7204cf937be2906c8",
+        "hami_core_revision": "sha256:60511e25a7d7221f072fb9e301176e5b0920dff6bf3a6d4647788634cb3f1131",
+        "memory_block_mib": 256,
+        "memory_encoding": "VOLCANO_BLOCKS_TO_MIB",
+        "split_count": 1,
+        "memory_scale_percent": 100,
+        "core_scale_percent": 100,
+        "core_budget_additive": true,
+        "node_config_digest": "0e30e317c966809eda23a37d94ab30818606c84b7863a00e32c10f11bf40d242",
+        "scheduler_config_digest": "f371f579974b56c27a17ccc2e4bf8e31b87c92e3ce0ab13b9221f12fe9a71b69",
+        "recipe_version": "volcano-hami-v1",
+        "baseline_digest": "d8a60fc2b467ee23c655d394e8a857141063a3b521a3fdeefd084202d7ef1cc0"
+      },
+      "adopted_group_evidence": {
+        "path": "evidence/retained-20261017/whole/latest-AdoptSupplyGroup.response.json",
+        "sha256": "86c5cede79c97d059e1f69dbace873b36ddfae70d06a685b68b09eb41bb053bf"
+      },
+      "actual_pod": {
+        "cluster_id": "99695d54-5244-4337-8cf0-7a08dbdc6113",
+        "namespace": "acc-gpu-live-20261017",
+        "name": "acc-retained-whole-iris",
+        "uid": "8117defe-146c-46c0-b6e3-58a1aebbdbe5",
+        "container_name": "inference"
+      },
+      "phases": {
+        "empty": {
+          "physical_device_count": 1,
+          "nominal_units": 1,
+          "known_committed_units": 0,
+          "known_free_units": 1,
+          "complete": true,
+          "historical_binding_count": 2,
+          "initial_historical_query_result": "fail_preserved_and_fixed_by_postfix_rpc",
+          "initial_list_observation": {
+            "complete": false,
+            "observed_at": "2026-10-16T19:13:14.947184085Z",
+            "received_at": "2026-10-16T19:13:14.504150627Z",
+            "issues": [
+              "SOURCE_UNKNOWN"
+            ],
+            "snapshot_ref": ""
+          },
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/whole/phase-empty-capacity.json",
+              "sha256": "ef0be47ed10b22d6e4831389286fe1ae2efcf7ef008c1aa868fac3bc56371a1a"
+            },
+            {
+              "path": "evidence/retained-20261017/whole/phase-empty-bindings.json",
+              "sha256": "306e3d2534de27be7f41de95eca976bd8ca1fd1af3807b5c9562c41ed797fb82"
+            }
+          ]
+        },
+        "active": {
+          "physical_device_count": 1,
+          "nominal_units": 1,
+          "known_committed_units": 1,
+          "known_free_units": 0,
+          "complete": true,
+          "binding_id": "ab842950-e00a-448b-9d74-d498cb6976e2",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/whole/phase-active-capacity.json",
+              "sha256": "8655f62661f5f86beab4f10cc000bb32c862d418140c4b80844e0106672ad19f"
+            },
+            {
+              "path": "evidence/retained-20261017/whole/phase-active-bindings.json",
+              "sha256": "7ccbc6659f6938d29477e2d2958e058eb749cde9c79410e8a94d5ec8c2d036a9"
+            },
+            {
+              "path": "evidence/retained-20261017/whole/phase-active-release.json",
+              "sha256": "50e92c06ab396ea98799d972c23655b36d0b54422f2ac6e9eec4f12331296507"
+            }
+          ]
+        },
+        "after-restart": {
+          "physical_device_count": 1,
+          "nominal_units": 1,
+          "known_committed_units": 1,
+          "known_free_units": 0,
+          "complete": true,
+          "binding_id": "ab842950-e00a-448b-9d74-d498cb6976e2",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/whole/phase-after-restart-capacity.json",
+              "sha256": "7a9cc107e9ecf80f5ca4fbe29e5db933e1f73060a0e286fe360030b68547fd91"
+            },
+            {
+              "path": "evidence/retained-20261017/whole/phase-after-restart-bindings.json",
+              "sha256": "385ede59bba05b0709dc2d84d0bac60d7912abaf248d5bc4c246267c0662d9b7"
+            },
+            {
+              "path": "evidence/retained-20261017/whole/phase-after-restart-release.json",
+              "sha256": "a042aa4297648e7f779432c55ce1a4ffa1d0a7d85511758cc7d499bc01364368"
+            }
+          ]
+        },
+        "released": {
+          "physical_device_count": 1,
+          "nominal_units": 1,
+          "known_committed_units": 0,
+          "known_free_units": 1,
+          "complete": true,
+          "binding_id": "ab842950-e00a-448b-9d74-d498cb6976e2",
+          "binding_state": "RELEASE_CONFIRMED",
+          "release_finding": "ALLOCATION_RELEASED",
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/whole/phase-released-capacity.json",
+              "sha256": "de4cfc47b5fb318ae18bf0636b65252a7560a10892759c16ecfdc4c122e4c9c8"
+            },
+            {
+              "path": "evidence/retained-20261017/whole/phase-released-bindings.json",
+              "sha256": "7be2e434711b80d5b5b2c0ff97b05cf50f0c1204bb723047bc9a1ec4cd0447c4"
+            },
+            {
+              "path": "evidence/retained-20261017/whole/phase-released-release.json",
+              "sha256": "fdcb1794a7b7a04da3226566cbc724be5413372606648e32fcbc546e34bedb41"
+            }
+          ]
+        }
+      },
+      "postfix_historical_query": {
+        "result": "pass",
+        "method": "AdminListBindings",
+        "checked_at": "2026-10-16T19:38:47.109540+00:00",
+        "ttl_seconds": 120,
+        "top_level_complete": true,
+        "binding_count": 3,
+        "bindings": [
+          {
+            "binding_id": "ab842950-e00a-448b-9d74-d498cb6976e2",
+            "pod": {
+              "cluster_id": "99695d54-5244-4337-8cf0-7a08dbdc6113",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-retained-whole-iris",
+              "uid": "8117defe-146c-46c0-b6e3-58a1aebbdbe5",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "RELEASE_CONFIRMED",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:18:16.505419345Z",
+            "last_prepatch_observed_at": "2026-10-16T19:18:16.505419345Z",
+            "observed_at": "2026-10-16T19:18:16.505419345Z",
+            "snapshot_ref": "release:a3ac7d7a26216a8f42a962aacc76a1a84d8de82fad64da534aa3044a1ef060a3",
+            "age_seconds_at_query": 1230.604121,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "bb6daf00-5078-4225-a83b-3c84e1e5da0b",
+            "pod": {
+              "cluster_id": "99695d54-5244-4337-8cf0-7a08dbdc6113",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-whole-percent-probe",
+              "uid": "56372f8f-eb64-4511-9423-736d55ff6bfb",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "ALLOCATION_UNKNOWN",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:13:14.947184085Z",
+            "last_prepatch_observed_at": "2026-10-16T19:13:14.947184085Z",
+            "observed_at": "2026-10-16T19:13:14.947184085Z",
+            "snapshot_ref": "release:c077d1485183a3de9d02c00dbb7df091336e009f444bfcecf72ca15fbe547b14",
+            "age_seconds_at_query": 1532.162356,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "c029f1b1-b78d-4bb7-8d78-337b8bba6bdd",
+            "pod": {
+              "cluster_id": "99695d54-5244-4337-8cf0-7a08dbdc6113",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-whole-percent-competitor",
+              "uid": "0d5030d4-8d3e-4fa5-b94d-7b61460e5b5d",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "ALLOCATION_UNKNOWN",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:13:14.947184085Z",
+            "last_prepatch_observed_at": "2026-10-16T19:13:14.947184085Z",
+            "observed_at": "2026-10-16T19:13:14.947184085Z",
+            "snapshot_ref": "release:73df14d81a662edd9c90de7f9cbf20553fbbd1068c5570280220c8cedb2dcb80",
+            "age_seconds_at_query": 1532.162356,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          }
+        ],
+        "original_phase_evidence": [
+          {
+            "path": "evidence/retained-20261017/whole/phase-empty-bindings.json",
+            "sha256": "306e3d2534de27be7f41de95eca976bd8ca1fd1af3807b5c9562c41ed797fb82"
+          },
+          {
+            "path": "evidence/retained-20261017/whole/phase-released-bindings.json",
+            "sha256": "7be2e434711b80d5b5b2c0ff97b05cf50f0c1204bb723047bc9a1ec4cd0447c4"
+          }
+        ],
+        "actual_last_prepatch_rpc": {
+          "path": "evidence/retained-20261017/whole/phase-released-bindings.json",
+          "sha256": "7be2e434711b80d5b5b2c0ff97b05cf50f0c1204bb723047bc9a1ec4cd0447c4"
+        },
+        "actual_postfix_rpc": {
+          "path": "evidence/retained-20261017/query-fix/whole/latest-AdminListBindings.response.json",
+          "sha256": "1a6af4eb1854792807c830362e03c2838a86c35a3bcd874a963d072ad4a582ae"
+        },
+        "tenant_read_boundary": {
+          "evidence": {
+            "path": "evidence/retained-20261017/query-fix/whole/latest-ListBindings.response.json",
+            "sha256": "2c8704d86dc79830a8f6b77535f81ef2a6ca09b2e0edb343916b66c78f74535b"
+          },
+          "item_count": 0,
+          "observation": {
+            "complete": false,
+            "observed_at": "",
+            "received_at": "",
+            "issues": [
+              "SCOPE_UNOBSERVED"
+            ],
+            "snapshot_ref": ""
+          },
+          "acceptance": "Actual tenant read only; no Gov usage projection was created and tenant-associated historical release is not verified."
+        },
+        "driver_comparison": {
+          "path": "evidence/retained-20261017/query-fix/whole/postfix-binding-comparison.json",
+          "sha256": "99af3e71975e9bbc98c87578c4944c7b03f4db5dcaafbc444788a3f390f97518"
+        }
+      },
+      "hardware_proof": {
+        "evidence": {
+          "path": "evidence/retained-20261017/whole/attestations/3a9dc7f67e423eb9294075189c9878d849292873f2fc8f99bbc60f32e328400f.json",
+          "sha256": "c2e41eeca5110a179ba3312c22275eee67539e2b01ec00311544c5ff79e21d28"
+        },
+        "verified_at": "2026-10-16T19:16:23Z",
+        "expires_at": "2026-10-17T19:16:31.760691034Z",
+        "experiment_manifest_digest": "abc9034f4daef265963cdce9b0286d7d00c11bd1cb1ddece315246e8962b6912"
+      },
+      "hardware_experiment": {
+        "manifest": {
+          "path": "evidence/retained-20261017/whole/percentage-raw/acc-hardware-experiment.json",
+          "sha256": "abc9034f4daef265963cdce9b0286d7d00c11bd1cb1ddece315246e8962b6912"
+        },
+        "raw_artifact_count": 34,
+        "checks": [
+          "cuda_execution",
+          "memory_budget",
+          "core_configuration",
+          "whole_allocation",
+          "deletion_release"
+        ],
+        "actual_scheduler_observations": [
+          {
+            "path": "evidence/retained-20261017/whole/percentage-raw/probe-active-scheduler-pods.json",
+            "sha256": "72b21390a69d6c6ed40fb9ab476a47e89a7ae87ea4854cb12963a3dfba92e8f6"
+          }
+        ]
+      },
+      "frozen_plan": {
+        "evidence": {
+          "path": "evidence/retained-20261017/whole/latest-ResolveGpuRequest.response.json",
+          "sha256": "3cc4cf4a631a309760e60ee9767b4536b6b3f5a6da77d87aecdb51f3d864ff3d"
+        },
+        "resolution_digest": "3e679f833e72e69626e5a6cb21434a7a3c6df75f5d309cffac2ff74118044e5b",
+        "limits_per_container": {
+          "volcano.sh/vgpu-cores": "100",
+          "volcano.sh/vgpu-memory-percentage": "100",
+          "volcano.sh/vgpu-number": "1"
+        },
+        "encoding": {
+          "memory_block_mib": 256,
+          "memory_blocks_per_device": "0",
+          "shared_memory_mib": "0",
+          "memory_percentage": 100,
+          "policy": "EXACT"
+        }
+      }
+    },
+    "shared": {
+      "result": "pass",
+      "database": "acc_live_v2",
+      "scope": {
+        "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+        "pool_id": "e0f2344b-0d34-46a0-a794-478e43cf49e8",
+        "group_id": "99af2679-e80e-4038-ba46-14db9401485e",
+        "baseline_digest": "89243cf8c5e74129b0d1a4c2a3ec0e6134844e443562ac1469b27f81cda03330",
+        "spec_digest": "eb969a0f82d19b6434cd7b4c545327a5fda3cbecfb6c574e69b3272a37a2a78b"
+      },
+      "nodes": [
+        {
+          "uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+          "name": "ani-03"
+        }
+      ],
+      "profile": {
+        "profile_id": "46d03d3a-488b-49a6-b36b-f5ea8473afc8",
+        "profile_version": "1",
+        "baseline_id": "4c6f48ed-61f4-4c1b-99e4-1097e85d0455",
+        "spec_digest": "eb969a0f82d19b6434cd7b4c545327a5fda3cbecfb6c574e69b3272a37a2a78b",
+        "published": true
+      },
+      "baseline": {
+        "baseline_id": "4c6f48ed-61f4-4c1b-99e4-1097e85d0455",
+        "adapter_id": "volcano-hami-factor-v1",
+        "volcano_version": "v1.15.2",
+        "volcano_image_digest": "sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442",
+        "device_plugin_version": "v1.12.0",
+        "device_plugin_image_digest": "sha256:39ffb800fc5dcd31e85a0bd9f0a994f932fcb9c34028a4a7204cf937be2906c8",
+        "hami_core_revision": "sha256:60511e25a7d7221f072fb9e301176e5b0920dff6bf3a6d4647788634cb3f1131",
+        "memory_block_mib": 256,
+        "memory_encoding": "VOLCANO_BLOCKS_TO_MIB",
+        "split_count": 10,
+        "memory_scale_percent": 100,
+        "core_scale_percent": 100,
+        "core_budget_additive": true,
+        "node_config_digest": "6808203f5bc2f3801e97b37bbf3eb16b75b9d99a1da3c42ca9b18137f815a5bf",
+        "scheduler_config_digest": "f371f579974b56c27a17ccc2e4bf8e31b87c92e3ce0ab13b9221f12fe9a71b69",
+        "recipe_version": "volcano-hami-v1",
+        "baseline_digest": "89243cf8c5e74129b0d1a4c2a3ec0e6134844e443562ac1469b27f81cda03330"
+      },
+      "adopted_group_evidence": {
+        "path": "evidence/retained-20261017/shared/latest-AdoptSupplyGroup.response.json",
+        "sha256": "69430d6abe11fe091a7c508f77014d6f53cf76de345ccc1733930a77865d4210"
+      },
+      "actual_pod": {
+        "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+        "namespace": "acc-gpu-live-20261017",
+        "name": "acc-retained-shared-iris",
+        "uid": "37cbb2c7-2054-4ef7-923a-d66794b70ff5",
+        "container_name": "inference"
+      },
+      "phases": {
+        "empty": {
+          "physical_device_count": 1,
+          "nominal_units": 10,
+          "known_committed_units": 0,
+          "known_free_units": 10,
+          "complete": true,
+          "historical_binding_count": 11,
+          "initial_historical_query_result": "pass",
+          "initial_list_observation": {
+            "complete": true,
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "received_at": "2026-10-16T19:22:15.470280904Z",
+            "issues": [],
+            "snapshot_ref": ""
+          },
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/shared/phase-empty-capacity.json",
+              "sha256": "1cf2ee4741f1d1e711cf9a605740dea5aa3bb433a8373a99900f5add433cda4e"
+            },
+            {
+              "path": "evidence/retained-20261017/shared/phase-empty-bindings.json",
+              "sha256": "8b46ca0343290522d6059b154afe4dccf9aa5041842010b232c0c6957a15a720"
+            }
+          ]
+        },
+        "active": {
+          "physical_device_count": 1,
+          "nominal_units": 10,
+          "known_committed_units": 1,
+          "known_free_units": 9,
+          "complete": true,
+          "binding_id": "f58c9275-c81c-4526-a9ef-f69be4a6204e",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/shared/phase-active-capacity.json",
+              "sha256": "1c1cc55888be9585f60a86d0eadf090482cb07758f7fed5cb410b71c44f67a2a"
+            },
+            {
+              "path": "evidence/retained-20261017/shared/phase-active-bindings.json",
+              "sha256": "6348794e397488fba55a26f53a1bebf2d7fd4f066635ba5f620e4c25167576ce"
+            },
+            {
+              "path": "evidence/retained-20261017/shared/phase-active-release.json",
+              "sha256": "59040cf68ab685781d3db785ad7fd16b11e0eab3f390c42238204173add27195"
+            }
+          ]
+        },
+        "after-restart": {
+          "physical_device_count": 1,
+          "nominal_units": 10,
+          "known_committed_units": 1,
+          "known_free_units": 9,
+          "complete": true,
+          "binding_id": "f58c9275-c81c-4526-a9ef-f69be4a6204e",
+          "binding_state": "ACTIVE",
+          "release_finding": "ALLOCATION_STILL_PRESENT",
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/shared/phase-after-restart-capacity.json",
+              "sha256": "b9daf0d0b06bd2d8beaa0d317a336bd1b4429792066f8e845f4e41e8ed9f4500"
+            },
+            {
+              "path": "evidence/retained-20261017/shared/phase-after-restart-bindings.json",
+              "sha256": "0c2047bf0dec47e86784828371793807c2157d2f1190841eed6e37f6dfd56096"
+            },
+            {
+              "path": "evidence/retained-20261017/shared/phase-after-restart-release.json",
+              "sha256": "73989e674c1e7ad9216d3d8f1a99cd63fc3d010845c300cbc4163329f0aab0e8"
+            }
+          ]
+        },
+        "released": {
+          "physical_device_count": 1,
+          "nominal_units": 10,
+          "known_committed_units": 0,
+          "known_free_units": 10,
+          "complete": true,
+          "binding_id": "f58c9275-c81c-4526-a9ef-f69be4a6204e",
+          "binding_state": "RELEASE_CONFIRMED",
+          "release_finding": "ALLOCATION_RELEASED",
+          "evidence": [
+            {
+              "path": "evidence/retained-20261017/shared/phase-released-capacity.json",
+              "sha256": "813d322a83c253d4517e701ad722393bcb565d3070dcc8c4453ab3571c4e12d8"
+            },
+            {
+              "path": "evidence/retained-20261017/shared/phase-released-bindings.json",
+              "sha256": "dc3f618705a2dae2c2b19a67ccf54d1cb7bffe371393588ca58b3e05f40927dd"
+            },
+            {
+              "path": "evidence/retained-20261017/shared/phase-released-release.json",
+              "sha256": "06cf2772855213fb5e869342e402044c3e431fe9dc3bab1bc4ed00d023fe1f3a"
+            }
+          ]
+        }
+      },
+      "postfix_historical_query": {
+        "result": "pass",
+        "method": "AdminListBindings",
+        "checked_at": "2026-10-16T19:38:47.109540+00:00",
+        "ttl_seconds": 120,
+        "top_level_complete": true,
+        "binding_count": 12,
+        "bindings": [
+          {
+            "binding_id": "15839b50-4917-4de4-a095-f24de080930b",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-10",
+              "uid": "be3ae586-b04c-47ea-a4f5-931bf32eed45",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:0cb7fd401f834eb107d361042de820151e483c22cde0a1eb4e55b0d066f4c32e",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "2952dc47-8066-4b53-a28d-490d826f6abc",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-4",
+              "uid": "3ee77f23-a99a-482b-ac64-adb375caff71",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:93091eae1f6087723b1a82b07533ad1152da652b15d554a6bf43fea8c3c894b9",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "6595b380-0c66-4689-b8d0-8b7c4d2634e7",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-9",
+              "uid": "acfaf40e-b17d-4173-8ebe-c18c9fcf79de",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:9f7b1dbc7b490ec77b862a2745a981cb9773308a1860fddb5c59b6968eee0de0",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "a849e1ac-79bc-4f1c-a07d-75e69e688e6c",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-iris",
+              "uid": "a1fbb673-f24f-4c28-b819-6536ba1e0832",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:3fae266f3d7eaa4b34a21f9202300dc8f9e88d8a9bc5a8785bebbbd971ba5225",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "b3ca73e1-cccc-478d-8e86-cf972bb493e8",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-3",
+              "uid": "aaae2067-0b20-4c99-949b-fd2ebb49e4dc",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:efc28157dea38e753790459b38ad7e02d5c9d1b34622414a93794f24bf587515",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "c1d96f1e-a7cb-4f1c-a91a-9fa419ca78ec",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-7",
+              "uid": "3c19fd80-e87d-4c73-a8b1-ccc1f88397dc",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:5cebb2612a96b46ef037c7c46d3b2ad1825e3ce71aaebaf186e64f4db8bb7896",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "c4bcda62-220d-463d-adf2-da53e7a1f2ea",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-6",
+              "uid": "20c3907d-bc90-436d-84d7-4f6c4b8b8d54",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:6de753b222aeb880aabc10b083a43e6ff3ceeba19b9849db11fd062c3168c5bb",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "cd5118b1-9d19-4d60-8767-d372a3120c34",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-wine",
+              "uid": "238e9a10-0d99-428d-bb9b-b4bc9a167e00",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:67b6d88733177be5ed7b91b464851d558e390f18643a83329a8b646d7fadcbbd",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "d1b4771a-7a8d-4910-a876-3668cb0fecb9",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-11",
+              "uid": "025dd252-2842-41e8-92c7-eb443ba93cd4",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:69f07f60665436a15bc375aa50b3156adeb614557f9b54a4f1307b5bdfebdf9e",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "dea69a08-2903-488a-a956-7deeb4d6cdb0",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-8",
+              "uid": "4b8e121b-84a8-4352-8bed-56a02331440f",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:f083786e2925cfa67932709e98ca0095eb129c7cb97550799268cc303f54471e",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "df643e65-97be-47a5-8b73-db0c642e43b9",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-share-retained-5",
+              "uid": "fd85013b-07db-4a8e-b980-ee8145a235e2",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "ALLOCATION_UNKNOWN",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "last_prepatch_observed_at": "2026-10-16T19:22:15.801855683Z",
+            "observed_at": "2026-10-16T19:22:15.801855683Z",
+            "snapshot_ref": "release:87d2d3ea53ba642b04ef84c1a9b90abc0afc0613b5c2af36a0e1fec8343cd90d",
+            "age_seconds_at_query": 991.307685,
+            "prepatch_collector_advanced_after_phase": false,
+            "time_invariance_basis": "Original phase and last prepatch RPC have identical release observation times."
+          },
+          {
+            "binding_id": "f58c9275-c81c-4526-a9ef-f69be4a6204e",
+            "pod": {
+              "cluster_id": "15bf6361-cdb9-4117-9e0c-025d0e66be14",
+              "namespace": "acc-gpu-live-20261017",
+              "name": "acc-retained-shared-iris",
+              "uid": "37cbb2c7-2054-4ef7-923a-d66794b70ff5",
+              "container_name": "inference"
+            },
+            "initial_phase_read_state": "RELEASE_CONFIRMED",
+            "last_prepatch_read_state": "RELEASE_CONFIRMED",
+            "state": "RELEASE_CONFIRMED",
+            "complete": true,
+            "phase_observed_at": "2026-10-16T19:23:47.294711953Z",
+            "last_prepatch_observed_at": "2026-10-16T19:24:19.931770583Z",
+            "observed_at": "2026-10-16T19:24:19.931770583Z",
+            "snapshot_ref": "release:1c79e17bd2b1e9c4edfd7255fa34e1c50eed96a8d8ab4af1f49663ceb595e89c",
+            "age_seconds_at_query": 867.17777,
+            "prepatch_collector_advanced_after_phase": true,
+            "time_invariance_basis": "Actual last prepatch RPC compared with actual postfix RPC; phase snapshot remains unchanged."
+          }
+        ],
+        "original_phase_evidence": [
+          {
+            "path": "evidence/retained-20261017/shared/phase-empty-bindings.json",
+            "sha256": "8b46ca0343290522d6059b154afe4dccf9aa5041842010b232c0c6957a15a720"
+          },
+          {
+            "path": "evidence/retained-20261017/shared/phase-released-bindings.json",
+            "sha256": "dc3f618705a2dae2c2b19a67ccf54d1cb7bffe371393588ca58b3e05f40927dd"
+          }
+        ],
+        "actual_last_prepatch_rpc": {
+          "path": "evidence/retained-20261017/shared/20261016T192607.659000906Z-AdminListBindings.response.json",
+          "sha256": "9375264efc94737c71510e778624446cd1581e9525f2c4fce2aa28b726eb20c3"
+        },
+        "actual_postfix_rpc": {
+          "path": "evidence/retained-20261017/query-fix/shared/latest-AdminListBindings.response.json",
+          "sha256": "212b47bc595bfc3f2883421041d6595d816630445321bcd9094a38540ac14cf1"
+        },
+        "tenant_read_boundary": {
+          "evidence": {
+            "path": "evidence/retained-20261017/query-fix/shared/latest-ListBindings.response.json",
+            "sha256": "2c8704d86dc79830a8f6b77535f81ef2a6ca09b2e0edb343916b66c78f74535b"
+          },
+          "item_count": 0,
+          "observation": {
+            "complete": false,
+            "observed_at": "",
+            "received_at": "",
+            "issues": [
+              "SCOPE_UNOBSERVED"
+            ],
+            "snapshot_ref": ""
+          },
+          "acceptance": "Actual tenant read only; no Gov usage projection was created and tenant-associated historical release is not verified."
+        },
+        "driver_comparison": {
+          "path": "evidence/retained-20261017/query-fix/shared/postfix-binding-comparison.json",
+          "sha256": "abe022fe886873075063cb44100ef41e15ad96ee11dad2cc26d892e659d35011"
+        }
+      },
+      "hardware_proof": {
+        "evidence": {
+          "path": "evidence/retained-20261017/shared/attestations/bfc7cb66dccdcf3414c9ffd8a0925f23a02e081a912a2a8953c49dc25b8065c7.json",
+          "sha256": "66384059e349f77aea82823a025d8cdd95d20099ad98097c302b6b4a072faf66"
+        },
+        "verified_at": "2026-10-16T19:22:15.961433253Z",
+        "expires_at": "2026-10-17T19:22:36.890152643Z",
+        "experiment_manifest_digest": "1d72b4349ddcaaf5f6096ebaf3d5f7ad0dd508f772698b812c4cf818a5ba25b7"
+      },
+      "hardware_experiment": {
+        "manifest": {
+          "path": "evidence/retained-20261017/shared/raw/acc-hardware-experiment.json",
+          "sha256": "1d72b4349ddcaaf5f6096ebaf3d5f7ad0dd508f772698b812c4cf818a5ba25b7"
+        },
+        "raw_artifact_count": 118,
+        "checks": [
+          "cuda_execution",
+          "memory_budget",
+          "core_configuration",
+          "shared_allocation",
+          "deletion_release",
+          "software_baseline"
+        ],
+        "actual_scheduler_observations": [
+          {
+            "path": "evidence/retained-20261017/shared/raw/after-scheduler-pods.json",
+            "sha256": "72b21390a69d6c6ed40fb9ab476a47e89a7ae87ea4854cb12963a3dfba92e8f6"
+          },
+          {
+            "path": "evidence/retained-20261017/shared/raw/before-scheduler-pods.json",
+            "sha256": "72b21390a69d6c6ed40fb9ab476a47e89a7ae87ea4854cb12963a3dfba92e8f6"
+          }
+        ]
+      },
+      "frozen_plan": {
+        "evidence": {
+          "path": "evidence/retained-20261017/shared/latest-ResolveGpuRequest.response.json",
+          "sha256": "b24f57e6bd27f32a8668a97c92c5b9adf88f9c8135f62dab26e53c50cccf03e4"
+        },
+        "resolution_digest": "85724416c2397b1c153e52a05677055e21a0cd438482fa670ee7068a5696aa5d",
+        "limits_per_container": {
+          "volcano.sh/vgpu-cores": "10",
+          "volcano.sh/vgpu-memory": "4",
+          "volcano.sh/vgpu-number": "1"
+        },
+        "encoding": {
+          "memory_block_mib": 256,
+          "memory_blocks_per_device": "4",
+          "shared_memory_mib": "1024",
+          "memory_percentage": 0,
+          "policy": "EXACT"
+        }
+      }
+    }
+  },
+  "historical_query_fix": {
+    "result": "pass",
+    "initial_defect": "The old read view downgraded persisted RELEASE_CONFIRMED history to ALLOCATION_UNKNOWN after 120s; original failed phase snapshots are preserved.",
+    "execution_image": {
+      "digest": "sha256:10069615d2c27855f9dae6061a60707ecacbcb14fd2f1ba6898c14f996de7c8c",
+      "reference": "localhost/ani-accelerator@sha256:10069615d2c27855f9dae6061a60707ecacbcb14fd2f1ba6898c14f996de7c8c",
+      "source_go_inventory": {
+        "path": "evidence/go-source-manifest.json",
+        "sha256": "faa2200f66b5305fd9466e65d20f4ab37aac71aec19c46cf2c0abca70a8c8b70"
+      },
+      "binary_sha256": "d84f4c99b950fdfd7d7c14d95e2b103c3e69c3a9a4c2779c5d8dba7577b32744"
+    },
+    "final_query_image": {
+      "digest": "sha256:ff9a276434aa30d88864cce968a9c2a6922b13ff3b0405265d3fdfac28d41f93",
+      "reference": "localhost/ani-accelerator@sha256:ff9a276434aa30d88864cce968a9c2a6922b13ff3b0405265d3fdfac28d41f93",
+      "binary_sha256": "78893cec8698549eec739bf42bae8d42814078ffe16f98be47f55b985d98dac0",
+      "compiled_go_inputs": {
+        "path": "evidence/retained-20261017/query-fix/go-source-manifest.json",
+        "sha256": "ec15bc635b2dce300fb3f405fb5fa9e8a8810076c5bb7a7aac8bc6b9d3e865d4"
+      },
+      "source_go_inventory": {
+        "path": "evidence/retained-20261017/query-fix/all-go-source-manifest.json",
+        "sha256": "865bba9628f7f667fc5b1bb8e6dbbd52cfa335c9105f89d938779ed47276a0ab"
+      },
+      "actual_ready_serving_pods": {
+        "path": "evidence/retained-20261017/query-fix/serving-pods.json",
+        "sha256": "08222acada4ca089e83c61339044b3c8b95c804244d22e6d752d93040481efa0"
+      },
+      "built_and_runtime_binary_evidence": [
+        {
+          "path": "evidence/retained-20261017/query-fix/new-binary.sha256",
+          "sha256": "b1f586a23d53a31bcbe7245ff9578e2c5349d8ef06fb5c650e43b961ab746103"
+        },
+        {
+          "path": "evidence/retained-20261017/query-fix/runtime-binary.sha256",
+          "sha256": "22dc4cb489ebc321995d25cc9904c8e87ddb88d0dff4d11ced0624a5bd1ed66d"
+        }
+      ]
+    },
+    "minimal_fix_sources": [
+      {
+        "path": "retained-query-source/internal/biz/binding_query_history_test.go",
+        "sha256": "06fdf0f12e1cebc2eb8a8c38e12a37a44f7a4a51fbf4e46d3e7ae35153c77303"
+      },
+      {
+        "path": "retained-query-source/internal/biz/queries.go",
+        "sha256": "9c76b1529ea0d19bd3d85b53845488cc6c09c301b7bc9f8928df96de585310b0"
+      },
+      {
+        "path": "retained-query-source/internal/biz/usage.go",
+        "sha256": "017ec5f6c98bb0cb383c516ed16676fc8848f5a68aa57a538355258937f0a3a7"
+      }
+    ],
+    "fix_evidence": [
+      {
+        "path": "evidence/retained-20261017/query-fix/retained-query-red.log",
+        "sha256": "16b7413bb46a492c6a2bdf0962ac221b871cc6b4ccf32d15888000d927ebc7a7"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/retained-query-green.log",
+        "sha256": "999854aff2ee304e36af8364f778c383d30a34fc1aeeb0a85b158fb34a0c737a"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/query-read-view-fix.patch",
+        "sha256": "7f077dbbd0fadf4b2e8c6d018b3b857fdcae1315ce854fd8e2d1b08009e35f48"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/new-binary.sha256",
+        "sha256": "b1f586a23d53a31bcbe7245ff9578e2c5349d8ef06fb5c650e43b961ab746103"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/runtime-binary.sha256",
+        "sha256": "22dc4cb489ebc321995d25cc9904c8e87ddb88d0dff4d11ced0624a5bd1ed66d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/oci-archive.sha256",
+        "sha256": "a35d5eca4727ed27270601197d5557ef4325aaa181cd86e2ec50562fd9644b57"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/image-digest.txt",
+        "sha256": "9dcbb51a3194ec0b1c3934689b0aa214f0345c04b659d0f1a5cd2368e210e049"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/binary-build-info.txt",
+        "sha256": "647c57033d49924ca8054d2173ed8046510952b3e5d517e6020b7a364c7022eb"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/go-version.txt",
+        "sha256": "34113d5d84bc5406ab3bfd0028c381611cad764f40baa15e43cffd89485c0aee"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/go-source-manifest.json",
+        "sha256": "ec15bc635b2dce300fb3f405fb5fa9e8a8810076c5bb7a7aac8bc6b9d3e865d4"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/all-go-source-manifest.json",
+        "sha256": "865bba9628f7f667fc5b1bb8e6dbbd52cfa335c9105f89d938779ed47276a0ab"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/serving-pods.json",
+        "sha256": "08222acada4ca089e83c61339044b3c8b95c804244d22e6d752d93040481efa0"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/ani03-image.json",
+        "sha256": "e19ab69afafd0cf98894d9be1167dcf3470d690a080f19032fad4781f7e11bb7"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/postfix-binding-comparison.json",
+        "sha256": "02072299926ca758d8b92d1d3ee830b5ca3bb312eaf80bb8cbcd97477504ce0a"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/latest-AdminListBindings.response.json",
+        "sha256": "1a6af4eb1854792807c830362e03c2838a86c35a3bcd874a963d072ad4a582ae"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/latest-ListBindings.response.json",
+        "sha256": "2c8704d86dc79830a8f6b77535f81ef2a6ca09b2e0edb343916b66c78f74535b"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/latest-ListSupplyGroups.response.json",
+        "sha256": "996b6c089f96edf117b66c5495572d3de0254e6bb35c0fe105921ee3d6f5acc2"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/postfix-binding-comparison.json",
+        "sha256": "99af3e71975e9bbc98c87578c4944c7b03f4db5dcaafbc444788a3f390f97518"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-AdminListBindings.response.json",
+        "sha256": "212b47bc595bfc3f2883421041d6595d816630445321bcd9094a38540ac14cf1"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-ListBindings.response.json",
+        "sha256": "2c8704d86dc79830a8f6b77535f81ef2a6ca09b2e0edb343916b66c78f74535b"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-ListSupplyGroups.response.json",
+        "sha256": "1aa4c332cfa09476a9d4727a45389a2402ba010a50c5219566fa459069702100"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/postfix-binding-comparison.json",
+        "sha256": "abe022fe886873075063cb44100ef41e15ad96ee11dad2cc26d892e659d35011"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-AdminGetCapacity.response.json",
+        "sha256": "e02516201bd634a78cd3b94aaebbd3043e666fb75c4ee18b811c77ff63c38a23"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/admission.json",
+        "sha256": "be3295138d17b46c9772aedad661248e0ec06a21925335248c4947dbd9927279"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/ani-test-1-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/ani-test-2-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/ani-test-3-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/deployments.json",
+        "sha256": "7a2529ceda23f0e35ba42bd88512741620dd2424cd53739eb6b2c66f73553bcd"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/gpu-compute-processes.csv",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/helm-status.json",
+        "sha256": "eb68386abd2a631df3348df226bd4f0e21a2c1d5c596c0051308ec46b07aa009"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/helm-values.json",
+        "sha256": "313ff30bc0ba85f679f25b4ec1cb0adb5701be842492eb4752dce0b82b19a0ab"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/node.json",
+        "sha256": "6b93da236ea71d9137f6d1e68f42db109f1981fdd18b81793ee76274818df460"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/nvml.csv",
+        "sha256": "75bb5f97dc6210aab1747bdeba0bb60cb60f94456eb1f257100fbea1728c694c"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/plugin-config.json",
+        "sha256": "7850adad600f3bdcd198957259d9c34b8e77b49c375fffc93207311ecd49a3cd"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/plugin-pods.json",
+        "sha256": "64ce2bea14905ced30002cabbeec30975664bea83da99ec42aeb12c325b9db2a"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/plugin.json",
+        "sha256": "8b1a5ca47efa0063b6c7f44403154b58a155e7ae00a941f8d0772c1383d9a987"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/runtime-configs.json",
+        "sha256": "df542e505da23636ec5c4537e5effb0ec77ec72558bbe75b970ad87f799e20a5"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/scheduler-config.json",
+        "sha256": "4a1d61e5e70232c88a659ae25c0442b31a3e177b676e38d105a5467ed60075da"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/scheduler-pods.json",
+        "sha256": "a084978864ffac7ed4d52bbcf27956a326d02a4c2025fe0e16e2d0729ca43913"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/scheduler.json",
+        "sha256": "46116dffb4bc51e8f94216bd3efa56dd97395dd0411a11d8262355e4d74ae711"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/shared-database.json",
+        "sha256": "bcb7808bba66bc3fe3332e43250ab279c91676500fafa626eab6b0cc126eb484"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/task-pods.json",
+        "sha256": "b6185f9fbc1919a8c6628e297c25c21fd0552efb42363ab8c4807fb8610ca11b"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/whole-database.json",
+        "sha256": "457d7258f438a83a30e2026fcb263d2f6029abf8ab9f638cd46330cbd511c1c0"
+      }
+    ],
+    "postfix_comparison": {
+      "path": "evidence/retained-20261017/query-fix/postfix-binding-comparison.json",
+      "sha256": "02072299926ca758d8b92d1d3ee830b5ca3bb312eaf80bb8cbcd97477504ce0a"
+    },
+    "acceptance": "Actual Admin historical binding RPCs on the new image plus targeted Go tests; tenant ListBindings history remains outside LIVE acceptance without Gov usage projection."
+  },
+  "service_certificate_not_after": {
+    "shared": "2026-10-30T17:34:48Z",
+    "whole": "2026-10-30T18:06:55Z"
+  },
+  "final_state": {
+    "node_name": "ani-03",
+    "node_uid": "af992ed9-cbe1-4f64-8fac-7433808bfab2",
+    "memory_factor_mib": 256,
+    "node_split_count": 10,
+    "shared_admission": "ADMISSION_OPEN",
+    "whole_admission": "ADMISSION_CLOSED",
+    "whole_runtime_final_replicas": 0,
+    "shared_capacity": {
+      "physical_device_count": "1",
+      "nominal_units": "10",
+      "known_committed_units": "0",
+      "known_free_units": "10",
+      "complete": true
+    },
+    "gpu_memory_used_mib": 0,
+    "gpu_compute_process_count": 0
+  },
+  "databases": {
+    "shared": "acc_live_v2",
+    "whole": "acc_whole_v2",
+    "preserved": [
+      "acc_live",
+      "acc_whole"
+    ],
+    "schema_version": 3,
+    "runtime_restricted": true
+  },
+  "final_state_evidence": {
+    "original_execution_driver_result": {
+      "path": "evidence/retained-20261017/final-result.json",
+      "sha256": "7eebba930668c9662a3518ff780f019a320a6f765fbc13983598efe5b9b6a9f3"
+    },
+    "driver_result": {
+      "path": "evidence/retained-20261017/final-result-query-fixed.json",
+      "sha256": "f58b306dcde644ca4f8bcc75907e5b94b97c58da9c49d682c79659b3e1277ba1"
+    },
+    "artifacts": [
+      {
+        "path": "evidence/retained-20261017/final/admission.json",
+        "sha256": "be3295138d17b46c9772aedad661248e0ec06a21925335248c4947dbd9927279"
+      },
+      {
+        "path": "evidence/retained-20261017/final/ani-test-1-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/final/ani-test-2-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/final/ani-test-3-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/final/deployments.json",
+        "sha256": "cceed915a0afca8b15ea0281c8a0f2a31206f574689835cc97c927e305d34030"
+      },
+      {
+        "path": "evidence/retained-20261017/final/gpu-compute-processes.csv",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "evidence/retained-20261017/final/helm-status.json",
+        "sha256": "eb68386abd2a631df3348df226bd4f0e21a2c1d5c596c0051308ec46b07aa009"
+      },
+      {
+        "path": "evidence/retained-20261017/final/helm-values.json",
+        "sha256": "313ff30bc0ba85f679f25b4ec1cb0adb5701be842492eb4752dce0b82b19a0ab"
+      },
+      {
+        "path": "evidence/retained-20261017/final/node.json",
+        "sha256": "1027621411abbb056e7f836233b7a38e641330f1e87e5f2d0bb84e5b2bec9aa7"
+      },
+      {
+        "path": "evidence/retained-20261017/final/nvml.csv",
+        "sha256": "75bb5f97dc6210aab1747bdeba0bb60cb60f94456eb1f257100fbea1728c694c"
+      },
+      {
+        "path": "evidence/retained-20261017/final/plugin-config.json",
+        "sha256": "7850adad600f3bdcd198957259d9c34b8e77b49c375fffc93207311ecd49a3cd"
+      },
+      {
+        "path": "evidence/retained-20261017/final/plugin-pods.json",
+        "sha256": "64ce2bea14905ced30002cabbeec30975664bea83da99ec42aeb12c325b9db2a"
+      },
+      {
+        "path": "evidence/retained-20261017/final/plugin.json",
+        "sha256": "8b1a5ca47efa0063b6c7f44403154b58a155e7ae00a941f8d0772c1383d9a987"
+      },
+      {
+        "path": "evidence/retained-20261017/final/runtime-configs.json",
+        "sha256": "df542e505da23636ec5c4537e5effb0ec77ec72558bbe75b970ad87f799e20a5"
+      },
+      {
+        "path": "evidence/retained-20261017/final/scheduler-config.json",
+        "sha256": "4a1d61e5e70232c88a659ae25c0442b31a3e177b676e38d105a5467ed60075da"
+      },
+      {
+        "path": "evidence/retained-20261017/final/scheduler-pods.json",
+        "sha256": "a084978864ffac7ed4d52bbcf27956a326d02a4c2025fe0e16e2d0729ca43913"
+      },
+      {
+        "path": "evidence/retained-20261017/final/scheduler.json",
+        "sha256": "46116dffb4bc51e8f94216bd3efa56dd97395dd0411a11d8262355e4d74ae711"
+      },
+      {
+        "path": "evidence/retained-20261017/final/shared-capacity.json",
+        "sha256": "ce78523ab0f540de09abd8b2a2d1086147fc9609f404acf2dd33a6903982e9f5"
+      },
+      {
+        "path": "evidence/retained-20261017/final/shared-database.json",
+        "sha256": "bcb7808bba66bc3fe3332e43250ab279c91676500fafa626eab6b0cc126eb484"
+      },
+      {
+        "path": "evidence/retained-20261017/final/task-pods.json",
+        "sha256": "0f1e99d54760a76198a1de6419a20d9c211ead55cb7574003eda518c7641746a"
+      },
+      {
+        "path": "evidence/retained-20261017/final/whole-database.json",
+        "sha256": "457d7258f438a83a30e2026fcb263d2f6029abf8ab9f638cd46330cbd511c1c0"
+      },
+      {
+        "path": "evidence/retained-20261017/helm/admission-identity-after.json",
+        "sha256": "f618fd98c48931c568d0d245ff9eaa621ba4f20678b47eebcceda97e80ebd917"
+      },
+      {
+        "path": "evidence/retained-20261017/helm/admission-identity-before.json",
+        "sha256": "eee82f2dd36215240af424f1977ddfad44ba1390026b34fc8bd691b8e08586a3"
+      },
+      {
+        "path": "evidence/retained-20261017/whole/service-certificate.json",
+        "sha256": "114bb13a6e5b75aafa915875f936c7f71f89463622abe3fba92941ff66436ed0"
+      },
+      {
+        "path": "evidence/retained-20261017/shared/service-certificate.json",
+        "sha256": "f3d0f3f68009002b1ffba99fce782fecfdcc065a4d3cfbc2aa5cf0c6d6a37f30"
+      },
+      {
+        "path": "evidence/retained-20261017/whole/positive-cri-exit.json",
+        "sha256": "0e8cc99d38176df4123f814049235ae4b8708a1a4cd6aec4575a7880eae205ab"
+      },
+      {
+        "path": "evidence/retained-20261017/shared/positive-cri-exit.json",
+        "sha256": "42da9bdf4f185aa31775005c67c3c03eac9004a938776653ad43b7eabfc501fb"
+      },
+      {
+        "path": "evidence/retained-20261017/delivery/ownership.json",
+        "sha256": "dbe131365061c5decd37cf45d0f5bf6a5000353f028a07a713dc2e0e1aad39b4"
+      },
+      {
+        "path": "evidence/retained-20261017/delivery/retained-scheduler-deployment.json",
+        "sha256": "4c54840e02444c4756c5ab2cc1f561a96aa430ab5042828bf80d93cf2f607dc0"
+      },
+      {
+        "path": "evidence/retained-20261017/delivery/helm-upgrade.log",
+        "sha256": "f26c98a3c2f20ef57bc1f82f9a81d849de55ea0fbc65b0c16b33e0f7d47f7113"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/retained-query-red.log",
+        "sha256": "16b7413bb46a492c6a2bdf0962ac221b871cc6b4ccf32d15888000d927ebc7a7"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/retained-query-green.log",
+        "sha256": "999854aff2ee304e36af8364f778c383d30a34fc1aeeb0a85b158fb34a0c737a"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/query-read-view-fix.patch",
+        "sha256": "7f077dbbd0fadf4b2e8c6d018b3b857fdcae1315ce854fd8e2d1b08009e35f48"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/new-binary.sha256",
+        "sha256": "b1f586a23d53a31bcbe7245ff9578e2c5349d8ef06fb5c650e43b961ab746103"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/runtime-binary.sha256",
+        "sha256": "22dc4cb489ebc321995d25cc9904c8e87ddb88d0dff4d11ced0624a5bd1ed66d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/oci-archive.sha256",
+        "sha256": "a35d5eca4727ed27270601197d5557ef4325aaa181cd86e2ec50562fd9644b57"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/image-digest.txt",
+        "sha256": "9dcbb51a3194ec0b1c3934689b0aa214f0345c04b659d0f1a5cd2368e210e049"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/binary-build-info.txt",
+        "sha256": "647c57033d49924ca8054d2173ed8046510952b3e5d517e6020b7a364c7022eb"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/go-version.txt",
+        "sha256": "34113d5d84bc5406ab3bfd0028c381611cad764f40baa15e43cffd89485c0aee"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/go-source-manifest.json",
+        "sha256": "ec15bc635b2dce300fb3f405fb5fa9e8a8810076c5bb7a7aac8bc6b9d3e865d4"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/all-go-source-manifest.json",
+        "sha256": "865bba9628f7f667fc5b1bb8e6dbbd52cfa335c9105f89d938779ed47276a0ab"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/serving-pods.json",
+        "sha256": "08222acada4ca089e83c61339044b3c8b95c804244d22e6d752d93040481efa0"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/ani03-image.json",
+        "sha256": "e19ab69afafd0cf98894d9be1167dcf3470d690a080f19032fad4781f7e11bb7"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/postfix-binding-comparison.json",
+        "sha256": "02072299926ca758d8b92d1d3ee830b5ca3bb312eaf80bb8cbcd97477504ce0a"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/latest-AdminListBindings.response.json",
+        "sha256": "1a6af4eb1854792807c830362e03c2838a86c35a3bcd874a963d072ad4a582ae"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/latest-ListBindings.response.json",
+        "sha256": "2c8704d86dc79830a8f6b77535f81ef2a6ca09b2e0edb343916b66c78f74535b"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/latest-ListSupplyGroups.response.json",
+        "sha256": "996b6c089f96edf117b66c5495572d3de0254e6bb35c0fe105921ee3d6f5acc2"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/whole/postfix-binding-comparison.json",
+        "sha256": "99af3e71975e9bbc98c87578c4944c7b03f4db5dcaafbc444788a3f390f97518"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-AdminListBindings.response.json",
+        "sha256": "212b47bc595bfc3f2883421041d6595d816630445321bcd9094a38540ac14cf1"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-ListBindings.response.json",
+        "sha256": "2c8704d86dc79830a8f6b77535f81ef2a6ca09b2e0edb343916b66c78f74535b"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-ListSupplyGroups.response.json",
+        "sha256": "1aa4c332cfa09476a9d4727a45389a2402ba010a50c5219566fa459069702100"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/postfix-binding-comparison.json",
+        "sha256": "abe022fe886873075063cb44100ef41e15ad96ee11dad2cc26d892e659d35011"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/shared/latest-AdminGetCapacity.response.json",
+        "sha256": "e02516201bd634a78cd3b94aaebbd3043e666fb75c4ee18b811c77ff63c38a23"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/admission.json",
+        "sha256": "be3295138d17b46c9772aedad661248e0ec06a21925335248c4947dbd9927279"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/ani-test-1-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/ani-test-2-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/ani-test-3-scheduler-image.json",
+        "sha256": "60c3da89681054b5008a7e3d7837b61babdf11f41deb53fe73a8e8b6ef6b440d"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/deployments.json",
+        "sha256": "7a2529ceda23f0e35ba42bd88512741620dd2424cd53739eb6b2c66f73553bcd"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/gpu-compute-processes.csv",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/helm-status.json",
+        "sha256": "eb68386abd2a631df3348df226bd4f0e21a2c1d5c596c0051308ec46b07aa009"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/helm-values.json",
+        "sha256": "313ff30bc0ba85f679f25b4ec1cb0adb5701be842492eb4752dce0b82b19a0ab"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/node.json",
+        "sha256": "6b93da236ea71d9137f6d1e68f42db109f1981fdd18b81793ee76274818df460"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/nvml.csv",
+        "sha256": "75bb5f97dc6210aab1747bdeba0bb60cb60f94456eb1f257100fbea1728c694c"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/plugin-config.json",
+        "sha256": "7850adad600f3bdcd198957259d9c34b8e77b49c375fffc93207311ecd49a3cd"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/plugin-pods.json",
+        "sha256": "64ce2bea14905ced30002cabbeec30975664bea83da99ec42aeb12c325b9db2a"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/plugin.json",
+        "sha256": "8b1a5ca47efa0063b6c7f44403154b58a155e7ae00a941f8d0772c1383d9a987"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/runtime-configs.json",
+        "sha256": "df542e505da23636ec5c4537e5effb0ec77ec72558bbe75b970ad87f799e20a5"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/scheduler-config.json",
+        "sha256": "4a1d61e5e70232c88a659ae25c0442b31a3e177b676e38d105a5467ed60075da"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/scheduler-pods.json",
+        "sha256": "a084978864ffac7ed4d52bbcf27956a326d02a4c2025fe0e16e2d0729ca43913"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/scheduler.json",
+        "sha256": "46116dffb4bc51e8f94216bd3efa56dd97395dd0411a11d8262355e4d74ae711"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/shared-database.json",
+        "sha256": "bcb7808bba66bc3fe3332e43250ab279c91676500fafa626eab6b0cc126eb484"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/task-pods.json",
+        "sha256": "b6185f9fbc1919a8c6628e297c25c21fd0552efb42363ab8c4807fb8610ca11b"
+      },
+      {
+        "path": "evidence/retained-20261017/query-fix/final/whole-database.json",
+        "sha256": "457d7258f438a83a30e2026fcb263d2f6029abf8ab9f638cd46330cbd511c1c0"
+      }
+    ]
+  },
+  "boundaries": {
+    "physical_supply": "One GPU; mode catalogs are sequential isolated test scopes, never two physical supplies.",
+    "old_databases_and_receipt": "Retained; historical claims and proofs were not rewritten.",
+    "proof_checks": "Production Publish accepted the signed scope; this generator checks scope, current expiry, manifest/artifact hashes and actual scheduler image observations.",
+    "governance_quota_and_usage_projection": "not_verified",
+    "actual_inference_business_api_and_frontend": "not_verified",
+    "multiple_physical_gpus": "not_verified",
+    "quantization_tail": "not_verified; F256 divides this T4 exactly",
+    "core_throughput_and_malicious_tenant_isolation": "not_verified; HAMi cooperative configuration and additive scheduling budget checked",
+    "registry_or_other_nodes": "not_verified beyond the explicitly inventoried three scheduler nodes",
+    "full_make_verify": "not_run; no commit requested"
+  },
+  "remote_evidence_host": "fedora",
+  "raw_evidence_root": "/home/chabking/acc-gpu-live-20261017"
+}
