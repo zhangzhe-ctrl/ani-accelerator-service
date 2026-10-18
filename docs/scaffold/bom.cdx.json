@@ -22,11 +22,11 @@
       }
     ],
     "component": {
-      "bom-ref": "pkg:golang/github.com/zhangzhe-ctrl/ani-accelerator-service@v0.0.0-20000101000000-74cf866e2390?type=module",
+      "bom-ref": "pkg:golang/github.com/zhangzhe-ctrl/ani-accelerator-service@v0.0.0-20000101000000-470b1b9d8c44?type=module",
       "type": "application",
       "name": "github.com/zhangzhe-ctrl/ani-accelerator-service",
-      "version": "v0.0.0-20000101000000-74cf866e2390",
-      "purl": "pkg:golang/github.com/zhangzhe-ctrl/ani-accelerator-service@v0.0.0-20000101000000-74cf866e2390?goarch=amd64&goos=linux&type=module",
+      "version": "v0.0.0-20000101000000-470b1b9d8c44",
+      "purl": "pkg:golang/github.com/zhangzhe-ctrl/ani-accelerator-service@v0.0.0-20000101000000-470b1b9d8c44?goarch=amd64&goos=linux&type=module",
       "externalReferences": [
         {
           "url": "https://github.com/zhangzhe-ctrl/ani-accelerator-service",
@@ -1253,7 +1253,7 @@
   ],
   "dependencies": [
     {
-      "ref": "pkg:golang/github.com/zhangzhe-ctrl/ani-accelerator-service@v0.0.0-20000101000000-74cf866e2390?type=module",
+      "ref": "pkg:golang/github.com/zhangzhe-ctrl/ani-accelerator-service@v0.0.0-20000101000000-470b1b9d8c44?type=module",
       "dependsOn": [
         "pkg:golang/github.com/NVIDIA/go-nvml@v0.13.0-1?type=module",
         "pkg:golang/github.com/go-kratos/kratos/contrib/otel/v3@v3.0.0-20260515082355-1ddb58e407c5?type=module",
