@@ -140,6 +140,10 @@ func TestProviderLateOwnerPreservesHistoricalSchedulerAndAssociatesRuntime(t *te
 	providerControlledSources(t, "v1.15.2", "late_owner")
 }
 
+func TestProviderHistoricalGroupDoesNotReplaceCurrentSupply(t *testing.T) {
+	providerControlledSources(t, "v1.16.0", "historical_group")
+}
+
 func providerControlledSources(t *testing.T, schedulerVersion, configurationFault string) {
 	path := os.Getenv("ACC_TEST_DSN_FILE")
 	if path == "" {
@@ -318,6 +322,49 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		}
 	}
 	collect()
+	if configurationFault == "historical_group" {
+		// Maintenance retains the old group's immutable node/baseline history.
+		// Current node labels identify the successor regardless of catalog order.
+		historical := g
+		historical.GroupID = biz.NewID()
+		oldBaseline := *b
+		oldBaseline.BaselineID = biz.NewID()
+		oldBaseline.SplitCount = 1
+		oldBaseline.BaselineDigest, _ = biz.BaselineDigest(&oldBaseline)
+		historical.Baseline = &oldBaseline
+		historical.Mode = biz.Whole
+		for _, groups := range [][]biz.SupplyGroup{{g, historical}, {historical, g}} {
+			batch, err := adapter.Collect(ctx, cluster, groups)
+			if err != nil || len(batch.Devices) != 2 {
+				t.Fatalf("current supply collection failed: %+v error=%v", batch, err)
+			}
+			for _, device := range batch.Devices {
+				if device.Device.GroupID != g.GroupID || device.BaselineDigest != b.BaselineDigest || !device.Device.Observation.Complete {
+					t.Fatalf("historical group replaced label-selected supply: %+v", device)
+				}
+			}
+			if err := db.Transact(ctx, func(tx biz.Transaction) error { return tx.SaveObservation(ctx, batch) }); err != nil {
+				t.Fatal(err)
+			}
+		}
+		batch, err := adapter.Collect(ctx, cluster, []biz.SupplyGroup{historical})
+		if err != nil || len(batch.Devices) != 2 {
+			t.Fatalf("unmatched assignment must invalidate cached supply: %+v error=%v", batch, err)
+		}
+		for _, device := range batch.Devices {
+			if device.Device.Observation.Complete || device.Device.GroupID != g.GroupID {
+				t.Fatalf("unmatched labels exposed a historical supply as current: %+v", device)
+			}
+		}
+		state.mu.Lock()
+		state.exited, state.absent, state.apiDeleted = true, true, true
+		state.mu.Unlock()
+		batch, err = adapter.Collect(ctx, cluster, []biz.SupplyGroup{historical})
+		if err != nil || len(batch.Releases) != 1 {
+			t.Fatalf("historical membership selection blocked real physical release: %+v error=%v", batch, err)
+		}
+		return
+	}
 	if configurationFault == "late_owner" {
 		var first biz.Claim
 		if err := db.View(ctx, func(r biz.Reader) error {

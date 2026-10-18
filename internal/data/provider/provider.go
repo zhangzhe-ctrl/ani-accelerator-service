@@ -321,6 +321,11 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		handshake, handshakeErr := ParseHandshake(n.Metadata.Annotations[NodeHandshake])
 		var group *biz.SupplyGroup
 		for i := range groups {
+			// Closed predecessor groups retain their immutable node history.
+			// Only the node's current assignment may supply the unit baseline.
+			if groups[i].GroupID != n.Metadata.Labels[biz.GroupLabel] || groups[i].Baseline == nil || groups[i].Baseline.BaselineID != n.Metadata.Labels[biz.BaselineLabel] || groups[i].ModelKey != n.Metadata.Labels[biz.ModelLabel] {
+				continue
+			}
 			for _, member := range groups[i].Nodes {
 				if member.UID == source.UID && member.Name == source.Name {
 					group = &groups[i]
@@ -328,6 +333,14 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			}
 		}
 		if group == nil {
+			stale, err := p.unknownDevices(ctx, c.ClusterID, "", source.UID, now)
+			if err != nil {
+				return batch, err
+			}
+			for i := range stale {
+				stale[i].Device.Observation.Issues = []string{"SUPPLY_ASSIGNMENT_UNKNOWN"}
+			}
+			batch.Devices = append(batch.Devices, stale...)
 			continue
 		} // No trusted F exists for an unmanaged supply node.
 		unitsTrusted := registerErr == nil && handshakeErr == nil && sourceFresh(now, handshake, p.freshness) && pluginErr == nil && schedulerErr == nil && collectionUnitsMatch(*group, source, registered, plugins, schedulers, k.config)
