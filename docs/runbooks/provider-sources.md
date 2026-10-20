@@ -33,6 +33,8 @@
 
 `provider_config_file` 是部署者维护的 JSON，不由 RegisterCluster 写入。顶层为 `connections` 数组，每项字段如下。空数组允许以无供给模式启动，登记只能引用其中已有 ref。
 
+这也是 ACC 的唯一基础设施管理范围：管理、目录、容量和解析根据数据库中的 `cluster.connection_ref` 回查该配置；不新增独立集群授权清单，不按用户或租户重复配置连接范围。用户权限、套餐和配额由 Gov 管理，ACC 仍校验调用服务、完整 RPC 方法、可信上下文、租户数据和实体关联。已登记集群的连接不在当前配置时，相关访问拒绝；注册接口不能提交任意 API 地址、凭据或 socket 路径。配置读取于启动装配，变更通过受管部署流程生效。
+
 ```json
 {
   "runtime_events_directory": "/var/lib/accelerator/runtime-exits/node-a",

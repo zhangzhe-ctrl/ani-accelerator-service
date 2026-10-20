@@ -31,6 +31,16 @@ func NewUsecase(repo Repository, provider Provider, cursor *CursorCodec, connect
 	}
 	return u, nil
 }
+
+// connectionRefs is derived exclusively from provider.json by composition.
+func (u *Usecase) connectionRefs() []string {
+	refs := make([]string, 0, len(u.connections))
+	for ref := range u.connections {
+		refs = append(refs, ref)
+	}
+	sort.Strings(refs)
+	return refs
+}
 func mutate[T any](ctx context.Context, u *Usecase, m *AdminMutation, method string, input any, fn func(Transaction) (*T, error)) (*T, error) {
 	if err := AuthorizeMutation(ctx, m, method); err != nil {
 		return nil, err
@@ -60,13 +70,13 @@ func mutate[T any](ctx context.Context, u *Usecase, m *AdminMutation, method str
 			if json.Unmarshal(prior.Result, result) != nil {
 				return Precondition("STORED_RESULT_INVALID")
 			}
-			return authorizeMutationResult(ctx, tx, any(result))
+			return u.authorizeMutationResult(ctx, tx, any(result))
 		}
 		result, err = fn(tx)
 		if err != nil {
 			return err
 		}
-		if err = authorizeMutationResult(ctx, tx, any(result)); err != nil {
+		if err = u.authorizeMutationResult(ctx, tx, any(result)); err != nil {
 			return err
 		}
 		b, err := json.Marshal(result)
@@ -112,7 +122,7 @@ func prepareMutation[T any](ctx context.Context, u *Usecase, m *AdminMutation, m
 		if json.Unmarshal(prior.Result, result) != nil {
 			return Precondition("STORED_RESULT_INVALID")
 		}
-		return authorizeMutationResult(ctx, tx, any(result))
+		return u.authorizeMutationResult(ctx, tx, any(result))
 	})
 	return result, err
 }
@@ -172,20 +182,20 @@ func checkCatalogSnapshot(ctx context.Context, r Reader, c *Cluster, p *Pool, g 
 	}
 	return nil
 }
-func authorizeMutationResult(ctx context.Context, r Reader, value any) error {
+func (u *Usecase) authorizeMutationResult(ctx context.Context, r Reader, value any) error {
 	switch v := value.(type) {
 	case *Cluster:
-		return AuthorizeCluster(ctx, v.ClusterID)
+		return u.authorizeCluster(ctx, r, v.ClusterID)
 	case *Pool:
-		return AuthorizeCluster(ctx, v.ClusterID)
+		return u.authorizeCluster(ctx, r, v.ClusterID)
 	case *SupplyGroup:
-		return AuthorizeCluster(ctx, v.ClusterID)
+		return u.authorizeCluster(ctx, r, v.ClusterID)
 	case *Profile:
 		g, err := r.Group(ctx, v.Spec.GroupID)
 		if err != nil {
 			return err
 		}
-		return AuthorizeCluster(ctx, g.ClusterID)
+		return u.authorizeCluster(ctx, r, g.ClusterID)
 	default:
 		return Denied()
 	}
@@ -203,11 +213,8 @@ func (u *Usecase) CreatePool(ctx context.Context, m *AdminMutation, cluster, nam
 	if !UUID(cluster) || !Text(name, 64) {
 		return nil, Invalid("INVALID_POOL")
 	}
-	if err := AuthorizeCluster(ctx, cluster); err != nil {
-		return nil, err
-	}
 	return mutate(ctx, u, m, "CreatePool", []string{cluster, name}, func(tx Transaction) (*Pool, error) {
-		if _, err := tx.Cluster(ctx, cluster); err != nil {
+		if err := u.authorizeCluster(ctx, tx, cluster); err != nil {
 			return nil, err
 		}
 		p := &Pool{NewID(), cluster, name}
@@ -249,7 +256,7 @@ func (u *Usecase) AdoptSupplyGroup(ctx context.Context, m *AdminMutation, a Adop
 		if err != nil {
 			return err
 		}
-		if err = AuthorizeCluster(ctx, p.ClusterID); err != nil {
+		if err = u.authorizeCluster(ctx, r, p.ClusterID); err != nil {
 			return err
 		}
 		c, err = r.Cluster(ctx, p.ClusterID)
@@ -323,7 +330,7 @@ func (u *Usecase) CreateProfile(ctx context.Context, m *AdminMutation, a CreateP
 		if err != nil {
 			return err
 		}
-		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
+		if err = u.authorizeCluster(ctx, r, g.ClusterID); err != nil {
 			return err
 		}
 		if g.Version != a.ExpectedGroupVersion {
@@ -395,7 +402,7 @@ func (u *Usecase) SetAdmission(ctx context.Context, m *AdminMutation, a Admissio
 		if err != nil {
 			return err
 		}
-		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
+		if err = u.authorizeCluster(ctx, r, g.ClusterID); err != nil {
 			return err
 		}
 		if g.Version != a.ExpectedVersion {
@@ -486,14 +493,14 @@ func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedGpuReq
 	if err := ValidateRequest(gpu, u.maxReplicas); err != nil {
 		return nil, err
 	}
-	if err := AuthorizeCluster(ctx, gpu.ClusterID); err != nil {
-		return nil, err
-	}
 	var plan *ResolvedGpuRequest
 	var p *Profile
 	var g *SupplyGroup
 	var c *Cluster
 	err := u.repo.View(ctx, func(r Reader) error {
+		if err := u.authorizeCluster(ctx, r, gpu.ClusterID); err != nil {
+			return err
+		}
 		var err error
 		p, err = r.Profile(ctx, gpu.ProfileID, gpu.ProfileVersion)
 		if err != nil {
@@ -506,8 +513,8 @@ func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedGpuReq
 		if g.Admission != Open {
 			return Precondition("ADMISSION_CLOSED")
 		}
-		if AuthorizeCluster(ctx, g.ClusterID) != nil {
-			return NotFound()
+		if err := u.authorizeCluster(ctx, r, g.ClusterID); err != nil {
+			return err
 		}
 		if gpu.ClusterID != g.ClusterID || gpu.PoolID != g.PoolID {
 			return Precondition("PROFILE_SCOPE_MISMATCH")
@@ -566,8 +573,8 @@ func (u *Usecase) GetProfile(ctx context.Context, a *TenantContext, id string, v
 		if err != nil {
 			return err
 		}
-		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
-			return NotFound()
+		if err = u.authorizeCluster(ctx, r, g.ClusterID); err != nil {
+			return err
 		}
 		if p.State != ProfileActive {
 			return NotFound()
@@ -628,7 +635,7 @@ func (u *Usecase) PreviewProfile(ctx context.Context, a *AdminRead, id string, p
 		if err != nil {
 			return err
 		}
-		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
+		if err = u.authorizeCluster(ctx, r, g.ClusterID); err != nil {
 			return err
 		}
 		c, err = r.Cluster(ctx, g.ClusterID)

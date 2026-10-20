@@ -51,6 +51,20 @@ func NewPKI(t testing.TB) *PKI {
 }
 func (p *PKI) Issue(t testing.TB, name, identity string, server bool) (string, string) {
 	t.Helper()
+	dns := []string{}
+	if identity != "" {
+		dns = append(dns, identity)
+	}
+	if server {
+		dns = []string{"accelerator.test"}
+	}
+	return p.IssueWithSAN(t, name, dns, nil, nil, nil, server)
+}
+
+// IssueWithSAN constructs explicit malformed identities for transport rejection
+// tests as well as the single-DNS identities used by ordinary test clients.
+func (p *PKI) IssueWithSAN(t testing.TB, name string, dns []string, uris []*url.URL, ips []net.IP, emails []string, server bool) (string, string) {
+	t.Helper()
 	pub, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
@@ -59,18 +73,9 @@ func (p *PKI) Issue(t testing.TB, name, identity string, server bool) (string, s
 	if err != nil {
 		t.Fatal(err)
 	}
-	template := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: name}, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}
-	if identity != "" {
-		uri, err := url.Parse(identity)
-		if err != nil {
-			t.Fatal(err)
-		}
-		template.URIs = []*url.URL{uri}
-	}
+	template := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: name}, DNSNames: dns, URIs: uris, IPAddresses: ips, EmailAddresses: emails, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}}
 	if server {
 		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
-		template.DNSNames = []string{"accelerator.test"}
-		template.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
 	}
 	der, err := x509.CreateCertificate(rand.Reader, template, p.CACert, pub, p.CAKey)
 	if err != nil {
@@ -126,8 +131,8 @@ func NewRuntime(t testing.TB, grpcAddr, adminAddr string) *Runtime {
 	}
 	pki := NewPKI(t)
 	cert, key := pki.Issue(t, "server", "", true)
-	govCert, govKey := pki.Issue(t, "governance", "spiffe://ani.internal/service/ani-governance", false)
-	ownerCert, ownerKey := pki.Issue(t, "inference", "spiffe://ani.internal/service/ani-inference", false)
+	govCert, govKey := pki.Issue(t, "governance", "ani-governance", false)
+	ownerCert, ownerKey := pki.Issue(t, "inference", "ani-inference-service", false)
 	cursor := filepath.Join(pki.Root, "cursor-key")
 	random := make([]byte, 32)
 	if _, err := rand.Read(random); err != nil {
@@ -142,7 +147,7 @@ func NewRuntime(t testing.TB, grpcAddr, adminAddr string) *Runtime {
 	}
 	ownerPublicFile := filepath.Join(pki.Root, "owner.pub")
 	Write(t, ownerPublicFile, []byte(base64.StdEncoding.EncodeToString(pub)))
-	config := &conf.Bootstrap{Server: &conf.Server{Grpc: &conf.Server_GRPC{Network: "tcp", Addr: grpcAddr, Timeout: durationpb.New(3 * time.Second)}, Admin: &conf.Server_Admin{Network: "tcp", Addr: adminAddr, Timeout: durationpb.New(time.Second)}, ShutdownTimeout: durationpb.New(3 * time.Second)}, Database: &conf.Database{DsnFile: dsn}, Security: &conf.Security{CaFile: pki.CAFile, CertFile: cert, KeyFile: key, GovernanceUri: "spiffe://ani.internal/service/ani-governance", InferenceUri: "spiffe://ani.internal/service/ani-inference", ResourceUri: "spiffe://ani.internal/service/ani-resource-service", CursorKeyFile: cursor}, Accelerator: &conf.Accelerator{MaxReplicas: 16, Freshness: durationpb.New(time.Minute), CollectInterval: durationpb.New(time.Second), ProviderConfigFile: providerFile, OwnerPublicKeyFile: ownerPublicFile}}
+	config := &conf.Bootstrap{Server: &conf.Server{Grpc: &conf.Server_GRPC{Network: "tcp", Addr: grpcAddr, Timeout: durationpb.New(3 * time.Second)}, Admin: &conf.Server_Admin{Network: "tcp", Addr: adminAddr, Timeout: durationpb.New(time.Second)}, ShutdownTimeout: durationpb.New(3 * time.Second)}, Database: &conf.Database{DsnFile: dsn}, Security: &conf.Security{CaFile: pki.CAFile, CertFile: cert, KeyFile: key, GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", CursorKeyFile: cursor}, Accelerator: &conf.Accelerator{MaxReplicas: 16, Freshness: durationpb.New(time.Minute), CollectInterval: durationpb.New(time.Second), ProviderConfigFile: providerFile, OwnerPublicKeyFile: ownerPublicFile}}
 	return &Runtime{config, pki, govCert, govKey, ownerCert, ownerKey}
 }
 func (r *Runtime) WriteConfig(t testing.TB) string {

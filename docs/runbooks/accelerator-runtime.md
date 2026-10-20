@@ -12,7 +12,11 @@ baseline 不可原位替换。切换 scheduler 镜像时，先关闭旧供给、
 
 ## 配置与启动
 
-`configs/config.yaml` 是不可直接启动的安全示例：所有密钥、数据库及 provider 配置采用绝对路径引用，缺失即启动失败。将 `database.dsn_file` 指向只读、权限 0600 的 libpq DSN 文件；生产 PG 连接使用可验证的 TLS，测试 PG 仅绑定任务回环端口。证书使用受管 CA、服务器 DNS SAN、独立服务 URI SAN。客户端精确 URI 和 actor/action/tenant/cluster grants 见 [接入合同](../contracts/accelerator-consumer-contract.md)。服务不自动创建 grants、密钥、目录数据或迁移。
+`configs/config.yaml` 是不可直接启动的安全示例：所有密钥、数据库及 provider 配置采用绝对路径引用，缺失即启动失败。将 `database.dsn_file` 指向只读、权限 0600 的 libpq DSN 文件；生产 PG 连接使用可验证的 TLS，测试 PG 仅绑定任务回环端口。证书使用受管 CA 和服务器 DNS SAN；客户端证书必须只有一个精确 DNS SAN，Gov、Inference、Resource 分别为 `ani-governance`、`ani-inference-service`、`ani-resource-service`，不含其他 SAN。对应配置为 `security.governance_dns_name`、`inference_dns_name`、`resource_dns_name`。完整服务 RPC 清单与可信上下文要求见 [接入合同](../contracts/accelerator-consumer-contract.md#service-authorization-and-tenant-isolation)。
+
+用户身份、角色、平台权限、套餐和配额准入由 Gov 统一管理；ACC 不再配置逐用户、逐租户 `security.grants`，也不新增集群清单。集群范围直接复用 `accelerator.provider_config_file` 指向的 `provider.json` `connections[].ref` 和持久的 `cluster.connection_ref`。新增已由 Gov 授权的用户或租户不需要修改或重启 ACC；基础设施连接或密钥变更仍遵守受管部署流程。
+
+旧配置中的 `grants`、`governance_uri`、`inference_uri`、`resource_uri` 已移除且字段编号和名称保留，读取时明确拒绝旧字段。发布时需协同替换 Gov 与已启用 owner 的客户端证书及 ACC 配置；保留可匹配的旧二进制、配置和证书恢复材料。不能只更新 ACC 接收端，不能通过忽略旧字段或恢复用户白名单解决服务证书错误。本次代码改造不执行部署、目录播种或数据库迁移。
 
 持久 cursor key 至少 32 字节，多副本一致；硬件证明和 owner 分别使用独立 Ed25519 公钥（标准 Base64 原始 32 字节）。私钥不交给 Accelerator。secret/provider 文件更新通过受管部署流程重启装配；不要期待文件热更新。
 

@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"testing"
 	"time"
 
@@ -18,9 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
-	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data"
-	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/server"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -83,17 +80,10 @@ func TestFormalProductionWithoutTestProof(t *testing.T) {
 	fixture := testkit.NewRuntime(t, address(t), address(t))
 	// The optional long-lived A integration uses the same independent CA and
 	// ordinary executable; certificate aliases are transport fixture plumbing.
-	fixture.GovCert, fixture.GovKey = jointCertificate(t, fixture.PKI, "formal-gov", "spiffe://ani.internal/service/ani-governance", []string{"ani-governance"})
-	fixture.Config.Security.CertFile, fixture.Config.Security.KeyFile = jointCertificate(t, fixture.PKI, "formal-acc", "", []string{"ani-accelerator", "accelerator.test"})
+	fixture.GovCert, fixture.GovKey = jointCertificate(t, fixture.PKI, "formal-gov", []string{"ani-governance"})
+	fixture.Config.Security.CertFile, fixture.Config.Security.KeyFile = jointCertificate(t, fixture.PKI, "formal-acc", []string{"ani-accelerator", "accelerator.test"})
 	fixture.Config.Database.DsnFile = dsn
 	fixture.Config.Accelerator.ProviderConfigFile = input.ProviderConfig
-	adminActions := []string{}
-	for action := range server.AdminActions {
-		adminActions = append(adminActions, action)
-	}
-	sort.Strings(adminActions)
-	fixture.Config.Security.Grants = []*conf.DelegationGrant{{ActorType: "user", ActorId: "contract-user", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}}}
-	fixture.Config.Security.Grants = append(fixture.Config.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: "1", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}})
 	productionLog := filepath.Join(work, "production.log")
 	productionPID := 0
 	start := func() func() {
@@ -142,9 +132,8 @@ func TestFormalProductionWithoutTestProof(t *testing.T) {
 	profile := new(pb.GpuProfile)
 	rpc("CreateProfile", &pb.CreateProfileRequest{Mutation: mutation(), DisplayName: "no-test-proof", Spec: &pb.ProfileSpec{GroupId: group.GroupId, Mode: pb.SupplyMode_SHARED_FIXED, ModelKey: input.Model, MemoryMibPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}, ExpectedGroupVersion: 1}, profile)
 	rpc("SetAdmission", &pb.SetAdmissionRequest{Mutation: mutation(), GroupId: group.GroupId, ExpectedVersion: 2, Desired: pb.AdmissionState_ADMISSION_OPEN, Reason: "formal source wiring"}, group)
-	// A tenant grant is bound to the actual registered cluster before Resolve.
+	// The tenant is supplied by Gov; ACC needs no tenant/actor configuration.
 	tenant := biz.NewID()
-	fixture.Config.Security.Grants = append(fixture.Config.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: "contract-user", Actions: []string{"ResolveGpuRequest"}, TenantIds: []string{tenant}, ClusterIds: []string{cluster.ClusterId}})
 	stop()
 	stop = start()
 	defer stop()

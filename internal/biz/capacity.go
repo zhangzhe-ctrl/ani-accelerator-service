@@ -34,7 +34,7 @@ func (u *Usecase) getCapacity(ctx context.Context, id string, version uint64, de
 		if err != nil {
 			return err
 		}
-		if err = AuthorizeCluster(ctx, g.ClusterID); err != nil {
+		if err = u.authorizeCluster(ctx, r, g.ClusterID); err != nil {
 			return err
 		}
 		v, err = u.capacity(ctx, r, p, g, details)

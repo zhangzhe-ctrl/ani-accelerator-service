@@ -17,7 +17,9 @@ inline production/test SQL, and emits input/output hashes. The pinned checksum i
 
 - Clusters, pools, groups, physical devices and unassociated provider facts are
   platform/cluster-scoped supply inventory. They do not manufacture a tenant.
-  The business layer checks trusted cluster grants before these reads.
+  The business layer resolves each persisted cluster to a connection configured in
+  `provider.json` before these reads. Cluster listing and collection filter by
+  that same connection set; there is no user or tenant cluster allowlist.
 - Usage reads, revisions, writes, conflicts and tenant binding pages use explicit
   tenant/owner/resource/create identities. Composite foreign keys preserve the
   tenant. Binding references are either fully absent (unassociated physical

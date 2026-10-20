@@ -38,6 +38,9 @@ func (u *Usecase) SyncUsage(ctx context.Context, requestID string, p *UsageProje
 		if group.ClusterID != p.ClusterID {
 			return Invalid("PROFILE_SCOPE_MISMATCH")
 		}
+		if err := u.authorizeCluster(ctx, tx, p.ClusterID); err != nil {
+			return err
+		}
 		result, err = tx.SaveUsage(ctx, *p)
 		return err
 	})
@@ -112,7 +115,7 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 	result := &ReleaseObservation{Ref: ref, Finding: AllocationReleased, Observation: &Observation{Complete: true}}
 	var evidence []string
 	err := u.repo.View(ctx, func(r Reader) error {
-		if _, err := r.Cluster(ctx, clusterID); err != nil {
+		if err := u.authorizeCluster(ctx, r, clusterID); err != nil {
 			return err
 		}
 		// Read the complete owner scope even before an asynchronous Usage exists.

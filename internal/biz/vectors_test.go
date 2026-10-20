@@ -49,7 +49,7 @@ func TestCursorBoundToPrincipalAndFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	c := Caller{Service: "ani-governance", TenantID: testID, Actor: Actor{Type: "user", ID: "one"}, Action: "ListBindings", ClusterIDs: []string{testID}}
+	c := Caller{Service: "ani-governance", TenantID: testID, Actor: Actor{Type: "user", ID: "one"}, Action: "ListBindings"}
 	scope, err := PageScope(WithCaller(context.Background(), c), "ListBindings", testID)
 	if err != nil {
 		t.Fatal(err)
@@ -58,7 +58,7 @@ func TestCursorBoundToPrincipalAndFilter(t *testing.T) {
 	if after, _, err := codec.Decode(&Page{Size: 1, Token: token}, scope); err != nil || after != testID {
 		t.Fatal(after, err)
 	}
-	for _, mutate := range []func(*Caller){func(c *Caller) { c.TenantID = NewID() }, func(c *Caller) { c.Actor.ID = "two" }, func(c *Caller) { c.ClusterIDs = []string{NewID()} }, func(c *Caller) { c.Action = "ListGpuUsages" }} {
+	for _, mutate := range []func(*Caller){func(c *Caller) { c.TenantID = NewID() }, func(c *Caller) { c.Actor.ID = "two" }, func(c *Caller) { c.Action = "ListGpuUsages" }} {
 		other := c
 		mutate(&other)
 		different, err := PageScope(WithCaller(context.Background(), other), "ListBindings", testID)

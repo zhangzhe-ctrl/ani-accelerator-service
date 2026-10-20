@@ -44,8 +44,9 @@ func (u *Usecase) ListClusters(ctx context.Context, a *AdminRead, page *Page) (*
 	if err := AuthorizeAdmin(ctx, a, "ListClusters"); err != nil {
 		return nil, err
 	}
-	c, _ := CurrentCaller(ctx)
-	return listPage(ctx, u, page, "ListClusters", nil, func(r Reader, after string, n int) ([]Cluster, error) { return r.Clusters(ctx, c.ClusterIDs, after, n) }, func(c Cluster) string { return c.ClusterID })
+	return listPage(ctx, u, page, "ListClusters", nil, func(r Reader, after string, n int) ([]Cluster, error) {
+		return r.Clusters(ctx, u.connectionRefs(), after, n)
+	}, func(c Cluster) string { return c.ClusterID })
 }
 func (u *Usecase) ListPools(ctx context.Context, a *AdminRead, cluster string, page *Page) (*ListResult[Pool], error) {
 	if err := AuthorizeAdmin(ctx, a, "ListPools"); err != nil {
@@ -54,11 +55,8 @@ func (u *Usecase) ListPools(ctx context.Context, a *AdminRead, cluster string, p
 	if !UUID(cluster) {
 		return nil, Invalid("INVALID_CLUSTER")
 	}
-	if err := AuthorizeCluster(ctx, cluster); err != nil {
-		return nil, err
-	}
 	return listPage(ctx, u, page, "ListPools", cluster, func(r Reader, after string, n int) ([]Pool, error) {
-		if _, err := r.Cluster(ctx, cluster); err != nil {
+		if err := u.authorizeCluster(ctx, r, cluster); err != nil {
 			return nil, err
 		}
 		return r.Pools(ctx, cluster, after, n)
@@ -76,7 +74,7 @@ func (u *Usecase) ListSupplyGroups(ctx context.Context, a *AdminRead, pool strin
 		if err != nil {
 			return nil, err
 		}
-		if err = AuthorizeCluster(ctx, p.ClusterID); err != nil {
+		if err = u.authorizeCluster(ctx, r, p.ClusterID); err != nil {
 			return nil, err
 		}
 		return r.Groups(ctx, pool, after, n)
@@ -98,12 +96,9 @@ func (u *Usecase) listProfiles(ctx context.Context, cluster string, mode SupplyM
 	if !UUID(cluster) || (mode != 0 && mode != Whole && mode != Shared) {
 		return nil, Invalid("INVALID_PROFILE_FILTER")
 	}
-	if err := AuthorizeCluster(ctx, cluster); err != nil {
-		return nil, err
-	}
 	scopes := make(map[string]ProfileScope)
 	result, err := listPage(ctx, u, page, method, []any{cluster, mode}, func(r Reader, after string, n int) ([]Profile, error) {
-		if _, err := r.Cluster(ctx, cluster); err != nil {
+		if err := u.authorizeCluster(ctx, r, cluster); err != nil {
 			return nil, err
 		}
 		profiles, err := r.Profiles(ctx, cluster, mode, after, n)
@@ -169,11 +164,8 @@ func (u *Usecase) ListDevices(ctx context.Context, a *AdminRead, cluster, group 
 	if !UUID(cluster) || (group != "" && !UUID(group)) {
 		return nil, Invalid("INVALID_DEVICE_FILTER")
 	}
-	if err := AuthorizeCluster(ctx, cluster); err != nil {
-		return nil, err
-	}
 	return listPage(ctx, u, page, "ListDevices", []string{cluster, group}, func(r Reader, after string, n int) ([]PhysicalDevice, error) {
-		if _, err := r.Cluster(ctx, cluster); err != nil {
+		if err := u.authorizeCluster(ctx, r, cluster); err != nil {
 			return nil, err
 		}
 		if group != "" {
@@ -203,12 +195,9 @@ func (u *Usecase) AdminListBindings(ctx context.Context, a *AdminRead, cluster, 
 	if !UUID(cluster) || (device != "" && !UUID(device)) {
 		return nil, Invalid("INVALID_BINDING_FILTER")
 	}
-	if err := AuthorizeCluster(ctx, cluster); err != nil {
-		return nil, err
-	}
 	f := BindingFilter{ClusterID: cluster, DeviceID: device}
 	res, err := listPage(ctx, u, page, "AdminListBindings", f, func(r Reader, after string, n int) ([]Binding, error) {
-		if _, err := r.Cluster(ctx, cluster); err != nil {
+		if err := u.authorizeCluster(ctx, r, cluster); err != nil {
 			return nil, err
 		}
 		return u.bindingViews(ctx, r, f, after, n)

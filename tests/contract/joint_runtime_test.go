@@ -8,16 +8,13 @@ import (
 	"encoding/base64"
 	"encoding/pem"
 	"math/big"
-	"net/url"
 	"os"
 	"path/filepath"
-	"sort"
 	"testing"
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
-	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/server"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
@@ -46,9 +43,9 @@ func TestJointPersistentRuntime(t *testing.T) {
 	pki.Root = root
 	pki.CAFile = filepath.Join(root, "ca.pem")
 	testkit.Write(t, pki.CAFile, ca)
-	cert, key := jointCertificate(t, pki, "acc", "", []string{"ani-accelerator", "accelerator.test"})
-	govCert, govKey := jointCertificate(t, pki, "gov", "spiffe://ani.internal/service/ani-governance", []string{"ani-governance"})
-	ownerCert, ownerKey := jointCertificate(t, pki, "owner", "spiffe://ani.internal/service/ani-inference", []string{"ani-inference"})
+	cert, key := jointCertificate(t, pki, "acc", []string{"ani-accelerator", "accelerator.test"})
+	govCert, govKey := jointCertificate(t, pki, "gov", []string{"ani-governance"})
+	ownerCert, ownerKey := jointCertificate(t, pki, "owner", []string{"ani-inference-service"})
 	cursor := make([]byte, 32)
 	if _, e = rand.Read(cursor); e != nil {
 		t.Fatal(e)
@@ -68,17 +65,7 @@ func TestJointPersistentRuntime(t *testing.T) {
 	if grpcAddr == "" {
 		grpcAddr = "127.0.0.1:29092"
 	}
-	adminActions := []string{}
-	for action := range server.AdminActions {
-		adminActions = append(adminActions, action)
-	}
-	sort.Strings(adminActions)
-	tenantActions := []string{}
-	for action := range server.TenantActions {
-		tenantActions = append(tenantActions, action)
-	}
-	sort.Strings(tenantActions)
-	cfg := &conf.Bootstrap{Server: &conf.Server{Grpc: &conf.Server_GRPC{Network: "tcp", Addr: grpcAddr, Timeout: durationpb.New(5 * time.Second)}, Admin: &conf.Server_Admin{Network: "tcp", Addr: "127.0.0.1:29093", Timeout: durationpb.New(time.Second)}, ShutdownTimeout: durationpb.New(2 * time.Second)}, Database: &conf.Database{DsnFile: os.Getenv("ACC_TEST_DSN_FILE")}, Security: &conf.Security{CaFile: pki.CAFile, CertFile: cert, KeyFile: key, GovernanceUri: "spiffe://ani.internal/service/ani-governance", InferenceUri: "spiffe://ani.internal/service/ani-inference", ResourceUri: "spiffe://ani.internal/service/ani-resource-service", CursorKeyFile: cursorPath, Grants: []*conf.DelegationGrant{{ActorType: "user", ActorId: "1", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}}}}, Accelerator: &conf.Accelerator{MaxReplicas: 16, Freshness: durationpb.New(time.Minute), CollectInterval: durationpb.New(time.Second), ProviderConfigFile: providerConfig, OwnerPublicKeyFile: filepath.Join(root, "owner.pub")}}
+	cfg := &conf.Bootstrap{Server: &conf.Server{Grpc: &conf.Server_GRPC{Network: "tcp", Addr: grpcAddr, Timeout: durationpb.New(5 * time.Second)}, Admin: &conf.Server_Admin{Network: "tcp", Addr: "127.0.0.1:29093", Timeout: durationpb.New(time.Second)}, ShutdownTimeout: durationpb.New(2 * time.Second)}, Database: &conf.Database{DsnFile: os.Getenv("ACC_TEST_DSN_FILE")}, Security: &conf.Security{CaFile: pki.CAFile, CertFile: cert, KeyFile: key, GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", CursorKeyFile: cursorPath}, Accelerator: &conf.Accelerator{MaxReplicas: 16, Freshness: durationpb.New(time.Minute), CollectInterval: durationpb.New(time.Second), ProviderConfigFile: providerConfig, OwnerPublicKeyFile: filepath.Join(root, "owner.pub")}}
 	runtime := &testkit.Runtime{Config: cfg, PKI: pki, GovCert: govCert, GovKey: govKey, OwnerCert: ownerCert, OwnerKey: ownerKey}
 	connection := "joint-b:" + biz.NewID()
 	marker := filepath.Join(root, "interrupt.marker")
@@ -96,17 +83,10 @@ func TestJointPersistentRuntime(t *testing.T) {
 		} `json:"cluster"`
 	}
 	readJointJSON(t, filepath.Join(root, "seed.json"), &seed)
-	process.kill(t)
 	tenant := os.Getenv("ACC_JOINT_TENANT")
 	if tenant == "" {
 		tenant = "11111111-1111-4111-8111-111111111111"
 	}
-	actor := os.Getenv("ACC_JOINT_TENANT_ACTOR")
-	if actor == "" {
-		actor = "1"
-	}
-	cfg.Security.Grants = append(cfg.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: actor, Actions: tenantActions, TenantIds: []string{tenant}, ClusterIds: []string{seed.Cluster.ClusterID}})
-	process = startChild(t, runtime, connection, marker)
 	writeJointJSON(t, filepath.Join(root, "ready.json"), map[string]any{"address": grpcAddr, "server_name": "ani-accelerator", "ca_file": pki.CAFile, "gov_cert_file": govCert, "gov_key_file": govKey, "owner_cert_file": ownerCert, "owner_key_file": ownerKey, "config_file": runtime.WriteConfig(t), "connection_ref": connection, "tenant_id": tenant, "actor_type": "user", "actor_id": "1", "cluster_id": seed.Cluster.ClusterID, "seed_file": filepath.Join(root, "seed.json"), "dsn_file": cfg.Database.DsnFile, "scope": "test-only B layer; no hardware evidence"})
 	t.Log("B-layer helper ready; remove only task-owned resources after consumers stop")
 	for {
@@ -117,7 +97,7 @@ func TestJointPersistentRuntime(t *testing.T) {
 	}
 	process.kill(t)
 }
-func jointCertificate(t *testing.T, pki *testkit.PKI, name, identity string, dns []string) (string, string) {
+func jointCertificate(t *testing.T, pki *testkit.PKI, name string, dns []string) (string, string) {
 	t.Helper()
 	public, key, e := ed25519.GenerateKey(rand.Reader)
 	if e != nil {
@@ -128,13 +108,6 @@ func jointCertificate(t *testing.T, pki *testkit.PKI, name, identity string, dns
 		t.Fatal(e)
 	}
 	template := &x509.Certificate{SerialNumber: serial, Subject: pkix.Name{CommonName: name}, DNSNames: dns, NotBefore: time.Now().Add(-time.Hour), NotAfter: time.Now().Add(24 * time.Hour), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth, x509.ExtKeyUsageClientAuth}}
-	if identity != "" {
-		u, e := url.Parse(identity)
-		if e != nil {
-			t.Fatal(e)
-		}
-		template.URIs = []*url.URL{u}
-	}
 	der, e := x509.CreateCertificate(rand.Reader, template, pki.CACert, public, pki.CAKey)
 	if e != nil {
 		t.Fatal(e)

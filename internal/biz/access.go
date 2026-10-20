@@ -10,11 +10,10 @@ import (
 )
 
 type Caller struct {
-	Service    string
-	Actor      Actor
-	TenantID   string
-	Action     string
-	ClusterIDs []string
+	Service  string
+	Actor    Actor
+	TenantID string
+	Action   string
 }
 type callerKey struct{}
 
@@ -51,17 +50,18 @@ func AuthorizeTenant(ctx context.Context, a *TenantContext, method string) error
 	}
 	return nil
 }
-func AuthorizeCluster(ctx context.Context, cluster string) error {
-	c, ok := CurrentCaller(ctx)
-	if !ok {
-		return Denied()
+
+// Managed scope comes only from the provider configuration assembled at startup.
+// User, tenant and cluster grants are owned by Governance, not ACC configuration.
+func (u *Usecase) authorizeCluster(ctx context.Context, r Reader, id string) error {
+	c, err := r.Cluster(ctx, id)
+	if err != nil {
+		return err
 	}
-	for _, id := range c.ClusterIDs {
-		if id == cluster || (id == "*" && c.TenantID == "") {
-			return nil
-		}
+	if c == nil || !u.connections[c.ConnectionRef] {
+		return NotFound()
 	}
-	return NotFound()
+	return nil
 }
 func AuthorizeMutation(ctx context.Context, m *AdminMutation, method string) error {
 	if m == nil || !UUID(m.IdempotencyKey) {

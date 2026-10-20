@@ -18,7 +18,7 @@ type bindingQueryReader struct {
 }
 
 func (r *bindingQueryReader) Cluster(context.Context, string) (*Cluster, error) {
-	return &Cluster{ClusterID: testID}, nil
+	return &Cluster{ClusterID: testID, ConnectionRef: "test:binding"}, nil
 }
 func (r *bindingQueryReader) Bindings(context.Context, BindingFilter, string, int) ([]Binding, error) {
 	result := append([]Binding{}, r.bindings...)
@@ -58,9 +58,9 @@ func readBindingQuery(t *testing.T, now time.Time, healthy bool, bindings ...Bin
 		t.Fatal(err)
 	}
 	reader := &bindingQueryReader{bindings: bindings, now: now, healthy: healthy}
-	u := &Usecase{repo: bindingQueryRepo{reader}, cursor: cursor, freshness: 120 * time.Second, now: func() time.Time { return now }}
+	u := &Usecase{connections: map[string]bool{"test:binding": true}, repo: bindingQueryRepo{reader}, cursor: cursor, freshness: 120 * time.Second, now: func() time.Time { return now }}
 	actor := Actor{Type: "user", ID: "binding-query-test"}
-	ctx := WithCaller(context.Background(), Caller{Service: "ani-governance", Actor: actor, Action: "AdminListBindings", ClusterIDs: []string{testID}})
+	ctx := WithCaller(context.Background(), Caller{Service: "ani-governance", Actor: actor, Action: "AdminListBindings"})
 	result, err := u.AdminListBindings(ctx, &AdminRead{RequestID: "binding-history", Actor: &actor}, testID, "", nil)
 	if err != nil {
 		t.Fatal(err)

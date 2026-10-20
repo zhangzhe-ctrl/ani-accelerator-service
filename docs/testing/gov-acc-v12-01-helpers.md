@@ -27,19 +27,24 @@ This explicitly creates a new task-local test CA and server/client certificates,
 then invokes the real management gRPC API over mTLS to register/adopt/publish/open
 one **software fixture** catalog. It substitutes only controlled inspection and
 consumption evidence in the test process; its PG repository, pgx/sqlc paths,
-service, transport and delegation middleware are production code. It never
+service, transport and service/context authorization middleware are production code. It never
 registers a real owner or claims hardware acceptance.
 
 `ready.json` contains paths and connection parameters, not credential bytes.
 The Acc certificate has DNS `ani-accelerator` and `accelerator.test`; Gov and owner
-certificates carry their sole exact service URI plus DNS `ani-governance` and
-`ani-inference`. Private keys and other files are mode 0600. The CA signing key
+certificates carry exactly one DNS SAN, respectively `ani-governance` and
+`ani-inference-service`, with no URI or other SAN identity. The latter maps to
+the existing persisted owner ID `ani-inference`. Private keys and other files
+are mode 0600. The CA signing key
 and hardware/owner assertion signing private keys are not persisted.
 
-The configured actor is `user:1`; tenant UUID is
-`11111111-1111-4111-8111-111111111111`. All 12 management actions and 8 tenant
-read/catalog actions are granted; tenant actions list the exact created cluster,
-never `*`. `seed.json` contains catalog objects, a valid request and
+The seed actor is `user:1`; the default tenant UUID is
+`11111111-1111-4111-8111-111111111111`. Gov owns user roles and subscriptions;
+ACC does not configure actor/tenant grants or a second cluster allowlist.
+Its transport authorizes the exact service and complete RPC method, while
+business code verifies actor/tenant consistency and the configured provider
+connection domain. Additional Gov-authorized actors and tenants need no ACC
+configuration change or restart. `seed.json` contains catalog objects, a valid request and
 `requests[RPC]`, the original five management requests including idempotency keys.
 BFF tests can replay the original requests with the same trusted actor.
 `SyncGpuUsage` and `ObserveRelease` use their direct certificate identities.
@@ -98,8 +103,9 @@ For a formal Gov→Acc integration, the same test accepts an explicit absolute
 `ACC_FORMAL_HOLD_DIR`. After all A assertions pass it writes `ready.json` there
 with the ordinary production executable's hash/PID, endpoint, independent CA,
 Gov certificate/key paths and catalog IDs, and stays alive until `<hold>/stop`
-exists. It grants the test platform actor `user:1`, and the Gov certificate has
-the sole Governance URI plus DNS `ani-governance`; the Acc server supports DNS
+exists. The test uses platform actor `user:1` without configuring a per-actor
+ACC grant, and the Gov certificate has the sole DNS SAN `ani-governance` with
+no URI or alternate SAN; the Acc server supports DNS
 `ani-accelerator`. Run the test binary with `-test.timeout=0`. The referenced
 ephemeral files remain valid only while this helper is running. This optional
 hold does not change production composition or provide consumption evidence.

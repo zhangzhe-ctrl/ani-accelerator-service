@@ -210,15 +210,27 @@ func conn(t *testing.T, r *testkit.Runtime, cert, key string) *grpc.ClientConn {
 	return c
 }
 func methodPath(method string) string {
-	family := "AcceleratorUsageService"
-	if server.AdminActions[method] {
-		family = "AcceleratorAdminService"
-	} else if method == "ListProfiles" || method == "GetProfile" || method == "ResolveGpuRequest" || method == "GetCapacity" || method == "CheckGpuFit" {
-		family = "AcceleratorCatalogService"
+	for _, family := range []*grpc.ServiceDesc{&pb.AcceleratorAdminService_ServiceDesc, &pb.AcceleratorCatalogService_ServiceDesc, &pb.AcceleratorUsageService_ServiceDesc} {
+		for _, descriptor := range family.Methods {
+			if descriptor.MethodName == method {
+				return "/" + family.ServiceName + "/" + descriptor.MethodName
+			}
+		}
 	}
-	return "/accelerator.v1." + family + "/" + method
+	panic("unknown contract RPC: " + method)
+}
+func hasDelegatedActor(request proto.Message) bool {
+	switch request.(type) {
+	case interface{ GetMutation() *pb.AdminMutation }, interface{ GetContext() *pb.AdminRead }, interface{ GetContext() *pb.TenantContext }:
+		return true
+	default:
+		return false
+	}
 }
 func callContext(method, tenant string) context.Context {
+	if method == "SyncGpuUsage" {
+		return metadata.NewOutgoingContext(context.Background(), metadata.Pairs("x-ani-action", method))
+	}
 	pairs := []string{"x-ani-action", method, "x-ani-actor-type", "user", "x-ani-actor-id", "contract-user"}
 	if tenant != "" {
 		pairs = append(pairs, "x-ani-tenant-id", tenant)
@@ -266,15 +278,6 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	tenant := biz.NewID()
 	otherTenant := biz.NewID()
 	marker := filepath.Join(r.PKI.Root, "interrupt.marker")
-	adminActions := []string{}
-	for a := range server.AdminActions {
-		adminActions = append(adminActions, a)
-	}
-	tenantActions := []string{}
-	for a := range server.TenantActions {
-		tenantActions = append(tenantActions, a)
-	}
-	r.Config.Security.Grants = []*conf.DelegationGrant{{ActorType: "user", ActorId: "contract-user", Actions: adminActions, Platform: true, ClusterIds: []string{"*"}}}
 	process := startChild(t, r, connection, marker)
 	gov := conn(t, r, r.GovCert, r.GovKey)
 	owner := conn(t, r, r.OwnerCert, r.OwnerKey)
@@ -294,22 +297,15 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		if err := wrong.Invoke(ctx, methodPath(method), in, badOut); status.Code(err) != codes.PermissionDenied {
 			t.Fatalf("%s wrong service accepted: %v", method, err)
 		}
-		if server.AdminActions[method] || server.TenantActions[method] {
-			// The certificate remains the real authorized Gov URI. Both typed actor
-			// and metadata change together, so the failure is missing delegation,
-			// not a business-layer actor mismatch or wrong service identity.
+		if hasDelegatedActor(in) {
+			// Gov authenticates and authorizes the user. ACC still requires the
+			// typed actor and trusted metadata to match on every business RPC.
 			denied := proto.Clone(in)
-			replaceDelegatedActor(denied.ProtoReflect(), "ungranted-actor")
-			pairs := []string{"x-ani-action", method, "x-ani-actor-type", "user", "x-ani-actor-id", "ungranted-actor"}
-			if tenantID != "" {
-				pairs = append(pairs, "x-ani-tenant-id", tenantID)
+			replaceDelegatedActor(denied.ProtoReflect(), "conflicting-actor")
+			err := gov.Invoke(ctx, methodPath(method), denied, proto.Clone(out))
+			if status.Code(err) != codes.PermissionDenied {
+				t.Fatalf("%s conflicting actor not rejected: %v", method, err)
 			}
-			deniedCtx := metadata.NewOutgoingContext(ctx, metadata.Pairs(pairs...))
-			err := gov.Invoke(deniedCtx, methodPath(method), denied, proto.Clone(out))
-			if status.Code(err) != codes.PermissionDenied || status.Convert(err).Message() != "DELEGATION_DENIED" {
-				t.Fatalf("%s missing grant not rejected at delegation boundary: %v", method, err)
-			}
-			t.Logf("AUTH-03 %s: valid Gov mTLS URI, matching typed/metadata actor without grant rejected DELEGATION_DENIED", method)
 		}
 		covered[method] = true
 	}
@@ -378,19 +374,28 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if group.Admission != pb.AdmissionState_ADMISSION_OPEN || group.Version != 3 {
 		t.Fatal(group)
 	}
-	// Restart with exact known cluster tenant grants; no wildcard tenant scope.
-	process.kill(t)
-	r.Config.Security.Grants = append(r.Config.Security.Grants, &conf.DelegationGrant{ActorType: "user", ActorId: "contract-user", Actions: tenantActions, TenantIds: []string{tenant, otherTenant}, ClusterIds: []string{cluster.ClusterId}})
-	process = startChild(t, r, connection, marker)
 	tc := tenantContext(tenant)
 	rpc("ListProfiles", tenant, &pb.ListProfilesRequest{Context: tc, ClusterId: cluster.ClusterId}, profiles)
 	if len(profiles.Items) != 1 {
 		t.Fatal(profiles)
 	}
+	// A newly Gov-authorized actor and tenant need no ACC configuration write or
+	// process restart. The shared platform catalog remains available through Gov.
+	newActor := "new-gov-user-" + biz.NewID()
+	newTenant := biz.NewID()
+	newCatalogRequest := &pb.ListProfilesRequest{Context: &pb.TenantContext{RequestId: "new-gov-principal", TenantId: newTenant, Actor: &pb.Actor{Type: "user", Id: newActor}}, ClusterId: cluster.ClusterId}
+	newCatalogContext, newCatalogCancel := context.WithTimeout(metadata.NewOutgoingContext(context.Background(), metadata.Pairs("x-ani-action", "ListProfiles", "x-ani-actor-type", "user", "x-ani-actor-id", newActor, "x-ani-tenant-id", newTenant)), time.Second)
+	newCatalog := new(pb.ListProfilesResponse)
+	err := gov.Invoke(newCatalogContext, methodPath("ListProfiles"), newCatalogRequest, newCatalog)
+	newCatalogCancel()
+	if err != nil || len(newCatalog.Items) != 1 || newCatalog.Items[0].ProfileId != profile.ProfileId {
+		t.Fatal("new Gov principal requires ACC onboarding", newCatalog, err)
+	}
+	t.Log("AUTH-03: new Gov-authorized actor/tenant queried persisted catalog without ACC configuration or restart")
 	gotProfile := new(pb.GpuProfile)
 	rpc("GetProfile", tenant, &pb.GetProfileRequest{Context: tc, ProfileId: profile.ProfileId, ProfileVersion: 1}, gotProfile)
 	if !proto.Equal(profile, gotProfile) {
-		t.Fatal("profile changed across restart")
+		t.Fatal("profile changed during catalog query")
 	}
 	request := &pb.GpuRequest{ClusterId: cluster.ClusterId, PoolId: pool.PoolId, ProfileId: profile.ProfileId, ProfileVersion: 1, Replicas: 2, DevicesPerReplica: 1, ContainerName: "inference"}
 	plan := new(pb.ResolvedGpuRequest)
@@ -452,7 +457,7 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		t.Fatal(observation)
 	}
 	// Resource has a distinct certificate and can only observe its own ref.
-	resourceCert, resourceKey := r.PKI.Issue(t, "resource", "spiffe://ani.internal/service/ani-resource-service", false)
+	resourceCert, resourceKey := r.PKI.Issue(t, "resource", "ani-resource-service", false)
 	resourceClient := conn(t, r, resourceCert, resourceKey)
 	resourceCtx, resourceCancel := context.WithTimeout(callContext("ObserveRelease", tenant), 5*time.Second)
 	if err := resourceClient.Invoke(resourceCtx, methodPath("ObserveRelease"), release, new(pb.ReleaseObservation)); status.Code(err) != codes.PermissionDenied {
@@ -518,6 +523,18 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if err = gov.Invoke(ctx, methodPath("GetGpuUsage"), get, new(pb.GpuUsageProjection)); status.Code(err) != codes.PermissionDenied {
 		t.Fatal("forged tenant accepted", err)
 	}
+	otherUsages := new(pb.ListGpuUsagesResponse)
+	rpc("ListGpuUsages", otherTenant, &pb.ListGpuUsagesRequest{Context: tenantContext(otherTenant)}, otherUsages)
+	if len(otherUsages.Items) != 0 {
+		t.Fatal("another tenant's usage leaked", otherUsages)
+	}
+	otherRef := proto.Clone(release.Ref).(*pb.GpuUsageRef)
+	otherRef.TenantId = otherTenant
+	otherBindings := new(pb.ListBindingsResponse)
+	rpc("ListBindings", otherTenant, &pb.ListBindingsRequest{Context: tenantContext(otherTenant), Ref: otherRef}, otherBindings)
+	if len(otherBindings.Items) != 0 {
+		t.Fatal("another tenant's bindings leaked", otherBindings)
+	}
 	for _, creds := range []struct{ cert, key string }{{"", ""}} {
 		noCert := conn(t, r, creds.cert, creds.key)
 		ctx, cancel := context.WithTimeout(callContext("ListClusters", ""), 500*time.Millisecond)
@@ -527,7 +544,7 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 			t.Fatal("no certificate accepted")
 		}
 	}
-	wrongCert, wrongKey := r.PKI.Issue(t, "unrelated", "spiffe://ani.internal/service/unrelated", false)
+	wrongCert, wrongKey := r.PKI.Issue(t, "unrelated", "unrelated", false)
 	wrong := conn(t, r, wrongCert, wrongKey)
 	ctx, cancel = context.WithTimeout(callContext("ListClusters", ""), time.Second)
 	err = wrong.Invoke(ctx, methodPath("ListClusters"), &pb.ListClustersRequest{Context: adminRead()}, new(pb.ListClustersResponse))
@@ -536,7 +553,7 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		t.Fatal("same CA wrong service accepted", err)
 	}
 	foreign := testkit.NewPKI(t)
-	foreignCert, foreignKey := foreign.Issue(t, "untrusted", "spiffe://ani.internal/service/ani-governance", false)
+	foreignCert, foreignKey := foreign.Issue(t, "untrusted", "ani-governance", false)
 	untrusted := conn(t, r, foreignCert, foreignKey)
 	ctx, cancel = context.WithTimeout(callContext("ListClusters", ""), 500*time.Millisecond)
 	err = untrusted.Invoke(ctx, methodPath("ListClusters"), &pb.ListClustersRequest{Context: adminRead()}, new(pb.ListClustersResponse))

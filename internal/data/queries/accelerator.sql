@@ -8,7 +8,7 @@ INSERT INTO accelerator.admin_idempotency(actor_digest,method,idempotency_key,pa
 SELECT payload FROM accelerator.clusters WHERE cluster_id=$1;
 
 -- name: ClustersData1 :many
-SELECT payload FROM accelerator.clusters WHERE ($1 OR cluster_id::text=ANY($2::text[])) AND cluster_id>COALESCE(NULLIF($3,'')::uuid,'00000000-0000-0000-0000-000000000000') ORDER BY cluster_id LIMIT $4;
+SELECT payload FROM accelerator.clusters WHERE connection_ref=ANY($1::text[]) AND cluster_id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000') ORDER BY cluster_id LIMIT $3;
 
 -- name: PoolData1 :one
 SELECT payload FROM accelerator.pools WHERE pool_id=$1;

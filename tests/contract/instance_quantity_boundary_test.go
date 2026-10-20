@@ -1,7 +1,7 @@
 package contract_test
 
 // This explicitly started test process substitutes only the external GPU
-// catalog/Resolve and usage destination. It uses the production mTLS/delegation
+// catalog/Resolve and usage destination. It uses the production mTLS/context
 // guard and real BuildResolution. It has no PostgreSQL connection and
 // cannot write actual supply, real usage, binding or release facts.
 
@@ -35,7 +35,7 @@ type instanceBoundaryConfig struct {
 	CAFile            string `json:"ca_file"`
 	CertFile          string `json:"cert_file"`
 	KeyFile           string `json:"key_file"`
-	GovernanceURI     string `json:"governance_uri"`
+	GovernanceDNSName string `json:"governance_dns_name"`
 	ClusterID         string `json:"cluster_id"`
 	TenantID          string `json:"tenant_id"`
 	ActorType         string `json:"actor_type"`
@@ -114,7 +114,7 @@ func (b *instanceQuantityBoundary) tenant(ctx context.Context, in *pb.TenantCont
 	if in.GetTenantId() != b.config.TenantID {
 		return status.Error(codes.PermissionDenied, "BOUNDARY_TENANT_DENIED")
 	}
-	return biz.AuthorizeCluster(ctx, b.config.ClusterID)
+	return nil
 }
 func (b *instanceQuantityBoundary) admin(ctx context.Context, in *pb.AdminRead, action string) error {
 	input, err := boundaryCopy[biz.AdminRead](in)
@@ -124,7 +124,7 @@ func (b *instanceQuantityBoundary) admin(ctx context.Context, in *pb.AdminRead, 
 	if err := biz.AuthorizeAdmin(ctx, input, action); err != nil {
 		return status.Error(codes.PermissionDenied, err.Error())
 	}
-	return biz.AuthorizeCluster(ctx, b.config.ClusterID)
+	return nil
 }
 func boundaryPage(p *pb.Page) error {
 	if p.GetToken() != "" || (p.GetSize() != 0 && p.GetSize() < 2) || p.GetSize() > 200 {
@@ -325,8 +325,8 @@ func TestInstanceQuantityBoundaryRuntime(t *testing.T) {
 	}
 	var c instanceBoundaryConfig
 	readJointJSON(t, path, &c)
-	if !filepath.IsAbs(c.Root) || c.Address == "" || c.GovernanceURI == "" {
-		t.Fatal("absolute task root/address/governance URI required")
+	if !filepath.IsAbs(c.Root) || c.Address == "" || c.GovernanceDNSName != "ani-governance" {
+		t.Fatal("absolute task root/address/exact governance DNS required")
 	}
 	if _, err := os.Stat(filepath.Join(c.Root, "ready.json")); !os.IsNotExist(err) {
 		t.Fatal("boundary root already used; review before starting a new run")
@@ -338,7 +338,7 @@ func TestInstanceQuantityBoundaryRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceUri: c.GovernanceURI, InferenceUri: "spiffe://ani.internal/service/ani-inference", ResourceUri: "spiffe://ani.internal/service/ani-resource-service", Grants: []*conf.DelegationGrant{{ActorType: c.PlatformActorType, ActorId: c.PlatformActorID, Platform: true, Actions: []string{"AdminListProfiles", "ListPools", "ListSupplyGroups"}, ClusterIds: []string{c.ClusterID}}, {ActorType: c.ActorType, ActorId: c.ActorID, Actions: []string{"ListProfiles", "GetProfile", "ResolveGpuRequest"}, TenantIds: []string{c.TenantID}, ClusterIds: []string{c.ClusterID}}}}
+	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceDnsName: c.GovernanceDNSName, InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service"}
 	tlsConfig, err := server.LoadServerTLS(security)
 	if err != nil {
 		t.Fatal(err)
@@ -418,7 +418,7 @@ func TestInstanceQuantityBoundaryBuilderAndScope(t *testing.T) {
 			t.Fatal("wrong cluster accepted")
 		}
 	}
-	ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Action: "ListProfiles", TenantID: c.TenantID, Actor: biz.Actor{Type: c.ActorType, ID: c.ActorID}, ClusterIDs: []string{c.ClusterID}})
+	ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Action: "ListProfiles", TenantID: c.TenantID, Actor: biz.Actor{Type: c.ActorType, ID: c.ActorID}})
 	in := &pb.ListProfilesRequest{Context: &pb.TenantContext{RequestId: "scope-test", TenantId: c.TenantID, Actor: &pb.Actor{Type: c.ActorType, Id: c.ActorID}}, ClusterId: c.ClusterID}
 	out, err := b.ListProfiles(ctx, in)
 	if err != nil || len(out.GetItems()) != 2 || len(out.GetScopes()) != 2 {

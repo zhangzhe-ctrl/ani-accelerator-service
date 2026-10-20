@@ -32,7 +32,7 @@ func TestPostgresProfileCatalogScopesMatchEachPage(t *testing.T) {
 		t.Fatal(err)
 	}
 	actor := pb.Actor{Type: adminActor.Type, Id: adminActor.ID}
-	ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, TenantID: f.tenant, Action: "ListProfiles", ClusterIDs: []string{f.cluster.ClusterID}})
+	ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, TenantID: f.tenant, Action: "ListProfiles"})
 	server := service.NewAccelerator(f.u)
 	request := &pb.ListProfilesRequest{Context: &pb.TenantContext{RequestId: "catalog-scope", TenantId: f.tenant, Actor: &actor}, ClusterId: f.cluster.ClusterID, Page: &pb.Page{Size: 1}}
 	expectedPools := map[string]string{f.profile.ProfileID: f.pool.PoolID, second.ProfileID: secondPool.PoolID}
@@ -71,12 +71,43 @@ func TestPostgresProfileCatalogScopesMatchEachPage(t *testing.T) {
 	if err != nil || len(empty.GetItems()) != 0 || len(empty.GetScopes()) != 0 || empty.GetNextToken() != "" {
 		t.Fatalf("empty catalog scope: result=%+v error=%v", empty, err)
 	}
-	wrongTenant := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, TenantID: biz.NewID(), Action: "ListProfiles", ClusterIDs: []string{f.cluster.ClusterID}})
+	wrongTenant := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, TenantID: biz.NewID(), Action: "ListProfiles"})
 	if _, err := server.ListProfiles(wrongTenant, request); err == nil {
 		t.Fatal("cross-tenant catalog accepted")
 	}
 	unscoped := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, TenantID: f.tenant, Action: "ListProfiles"})
-	if _, err := server.ListProfiles(unscoped, request); err == nil {
-		t.Fatal("catalog without cluster authorization accepted")
+	if _, err := server.ListProfiles(unscoped, request); err != nil {
+		t.Fatalf("trusted Gov tenant must use provider management scope without user grants: %v", err)
+	}
+}
+
+func TestPostgresProviderConnectionsDefineManagementScope(t *testing.T) {
+	f := pgSetup(t)
+	other := pgSetup(t)
+	page, err := f.u.ListClusters(adminContext("ListClusters"), &biz.AdminRead{RequestID: "scope", Actor: &adminActor}, nil)
+	if err != nil || len(page.Items) != 1 || page.Items[0].ClusterID != f.cluster.ClusterID {
+		t.Fatalf("managed connection filter failed: %+v %v", page, err)
+	}
+	if _, err := f.u.RegisterCluster(adminContext("RegisterCluster"), adminMutation(), "unknown", "unconfigured:"+biz.NewID()); err == nil {
+		t.Fatal("unconfigured provider connection accepted")
+	}
+	if _, err := f.u.CreatePool(adminContext("CreatePool"), adminMutation(), other.cluster.ClusterID, "foreign"); !biz.IsNotFound(err) {
+		t.Fatalf("unmanaged cluster accepted: %v", err)
+	}
+	if _, err := f.u.ListPools(adminContext("ListPools"), &biz.AdminRead{RequestID: "scope", Actor: &adminActor}, other.cluster.ClusterID, nil); !biz.IsNotFound(err) {
+		t.Fatalf("unmanaged cluster listed: %v", err)
+	}
+	tenant := &biz.TenantContext{RequestID: "scope", TenantID: f.tenant, Actor: &adminActor}
+	caller := biz.Caller{Service: "ani-governance", Action: "GetProfile", Actor: adminActor, TenantID: f.tenant}
+	if _, err := f.u.GetProfile(biz.WithCaller(context.Background(), caller), tenant, other.profile.ProfileID, 1); !biz.IsNotFound(err) {
+		t.Fatalf("unmanaged profile read accepted: %v", err)
+	}
+	caller.Action = "GetCapacity"
+	if _, err := f.u.GetCapacity(biz.WithCaller(context.Background(), caller), tenant, other.profile.ProfileID, 1); !biz.IsNotFound(err) {
+		t.Fatalf("unmanaged capacity accepted: %v", err)
+	}
+	caller.Action = "ResolveGpuRequest"
+	if _, err := f.u.Resolve(biz.WithCaller(context.Background(), caller), tenant, other.request); !biz.IsNotFound(err) {
+		t.Fatalf("unmanaged resolve accepted: %v", err)
 	}
 }

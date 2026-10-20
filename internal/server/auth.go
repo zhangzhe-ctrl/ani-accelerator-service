@@ -4,16 +4,18 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/asn1"
 	"os"
-	"strings"
 
 	"github.com/go-kratos/kratos/v3/middleware"
 	kratosgrpc "github.com/go-kratos/kratos/v3/transport/grpc"
+	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
@@ -21,11 +23,8 @@ import (
 	"google.golang.org/protobuf/reflect/protoreflect"
 )
 
-var AdminActions = map[string]bool{"RegisterCluster": true, "ListClusters": true, "CreatePool": true, "ListPools": true, "AdoptSupplyGroup": true, "ListSupplyGroups": true, "SetAdmission": true, "CreateProfile": true, "PreviewProfile": true, "SetProfileState": true, "DeleteProfile": true, "AdminListProfiles": true, "AdminListBindings": true, "ListDevices": true, "AdminGetCapacity": true}
-var TenantActions = map[string]bool{"ListProfiles": true, "GetProfile": true, "ResolveGpuRequest": true, "GetCapacity": true, "CheckGpuFit": true, "GetGpuUsage": true, "ListGpuUsages": true, "ListBindings": true}
-
 func LoadServerTLS(c *conf.Security) (*tls.Config, error) {
-	if c == nil || c.CaFile == "" || c.CertFile == "" || c.KeyFile == "" || c.GovernanceUri == "" || c.InferenceUri == "" || c.ResourceUri == "" || c.GovernanceUri == c.InferenceUri || c.ResourceUri == c.GovernanceUri || c.ResourceUri == c.InferenceUri {
+	if c == nil || c.CaFile == "" || c.CertFile == "" || c.KeyFile == "" || c.ValidateServiceIdentities() != nil {
 		return nil, biz.Invalid("MTLS_CONFIG_REQUIRED")
 	}
 	cert, err := tls.LoadX509KeyPair(c.CertFile, c.KeyFile)
@@ -50,24 +49,89 @@ func NewSecureGRPCServer(c *conf.Server_GRPC, security *conf.Security, middlewar
 	return kratosgrpc.NewServer(kratosgrpc.Network(c.Network), kratosgrpc.Address(c.Addr), kratosgrpc.Timeout(c.Timeout.AsDuration()), kratosgrpc.TLSConfig(tlsConfig), kratosgrpc.Middleware(middlewares...), kratosgrpc.DisableReflection(), kratosgrpc.UnaryInterceptor(Authorize(security)), kratosgrpc.StreamInterceptor(AuthorizeStream(security))), nil
 }
 
-// Business RPCs are unary. Kratos also registers the streaming health Watch;
-// it must not bypass Resource's sole-method allowlist.
+type rpcPolicy struct {
+	action string
+	admin  bool
+}
+
+var governanceRPCs = map[string]rpcPolicy{
+	pb.AcceleratorAdminService_RegisterCluster_FullMethodName:     {action: "RegisterCluster", admin: true},
+	pb.AcceleratorAdminService_ListClusters_FullMethodName:        {action: "ListClusters", admin: true},
+	pb.AcceleratorAdminService_CreatePool_FullMethodName:          {action: "CreatePool", admin: true},
+	pb.AcceleratorAdminService_ListPools_FullMethodName:           {action: "ListPools", admin: true},
+	pb.AcceleratorAdminService_AdoptSupplyGroup_FullMethodName:    {action: "AdoptSupplyGroup", admin: true},
+	pb.AcceleratorAdminService_ListSupplyGroups_FullMethodName:    {action: "ListSupplyGroups", admin: true},
+	pb.AcceleratorAdminService_SetAdmission_FullMethodName:        {action: "SetAdmission", admin: true},
+	pb.AcceleratorAdminService_CreateProfile_FullMethodName:       {action: "CreateProfile", admin: true},
+	pb.AcceleratorAdminService_PreviewProfile_FullMethodName:      {action: "PreviewProfile", admin: true},
+	pb.AcceleratorAdminService_SetProfileState_FullMethodName:     {action: "SetProfileState", admin: true},
+	pb.AcceleratorAdminService_DeleteProfile_FullMethodName:       {action: "DeleteProfile", admin: true},
+	pb.AcceleratorAdminService_AdminListProfiles_FullMethodName:   {action: "AdminListProfiles", admin: true},
+	pb.AcceleratorAdminService_AdminListBindings_FullMethodName:   {action: "AdminListBindings", admin: true},
+	pb.AcceleratorAdminService_ListDevices_FullMethodName:         {action: "ListDevices", admin: true},
+	pb.AcceleratorAdminService_AdminGetCapacity_FullMethodName:    {action: "AdminGetCapacity", admin: true},
+	pb.AcceleratorCatalogService_ListProfiles_FullMethodName:      {action: "ListProfiles", admin: false},
+	pb.AcceleratorCatalogService_GetProfile_FullMethodName:        {action: "GetProfile", admin: false},
+	pb.AcceleratorCatalogService_ResolveGpuRequest_FullMethodName: {action: "ResolveGpuRequest", admin: false},
+	pb.AcceleratorCatalogService_GetCapacity_FullMethodName:       {action: "GetCapacity", admin: false},
+	pb.AcceleratorCatalogService_CheckGpuFit_FullMethodName:       {action: "CheckGpuFit", admin: false},
+	pb.AcceleratorUsageService_GetGpuUsage_FullMethodName:         {action: "GetGpuUsage", admin: false},
+	pb.AcceleratorUsageService_ListGpuUsages_FullMethodName:       {action: "ListGpuUsages", admin: false},
+	pb.AcceleratorUsageService_ListBindings_FullMethodName:        {action: "ListBindings", admin: false},
+}
+
+// TLS verifies the chain; ACC additionally requires one exact DNS SAN and no
+// alternate SAN type. Identity is never inferred from CN or URI aliases.
+func authenticatedService(ctx context.Context, config *conf.Security) (string, error) {
+	if config.ValidateServiceIdentities() != nil {
+		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
+	}
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		return "", status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
+	}
+	t, ok := p.AuthInfo.(credentials.TLSInfo)
+	if !ok || len(t.State.VerifiedChains) == 0 || len(t.State.PeerCertificates) == 0 {
+		return "", status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
+	}
+	leaf := t.State.PeerCertificates[0]
+	if len(leaf.DNSNames) != 1 || len(leaf.URIs) != 0 || len(leaf.IPAddresses) != 0 || len(leaf.EmailAddresses) != 0 || !uniqueDNSSAN(leaf) {
+		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
+	}
+	switch leaf.DNSNames[0] {
+	case config.GovernanceDnsName:
+		return "ani-governance", nil
+	case config.InferenceDnsName:
+		return "ani-inference", nil
+	case config.ResourceDnsName:
+		return "ani-resource-service", nil
+	default:
+		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
+	}
+}
+func uniqueDNSSAN(leaf *x509.Certificate) bool {
+	for _, ext := range leaf.Extensions {
+		if !ext.Id.Equal(asn1.ObjectIdentifier{2, 5, 29, 17}) {
+			continue
+		}
+		var sequence asn1.RawValue
+		rest, err := asn1.Unmarshal(ext.Value, &sequence)
+		if err != nil || len(rest) != 0 || sequence.Tag != asn1.TagSequence || !sequence.IsCompound {
+			return false
+		}
+		var name asn1.RawValue
+		rest, err = asn1.Unmarshal(sequence.Bytes, &name)
+		return err == nil && len(rest) == 0 && name.Class == asn1.ClassContextSpecific && name.Tag == 2 && !name.IsCompound && string(name.Bytes) == leaf.DNSNames[0]
+	}
+	return false
+}
 func AuthorizeStream(config *conf.Security) grpc.StreamServerInterceptor {
 	return func(srv any, stream grpc.ServerStream, info *grpc.StreamServerInfo, next grpc.StreamHandler) error {
-		p, ok := peer.FromContext(stream.Context())
-		if !ok {
-			return status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
+		service, err := authenticatedService(stream.Context(), config)
+		if err != nil {
+			return err
 		}
-		t, ok := p.AuthInfo.(credentials.TLSInfo)
-		if !ok || len(t.State.VerifiedChains) == 0 || len(t.State.PeerCertificates) == 0 {
-			return status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
-		}
-		leaf := t.State.PeerCertificates[0]
-		if len(leaf.URIs) != 1 {
-			return status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
-		}
-		identity := leaf.URIs[0].String()
-		if info.FullMethod != "/grpc.health.v1.Health/Watch" || (identity != config.GovernanceUri && identity != config.InferenceUri) {
+		if service != "ani-governance" || info.FullMethod != healthpb.Health_Watch_FullMethodName {
 			return status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
 		return next(srv, stream)
@@ -75,41 +139,17 @@ func AuthorizeStream(config *conf.Security) grpc.StreamServerInterceptor {
 }
 func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 	return func(ctx context.Context, request any, info *grpc.UnaryServerInfo, next grpc.UnaryHandler) (any, error) {
-		p, ok := peer.FromContext(ctx)
-		if !ok {
-			return nil, status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
+		service, err := authenticatedService(ctx, config)
+		if err != nil {
+			return nil, err
 		}
-		t, ok := p.AuthInfo.(credentials.TLSInfo)
-		if !ok || len(t.State.VerifiedChains) == 0 || len(t.State.PeerCertificates) == 0 {
-			return nil, status.Error(codes.Unauthenticated, "MTLS_REQUIRED")
-		}
-		leaf := t.State.PeerCertificates[0]
-		if len(leaf.URIs) != 1 {
-			return nil, status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
-		}
-		identity := leaf.URIs[0].String()
-		service := ""
-		switch identity {
-		case config.GovernanceUri:
-			service = "ani-governance"
-		case config.InferenceUri:
-			service = "ani-inference"
-		case config.ResourceUri:
-			service = "ani-resource-service"
-		default:
-			return nil, status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
-		}
-		if info.FullMethod == "/grpc.health.v1.Health/Check" {
-			if service == "ani-resource-service" {
-				return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
-			}
+		if service == "ani-governance" && (info.FullMethod == healthpb.Health_Check_FullMethodName || info.FullMethod == healthpb.Health_List_FullMethodName) {
 			return next(ctx, request)
 		}
-		if !strings.HasPrefix(info.FullMethod, "/accelerator.v1.") {
-			return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
-		}
-		_, method, ok := strings.Cut(strings.TrimPrefix(info.FullMethod, "/"), "/")
-		if !ok {
+		policy, delegated := governanceRPCs[info.FullMethod]
+		sync := info.FullMethod == pb.AcceleratorUsageService_SyncGpuUsage_FullMethodName
+		release := info.FullMethod == pb.AcceleratorUsageService_ObserveRelease_FullMethodName
+		if !(service == "ani-governance" && (delegated || sync)) && !((service == "ani-inference" || service == "ani-resource-service") && release) {
 			return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
 		if message, ok := request.(proto.Message); !ok || hasUnknown(message.ProtoReflect()) {
@@ -117,55 +157,39 @@ func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 		}
 		md, _ := metadata.FromIncomingContext(ctx)
 		read := func(k string) string {
-			v := md.Get(k)
-			if len(v) != 1 {
+			values := md.Get(k)
+			if len(values) != 1 {
 				return ""
 			}
-			return v[0]
+			return values[0]
 		}
-		caller := biz.Caller{Service: service, Action: method, TenantID: read("x-ani-tenant-id")}
-		if method == "SyncGpuUsage" {
-			if service != "ani-governance" {
+		caller := biz.Caller{Service: service, Action: policy.action, TenantID: read("x-ani-tenant-id")}
+		if sync {
+			caller.Action = "SyncGpuUsage"
+			// Durable background facts do not impersonate a live user or tenant.
+			for _, key := range []string{"x-ani-actor-type", "x-ani-actor-id", "x-ani-tenant-id"} {
+				if len(md.Get(key)) != 0 {
+					return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
+				}
+			}
+			if len(md.Get("x-ani-action")) != 0 && read("x-ani-action") != caller.Action {
 				return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 			}
 			return next(biz.WithCaller(ctx, caller), request)
 		}
-		if method == "ObserveRelease" {
-			if (service != "ani-inference" && service != "ani-resource-service") || !biz.UUID(caller.TenantID) || read("x-ani-action") != method {
+		if release {
+			caller.Action = "ObserveRelease"
+			if !biz.UUID(caller.TenantID) || read("x-ani-action") != caller.Action {
 				return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 			}
 			return next(biz.WithCaller(ctx, caller), request)
-		}
-		if service != "ani-governance" || read("x-ani-action") != method || (!AdminActions[method] && !TenantActions[method]) {
-			return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
 		caller.Actor = biz.Actor{Type: read("x-ani-actor-type"), ID: read("x-ani-actor-id")}
-		for _, grant := range config.Grants {
-			if grant.ActorType != caller.Actor.Type || grant.ActorId != caller.Actor.ID || !contains(grant.Actions, method) {
-				continue
-			}
-			if AdminActions[method] {
-				if !grant.Platform || caller.TenantID != "" {
-					continue
-				}
-			} else {
-				if grant.Platform || !biz.UUID(caller.TenantID) || !contains(grant.TenantIds, caller.TenantID) {
-					continue
-				}
-			}
-			caller.ClusterIDs = append([]string{}, grant.ClusterIds...)
-			return next(biz.WithCaller(ctx, caller), request)
+		if read("x-ani-action") != policy.action || biz.ValidateActor(&caller.Actor) != nil || (policy.admin && len(md.Get("x-ani-tenant-id")) != 0) || (!policy.admin && !biz.UUID(caller.TenantID)) {
+			return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
-		return nil, status.Error(codes.PermissionDenied, "DELEGATION_DENIED")
+		return next(biz.WithCaller(ctx, caller), request)
 	}
-}
-func contains(xs []string, want string) bool {
-	for _, x := range xs {
-		if x == want {
-			return true
-		}
-	}
-	return false
 }
 func hasUnknown(m protoreflect.Message) bool {
 	if len(m.GetUnknown()) > 0 {

@@ -43,7 +43,7 @@ type pgFixture struct {
 var adminActor = biz.Actor{Type: "user", ID: "acc-test-operator"}
 
 func adminContext(action string) context.Context {
-	return biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, Action: action, ClusterIDs: []string{"*"}})
+	return biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, Action: action})
 }
 func adminMutation() *biz.AdminMutation {
 	return &biz.AdminMutation{Context: &biz.AdminRead{RequestID: "test", Actor: &adminActor}, IdempotencyKey: biz.NewID()}
@@ -451,7 +451,7 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 		t.Fatal("incomplete pages", seen)
 	}
 	tenant := &biz.TenantContext{RequestID: "test", TenantID: f.tenant, Actor: &adminActor}
-	caller := biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "CheckGpuFit", TenantID: f.tenant, ClusterIDs: []string{f.cluster.ClusterID}}
+	caller := biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "CheckGpuFit", TenantID: f.tenant}
 	fit, err := f.u.CheckFit(biz.WithCaller(context.Background(), caller), tenant, f.request)
 	if err != nil || fit.Status != biz.FitUnknown || fit.EstimateKnown {
 		t.Fatal("missing inventory not UNKNOWN", fit, err)
@@ -463,8 +463,15 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 	if _, err = f.u.GetProfile(biz.WithCaller(context.Background(), caller), tenant, f.profile.ProfileID, ^uint64(0)); !biz.IsNotFound(err) {
 		t.Fatal("version overflow reached database", err)
 	}
-	caller.ClusterIDs = []string{biz.NewID()}
-	if _, err = f.u.GetProfile(biz.WithCaller(context.Background(), caller), tenant, f.profile.ProfileID, 1); !biz.IsNotFound(err) {
+	codec, err := biz.NewCursorCodec([]byte(strings.Repeat("x", 32)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	restrictedUsecase, err := biz.NewUsecase(f.db, testProvider{}, codec, nil, 16, time.Minute)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = restrictedUsecase.GetProfile(biz.WithCaller(context.Background(), caller), tenant, f.profile.ProfileID, 1); !biz.IsNotFound(err) {
 		t.Fatal("out-of-scope profile visible", err)
 	}
 	m := adminMutation()
@@ -473,12 +480,11 @@ func TestPostgresCatalogDenialsAndStablePaging(t *testing.T) {
 		t.Fatal(err)
 	}
 	caller.Action = "ResolveGpuRequest"
-	caller.ClusterIDs = []string{f.cluster.ClusterID}
 	if _, err = f.u.Resolve(biz.WithCaller(context.Background(), caller), tenant, f.request); err == nil || err.Error() != "ADMISSION_CLOSED" {
 		t.Fatal("closed resolves", err)
 	}
-	restricted := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "SetAdmission", ClusterIDs: []string{biz.NewID()}})
-	if _, err = f.u.SetAdmission(restricted, m, biz.AdmissionInput{GroupID: f.group.GroupID, ExpectedVersion: f.group.Version, Desired: biz.Closed, Reason: "close test"}); !biz.IsNotFound(err) {
+	restricted := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "SetAdmission"})
+	if _, err = restrictedUsecase.SetAdmission(restricted, m, biz.AdmissionInput{GroupID: f.group.GroupID, ExpectedVersion: f.group.Version, Desired: biz.Closed, Reason: "close test"}); !biz.IsNotFound(err) {
 		t.Fatal("idempotency bypassed changed scope", err)
 	}
 	if closed.Version != f.group.Version+1 {

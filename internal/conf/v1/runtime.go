@@ -2,9 +2,7 @@ package conf
 
 import (
 	"fmt"
-	"net/url"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -26,16 +24,8 @@ func (c *Bootstrap) ValidateRuntime() error {
 			return fmt.Errorf("runtime secret/config references must be absolute paths")
 		}
 	}
-	identities := map[string]bool{}
-	for _, identity := range []string{s.GovernanceUri, s.InferenceUri, s.ResourceUri} {
-		u, err := url.Parse(identity)
-		if err != nil || u.Scheme != "spiffe" || u.Host == "" || u.Path == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" {
-			return fmt.Errorf("exact SPIFFE service URI is required")
-		}
-		if identities[identity] {
-			return fmt.Errorf("service identities must be distinct")
-		}
-		identities[identity] = true
+	if err := s.ValidateServiceIdentities(); err != nil {
+		return err
 	}
 	if c.Accelerator.MaxReplicas == 0 || c.Accelerator.MaxReplicas > 16 {
 		return fmt.Errorf("max_replicas must be 1..16")
@@ -49,23 +39,12 @@ func (c *Bootstrap) ValidateRuntime() error {
 	if c.Accelerator.CollectInterval.AsDuration() >= c.Accelerator.Freshness.AsDuration() {
 		return fmt.Errorf("collect interval must be shorter than freshness")
 	}
-	for _, g := range s.Grants {
-		if g.ActorType == "" || g.ActorId == "" || len(g.Actions) == 0 || len(g.ClusterIds) == 0 {
-			return fmt.Errorf("delegation grants require actor, actions and cluster scopes")
-		}
-		if g.Platform && len(g.TenantIds) > 0 || !g.Platform && len(g.TenantIds) == 0 {
-			return fmt.Errorf("platform and tenant grants require separate scopes")
-		}
-		for _, cluster := range g.ClusterIds {
-			if cluster == "*" && !g.Platform {
-				return fmt.Errorf("tenant cluster wildcard is forbidden")
-			}
-		}
-		for _, action := range g.Actions {
-			if action == "*" || strings.ContainsAny(action, "/ \t\r\n") {
-				return fmt.Errorf("delegation actions must be exact RPC names")
-			}
-		}
+	return nil
+}
+
+func (s *Security) ValidateServiceIdentities() error {
+	if s == nil || s.GovernanceDnsName != "ani-governance" || s.InferenceDnsName != "ani-inference-service" || s.ResourceDnsName != "ani-resource-service" {
+		return fmt.Errorf("exact registered service DNS identities are required")
 	}
 	return nil
 }

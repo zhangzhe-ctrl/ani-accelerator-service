@@ -82,16 +82,11 @@ func (q *Queries) ClusterData1(ctx context.Context, clusterID string) ([]byte, e
 }
 
 const clustersData1 = `-- name: ClustersData1 :many
-SELECT payload FROM accelerator.clusters WHERE ($1 OR cluster_id::text=ANY($2::text[])) AND cluster_id>COALESCE(NULLIF($3,'')::uuid,'00000000-0000-0000-0000-000000000000') ORDER BY cluster_id LIMIT $4
+SELECT payload FROM accelerator.clusters WHERE connection_ref=ANY($1::text[]) AND cluster_id>COALESCE(NULLIF($2,'')::uuid,'00000000-0000-0000-0000-000000000000') ORDER BY cluster_id LIMIT $3
 `
 
-func (q *Queries) ClustersData1(ctx context.Context, column1 interface{}, column2 []string, column3 interface{}, limit int32) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, clustersData1,
-		column1,
-		column2,
-		column3,
-		limit,
-	)
+func (q *Queries) ClustersData1(ctx context.Context, column1 []string, column2 interface{}, limit int32) ([][]byte, error) {
+	rows, err := q.db.Query(ctx, clustersData1, column1, column2, limit)
 	if err != nil {
 		return nil, err
 	}

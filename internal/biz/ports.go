@@ -9,6 +9,7 @@ import (
 // explicit tenant or full reference; platform facilities have no fake tenant.
 type Reader interface {
 	Cluster(context.Context, string) (*Cluster, error)
+	// Clusters filters by configured provider connection references, never user grants.
 	Clusters(context.Context, []string, string, int) ([]Cluster, error)
 	Pool(context.Context, string) (*Pool, error)
 	Pools(context.Context, string, string, int) ([]Pool, error)

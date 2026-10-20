@@ -22,20 +22,12 @@ message Security {
   string ca_file = 1;
   string cert_file = 2;
   string key_file = 3;
-  string governance_uri = 4;
-  string inference_uri = 5;
+  reserved 4, 5, 7, 8;
+  reserved "governance_uri", "inference_uri", "grants", "resource_uri";
   string cursor_key_file = 6;
-  repeated DelegationGrant grants = 7;
-  string resource_uri = 8;
-}
-
-message DelegationGrant {
-  string actor_type = 1;
-  string actor_id = 2;
-  repeated string actions = 3;
-  bool platform = 4;
-  repeated string tenant_ids = 5;
-  repeated string cluster_ids = 6;
+  string governance_dns_name = 9;
+  string inference_dns_name = 10;
+  string resource_dns_name = 11;
 }
 
 message Accelerator {

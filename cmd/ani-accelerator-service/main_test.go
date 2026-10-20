@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/go-kratos/kratos/v3/config"
+	"github.com/go-kratos/kratos/v3/config/file"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 	"net/http"
 	"os"
@@ -139,4 +141,46 @@ func runtimeEnvironment(overrides ...string) []string {
 		}
 	}
 	return append(environment, overrides...)
+}
+
+// Exercise the production file loader before its permissive protobuf Scan.
+func TestLegacySecurityConfigurationIsRejected(t *testing.T) {
+	for _, ext := range []string{"json", "yaml"} {
+		for _, key := range []string{"grants", "governance_uri", "governanceUri", "inference_uri", "resourceUri"} {
+			t.Run(ext+"/"+key, func(t *testing.T) {
+				path := filepath.Join(t.TempDir(), "config."+ext)
+				value := "\"obsolete\""
+				if key == "grants" {
+					value = "[]"
+				}
+				content := "security:\n  " + key + ": " + value + "\n"
+				if ext == "json" {
+					content = "{\"security\":{\"" + key + "\":" + value + "}}"
+				}
+				if err := os.WriteFile(path, []byte(content), 0600); err != nil {
+					t.Fatal(err)
+				}
+				c := config.New(config.WithSource(file.NewSource(path)))
+				defer c.Close()
+				if err := c.Load(); err != nil {
+					t.Fatal(err)
+				}
+				if err := rejectLegacySecurity(c); err == nil || !strings.Contains(err.Error(), "obsolete") {
+					t.Fatalf("legacy config accepted or unclear error: %v", err)
+				}
+			})
+		}
+	}
+	path := filepath.Join(t.TempDir(), "config.json")
+	if err := os.WriteFile(path, []byte(`{"security":{"governance_dns_name":"ani-governance","inference_dns_name":"ani-inference-service","resource_dns_name":"ani-resource-service"}}`), 0600); err != nil {
+		t.Fatal(err)
+	}
+	c := config.New(config.WithSource(file.NewSource(path)))
+	defer c.Close()
+	if err := c.Load(); err != nil {
+		t.Fatal(err)
+	}
+	if err := rejectLegacySecurity(c); err != nil {
+		t.Fatal(err)
+	}
 }

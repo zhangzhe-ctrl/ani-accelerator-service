@@ -59,7 +59,7 @@ func TestQuantityTwoDeviceFitRejectsBeforeExternalReads(t *testing.T) {
 	}
 	actor := Actor{Type: "user", ID: "quantity-test"}
 	a := &TenantContext{RequestID: "quantity-fit", TenantID: testID, Actor: &actor}
-	ctx := WithCaller(context.Background(), Caller{Service: "ani-governance", Actor: actor, TenantID: testID, Action: "CheckGpuFit", ClusterIDs: []string{testID}})
+	ctx := WithCaller(context.Background(), Caller{Service: "ani-governance", Actor: actor, TenantID: testID, Action: "CheckGpuFit"})
 	_, err = u.CheckFit(ctx, a, quantityRequest(2, 1))
 	requireReason(t, err, "SHAPE_UNSUPPORTED")
 	_, err = u.CheckFit(context.Background(), a, quantityRequest(2, 1))

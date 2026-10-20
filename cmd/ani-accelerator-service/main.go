@@ -56,6 +56,11 @@ func run(logger *slog.Logger) error {
 	if err := c.Load(); err != nil {
 		return fmt.Errorf("load config: %w", err)
 	}
+	// Kratos deliberately discards unknown protobuf fields. Inspect the raw
+	// section first so a removed static grant never becomes a silent migration.
+	if err := rejectLegacySecurity(c); err != nil {
+		return err
+	}
 
 	var bc conf.Bootstrap
 	if err := c.Scan(&bc); err != nil {
@@ -67,6 +72,19 @@ func run(logger *slog.Logger) error {
 	}
 	if err := app.Run(); err != nil {
 		return fmt.Errorf("run app: %w", err)
+	}
+	return nil
+}
+
+func rejectLegacySecurity(c config.Config) error {
+	values, err := c.Value("security").Map()
+	if err != nil {
+		return fmt.Errorf("security config is required: %w", err)
+	}
+	for _, key := range []string{"grants", "governance_uri", "governanceUri", "inference_uri", "inferenceUri", "resource_uri", "resourceUri"} {
+		if _, exists := values[key]; exists {
+			return fmt.Errorf("security.%s is obsolete; remove static grants and configure exact service DNS identities", key)
+		}
 	}
 	return nil
 }

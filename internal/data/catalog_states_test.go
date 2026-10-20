@@ -52,7 +52,7 @@ func TestPostgresMultipleProfilesAndAcceptedUsageSurviveCatalogChanges(t *testin
 		t.Fatal("stale profile revision accepted", err)
 	}
 	tenant := &biz.TenantContext{RequestID: "catalog-state", TenantID: f.tenant, Actor: &adminActor}
-	resolveContext := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "ResolveGpuRequest", TenantID: f.tenant, ClusterIDs: []string{f.cluster.ClusterID}})
+	resolveContext := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Actor: adminActor, Action: "ResolveGpuRequest", TenantID: f.tenant})
 	if _, err := f.u.Resolve(resolveContext, tenant, f.request); err == nil || err.Error() != "PROFILE_NOT_ACTIVE" {
 		t.Fatal("disabled profile resolved", err)
 	}

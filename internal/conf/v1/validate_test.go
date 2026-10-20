@@ -99,3 +99,17 @@ func TestBootstrapValidateRequiresCompleteServerConfig(t *testing.T) {
 		})
 	}
 }
+
+func TestExactRegisteredServiceDNSIdentities(t *testing.T) {
+	valid := &Security{GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service"}
+	if err := valid.ValidateServiceIdentities(); err != nil {
+		t.Fatal(err)
+	}
+	for _, identity := range []string{"", "*.ani.internal", "spiffe://ani.internal/service/ani-governance", "ani-governance.ani.internal", "ani-resource-service"} {
+		c := proto.Clone(valid).(*Security)
+		c.GovernanceDnsName = identity
+		if err := c.ValidateServiceIdentities(); err == nil {
+			t.Fatalf("identity %q accepted", identity)
+		}
+	}
+}

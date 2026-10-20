@@ -10,7 +10,7 @@ func (u *Usecase) Collect(ctx context.Context) error {
 	err := u.repo.View(ctx, func(r Reader) error {
 		after := ""
 		for {
-			cs, err := r.Clusters(ctx, []string{"*"}, after, 201)
+			cs, err := r.Clusters(ctx, u.connectionRefs(), after, 201)
 			if err != nil {
 				return err
 			}

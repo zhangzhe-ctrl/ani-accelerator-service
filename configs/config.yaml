@@ -14,11 +14,10 @@ security:
   ca_file: "${MTLS_CA_FILE:/run/secrets/accelerator/client-ca.pem}"
   cert_file: "${MTLS_CERT_FILE:/run/secrets/accelerator/server.pem}"
   key_file: "${MTLS_KEY_FILE:/run/secrets/accelerator/server.key}"
-  governance_uri: "spiffe://ani.internal/service/ani-governance"
-  inference_uri: "spiffe://ani.internal/service/ani-inference"
-  resource_uri: "spiffe://ani.internal/service/ani-resource-service"
+  governance_dns_name: "ani-governance"
+  inference_dns_name: "ani-inference-service"
+  resource_dns_name: "ani-resource-service"
   cursor_key_file: "${CURSOR_KEY_FILE:/run/secrets/accelerator/cursor-key}"
-  grants: []
 accelerator:
   max_replicas: 16
   freshness: 120s

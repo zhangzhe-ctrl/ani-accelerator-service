@@ -156,14 +156,8 @@ func (s *pgStore) Remember(ctx context.Context, r biz.IdempotencyRecord) error {
 func (s *pgStore) Cluster(ctx context.Context, id string) (*biz.Cluster, error) {
 	return decodeOne[biz.Cluster](s.q.ClusterData1(ctx, id))
 }
-func (s *pgStore) Clusters(ctx context.Context, allowed []string, after string, n int) ([]biz.Cluster, error) {
-	all := false
-	for _, v := range allowed {
-		if v == "*" {
-			all = true
-		}
-	}
-	return decodeMany[biz.Cluster](s.q.ClustersData1(ctx, all, allowed, after, int32(n)))
+func (s *pgStore) Clusters(ctx context.Context, connections []string, after string, n int) ([]biz.Cluster, error) {
+	return decodeMany[biz.Cluster](s.q.ClustersData1(ctx, connections, after, int32(n)))
 }
 func (s *pgStore) Pool(ctx context.Context, id string) (*biz.Pool, error) {
 	return decodeOne[biz.Pool](s.q.PoolData1(ctx, id))

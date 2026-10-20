@@ -144,7 +144,7 @@ func TestPostgresCatalogProviderOutsideTransactions(t *testing.T) {
 					_, e = slow.SetAdmission(adminContext("SetAdmission"), m, biz.AdmissionInput{GroupID: f.group.GroupID, ExpectedVersion: f.group.Version, Desired: biz.Open, Reason: "delayed open"})
 				case "resolve_change":
 					actor := adminActor
-					ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", TenantID: f.tenant, Actor: actor, Action: "ResolveGpuRequest", ClusterIDs: []string{f.cluster.ClusterID}})
+					ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", TenantID: f.tenant, Actor: actor, Action: "ResolveGpuRequest"})
 					_, e = slow.Resolve(ctx, &biz.TenantContext{RequestID: "resolve-race", TenantID: f.tenant, Actor: &actor}, f.request)
 				default:
 					got, e = slow.CreateProfile(adminContext("CreateProfile"), m, in)

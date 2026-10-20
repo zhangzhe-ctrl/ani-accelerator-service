@@ -35,7 +35,7 @@ func TestJointFormalProviderSource(t *testing.T) {
 	}
 	pki := testkit.NewPKI(t)
 	cert, key := pki.Issue(t, "source-server", "", true)
-	clientCert, clientKey := pki.Issue(t, "source-client", "spiffe://ani.internal/test/source-reader", false)
+	clientCert, clientKey := pki.Issue(t, "source-client", "source-reader.test", false)
 	cmData := map[string]string{"config.yaml": "constructed-source-fixture: true", schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
 	cm := map[string]any{"data": cmData, "binaryData": nil}
 	digest, _ := biz.Hash(cm)

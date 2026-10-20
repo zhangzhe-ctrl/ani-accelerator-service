@@ -436,7 +436,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		t.Fatal(err)
 	}
 	actor := biz.Actor{Type: "user", ID: "replay"}
-	admin := biz.WithCaller(ctx, biz.Caller{Service: "ani-governance", Actor: actor, Action: "AdminGetCapacity", ClusterIDs: []string{"*"}})
+	admin := biz.WithCaller(ctx, biz.Caller{Service: "ani-governance", Actor: actor, Action: "AdminGetCapacity"})
 	capacity := func() *biz.CapacityView {
 		t.Helper()
 		v, err := u.AdminGetCapacity(admin, &biz.AdminRead{RequestID: "replay", Actor: &actor}, profile.ProfileID, 1, true)
