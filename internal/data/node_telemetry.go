@@ -126,6 +126,7 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 		if report.JournalRequestID != "" {
 			delete(state.RecoveryRequests, report.JournalRequestID)
 		}
+		var changed []biz.RuntimeAttempt
 		for _, attempt := range attempts {
 			if previous, found := previousAttempts[attempt.ContainerID]; found {
 				compared := attempt
@@ -139,15 +140,16 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 					continue
 				}
 			}
-			payload, err := json.Marshal(attempt)
-			if err != nil {
-				return err
-			}
-			if err = queries.SaveNodeRuntimeAttempt(ctx, connection, node, attempt.ContainerID, payload); err != nil {
-				return cleanError(err)
-			}
+			changed = append(changed, attempt)
 		}
-		return nil
+		if len(changed) == 0 {
+			return nil
+		}
+		payload, err := json.Marshal(changed)
+		if err != nil {
+			return err
+		}
+		return cleanError(queries.SaveNodeRuntimeAttempts(ctx, connection, node, payload))
 	})
 }
 

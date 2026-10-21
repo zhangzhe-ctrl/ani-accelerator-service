@@ -18,3 +18,10 @@ SELECT payload FROM accelerator.node_runtime_attempts WHERE connection_ref=$1 AN
 -- name: SaveNodeRuntimeAttempt :exec
 INSERT INTO accelerator.node_runtime_attempts(connection_ref,node_uid,container_id,payload) VALUES($1,$2,$3,$4)
 ON CONFLICT(connection_ref,node_uid,container_id) DO UPDATE SET payload=EXCLUDED.payload;
+
+-- name: SaveNodeRuntimeAttempts :exec
+INSERT INTO accelerator.node_runtime_attempts(connection_ref,node_uid,container_id,payload)
+SELECT sqlc.arg(connection_ref)::text,sqlc.arg(node_uid)::text,
+attempt.payload->>'ContainerID',attempt.payload
+FROM jsonb_array_elements(sqlc.arg(attempts)::jsonb) AS attempt(payload)
+ON CONFLICT(connection_ref,node_uid,container_id) DO UPDATE SET payload=EXCLUDED.payload;

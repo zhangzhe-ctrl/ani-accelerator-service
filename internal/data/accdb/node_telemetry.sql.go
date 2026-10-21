@@ -99,6 +99,19 @@ func (q *Queries) SaveNodeRuntimeAttempt(ctx context.Context, connectionRef stri
 	return err
 }
 
+const saveNodeRuntimeAttempts = `-- name: SaveNodeRuntimeAttempts :exec
+INSERT INTO accelerator.node_runtime_attempts(connection_ref,node_uid,container_id,payload)
+SELECT $1::text,$2::text,
+attempt.payload->>'ContainerID',attempt.payload
+FROM jsonb_array_elements($3::jsonb) AS attempt(payload)
+ON CONFLICT(connection_ref,node_uid,container_id) DO UPDATE SET payload=EXCLUDED.payload
+`
+
+func (q *Queries) SaveNodeRuntimeAttempts(ctx context.Context, connectionRef string, nodeUid string, attempts []byte) error {
+	_, err := q.db.Exec(ctx, saveNodeRuntimeAttempts, connectionRef, nodeUid, attempts)
+	return err
+}
+
 const updateNodeTelemetryState = `-- name: UpdateNodeTelemetryState :exec
 UPDATE accelerator.node_telemetry_state SET epoch=$3,active_log_id=$4,last_sequence=$5,last_payload_digest=$6,
 current_node_revision=$7,consumed_node_revision=$8,payload=$9 WHERE connection_ref=$1 AND node_uid=$2

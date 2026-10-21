@@ -2,12 +2,14 @@ package data
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data/accdb"
 )
 
 func TestPostgresNodeTelemetrySkipsUnchangedAttemptWrites(testContext *testing.T) {
@@ -67,11 +69,41 @@ func TestPostgresNodeTelemetrySkipsUnchangedAttemptWrites(testContext *testing.T
 			testContext.Fatal("new Running rewrote unrelated historical attempt")
 		}
 	}
+	updated := append([]biz.RuntimeAttempt(nil), history[:200]...)
+	for index := range updated {
+		updated[index].ObservedAt = now.Add(2 * time.Second)
+	}
+	report.Sequence, report.PayloadDigest, report.Attempts = 4, "multiple-observations", updated
+	state, err = database.SaveNodeReport(ctx, identity.ConnectionRef, identity.NodeUID, report, now.Add(2*time.Second))
+	if err != nil || state.LastSequence != 4 || state.CurrentRevision != revision+1 {
+		testContext.Fatalf("multiple changed observations lost receipt or changed meaning: %v", err)
+	}
+	batch := attemptVersions(testContext, database, identity)
+	for index, attempt := range history {
+		if (batch[attempt.ContainerID] != after[attempt.ContainerID]) != (index < len(updated)) {
+			testContext.Fatal("multiple changed observations were dropped or rewrote unrelated history")
+		}
+	}
+	if batch[live.ContainerID] != after[live.ContainerID] {
+		testContext.Fatal("unrelated current Running attempt changed")
+	}
+	invalid, _ := json.Marshal([]map[string]string{{"ContainerID": "rollback-prefix"}, {"ContainerID": ""}})
+	_, err = database.nodeTransaction(ctx, identity.ConnectionRef, identity.NodeUID, func(queries *accdb.Queries, pending *biz.NodeTelemetryState) error {
+		pending.LastSequence, pending.LastPayloadDigest = 5, "must-rollback"
+		return queries.SaveNodeRuntimeAttempts(ctx, identity.ConnectionRef, identity.NodeUID, invalid)
+	})
+	if err == nil || !reflect.DeepEqual(batch, attemptVersions(testContext, database, identity)) {
+		testContext.Fatal("invalid bulk row did not roll back its valid prefix atomically")
+	}
+	views, err := database.NodeTelemetry(ctx, identity.ConnectionRef)
+	if err != nil || views[0].State.LastSequence != 4 || views[0].State.LastPayloadDigest != "multiple-observations" {
+		testContext.Fatal("failed bulk advanced durable receipt")
+	}
 }
 
 func attemptVersions(testContext *testing.T, database *Postgres, identity biz.NodeIdentity) map[string]string {
 	testContext.Helper()
-	rows, err := database.pool.Query(context.Background(), "SELECT container_id,xmin::text FROM accelerator.node_runtime_attempts WHERE connection_ref=$1 AND node_uid=$2", identity.ConnectionRef, identity.NodeUID)
+	rows, err := database.pool.Query(context.Background(), testSQL(testContext, "node_attempt_versions.sql"), identity.ConnectionRef, identity.NodeUID)
 	if err != nil {
 		testContext.Fatal(err)
 	}
