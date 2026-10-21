@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-kratos/kratos/v3/middleware"
 	kratosgrpc "github.com/go-kratos/kratos/v3/transport/grpc"
+	nodepb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/node/v1"
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
@@ -46,7 +47,7 @@ func NewSecureGRPCServer(c *conf.Server_GRPC, security *conf.Security, middlewar
 	if err != nil {
 		return nil, err
 	}
-	return kratosgrpc.NewServer(kratosgrpc.Network(c.Network), kratosgrpc.Address(c.Addr), kratosgrpc.Timeout(c.Timeout.AsDuration()), kratosgrpc.TLSConfig(tlsConfig), kratosgrpc.Middleware(middlewares...), kratosgrpc.DisableReflection(), kratosgrpc.UnaryInterceptor(Authorize(security)), kratosgrpc.StreamInterceptor(AuthorizeStream(security))), nil
+	return kratosgrpc.NewServer(kratosgrpc.Network(c.Network), kratosgrpc.Address(c.Addr), kratosgrpc.Timeout(c.Timeout.AsDuration()), kratosgrpc.TLSConfig(tlsConfig), kratosgrpc.Middleware(middlewares...), kratosgrpc.DisableReflection(), kratosgrpc.UnaryInterceptor(Authorize(security)), kratosgrpc.StreamInterceptor(AuthorizeStream(security)), kratosgrpc.Options(grpc.MaxRecvMsgSize(9<<20))), nil
 }
 
 type rpcPolicy struct {
@@ -55,29 +56,34 @@ type rpcPolicy struct {
 }
 
 var governanceRPCs = map[string]rpcPolicy{
-	pb.AcceleratorAdminService_RegisterCluster_FullMethodName:     {action: "RegisterCluster", admin: true},
-	pb.AcceleratorAdminService_ListClusters_FullMethodName:        {action: "ListClusters", admin: true},
-	pb.AcceleratorAdminService_CreatePool_FullMethodName:          {action: "CreatePool", admin: true},
-	pb.AcceleratorAdminService_ListPools_FullMethodName:           {action: "ListPools", admin: true},
-	pb.AcceleratorAdminService_AdoptSupplyGroup_FullMethodName:    {action: "AdoptSupplyGroup", admin: true},
-	pb.AcceleratorAdminService_ListSupplyGroups_FullMethodName:    {action: "ListSupplyGroups", admin: true},
-	pb.AcceleratorAdminService_SetAdmission_FullMethodName:        {action: "SetAdmission", admin: true},
-	pb.AcceleratorAdminService_CreateProfile_FullMethodName:       {action: "CreateProfile", admin: true},
-	pb.AcceleratorAdminService_PreviewProfile_FullMethodName:      {action: "PreviewProfile", admin: true},
-	pb.AcceleratorAdminService_SetProfileState_FullMethodName:     {action: "SetProfileState", admin: true},
-	pb.AcceleratorAdminService_DeleteProfile_FullMethodName:       {action: "DeleteProfile", admin: true},
-	pb.AcceleratorAdminService_AdminListProfiles_FullMethodName:   {action: "AdminListProfiles", admin: true},
-	pb.AcceleratorAdminService_AdminListBindings_FullMethodName:   {action: "AdminListBindings", admin: true},
-	pb.AcceleratorAdminService_ListDevices_FullMethodName:         {action: "ListDevices", admin: true},
-	pb.AcceleratorAdminService_AdminGetCapacity_FullMethodName:    {action: "AdminGetCapacity", admin: true},
-	pb.AcceleratorCatalogService_ListProfiles_FullMethodName:      {action: "ListProfiles", admin: false},
-	pb.AcceleratorCatalogService_GetProfile_FullMethodName:        {action: "GetProfile", admin: false},
-	pb.AcceleratorCatalogService_ResolveGpuRequest_FullMethodName: {action: "ResolveGpuRequest", admin: false},
-	pb.AcceleratorCatalogService_GetCapacity_FullMethodName:       {action: "GetCapacity", admin: false},
-	pb.AcceleratorCatalogService_CheckGpuFit_FullMethodName:       {action: "CheckGpuFit", admin: false},
-	pb.AcceleratorUsageService_GetGpuUsage_FullMethodName:         {action: "GetGpuUsage", admin: false},
-	pb.AcceleratorUsageService_ListGpuUsages_FullMethodName:       {action: "ListGpuUsages", admin: false},
-	pb.AcceleratorUsageService_ListBindings_FullMethodName:        {action: "ListBindings", admin: false},
+	pb.AcceleratorAdminService_GetInitialization_FullMethodName:            {action: "GetInitialization", admin: true},
+	pb.AcceleratorAdminService_ListDiscoveredNodes_FullMethodName:          {action: "ListDiscoveredNodes", admin: true},
+	pb.AcceleratorAdminService_CreateInitialization_FullMethodName:         {action: "CreateInitialization", admin: true},
+	pb.AcceleratorAdminService_GetInitializationOperation_FullMethodName:   {action: "GetInitializationOperation", admin: true},
+	pb.AcceleratorAdminService_RetryInitializationOperation_FullMethodName: {action: "RetryInitializationOperation", admin: true},
+	pb.AcceleratorAdminService_RegisterCluster_FullMethodName:              {action: "RegisterCluster", admin: true},
+	pb.AcceleratorAdminService_ListClusters_FullMethodName:                 {action: "ListClusters", admin: true},
+	pb.AcceleratorAdminService_CreatePool_FullMethodName:                   {action: "CreatePool", admin: true},
+	pb.AcceleratorAdminService_ListPools_FullMethodName:                    {action: "ListPools", admin: true},
+	pb.AcceleratorAdminService_AdoptSupplyGroup_FullMethodName:             {action: "AdoptSupplyGroup", admin: true},
+	pb.AcceleratorAdminService_ListSupplyGroups_FullMethodName:             {action: "ListSupplyGroups", admin: true},
+	pb.AcceleratorAdminService_SetAdmission_FullMethodName:                 {action: "SetAdmission", admin: true},
+	pb.AcceleratorAdminService_CreateProfile_FullMethodName:                {action: "CreateProfile", admin: true},
+	pb.AcceleratorAdminService_PreviewProfile_FullMethodName:               {action: "PreviewProfile", admin: true},
+	pb.AcceleratorAdminService_SetProfileState_FullMethodName:              {action: "SetProfileState", admin: true},
+	pb.AcceleratorAdminService_DeleteProfile_FullMethodName:                {action: "DeleteProfile", admin: true},
+	pb.AcceleratorAdminService_AdminListProfiles_FullMethodName:            {action: "AdminListProfiles", admin: true},
+	pb.AcceleratorAdminService_AdminListBindings_FullMethodName:            {action: "AdminListBindings", admin: true},
+	pb.AcceleratorAdminService_ListDevices_FullMethodName:                  {action: "ListDevices", admin: true},
+	pb.AcceleratorAdminService_AdminGetCapacity_FullMethodName:             {action: "AdminGetCapacity", admin: true},
+	pb.AcceleratorCatalogService_ListProfiles_FullMethodName:               {action: "ListProfiles", admin: false},
+	pb.AcceleratorCatalogService_GetProfile_FullMethodName:                 {action: "GetProfile", admin: false},
+	pb.AcceleratorCatalogService_ResolveGpuRequest_FullMethodName:          {action: "ResolveGpuRequest", admin: false},
+	pb.AcceleratorCatalogService_GetCapacity_FullMethodName:                {action: "GetCapacity", admin: false},
+	pb.AcceleratorCatalogService_CheckGpuFit_FullMethodName:                {action: "CheckGpuFit", admin: false},
+	pb.AcceleratorUsageService_GetGpuUsage_FullMethodName:                  {action: "GetGpuUsage", admin: false},
+	pb.AcceleratorUsageService_ListGpuUsages_FullMethodName:                {action: "ListGpuUsages", admin: false},
+	pb.AcceleratorUsageService_ListBindings_FullMethodName:                 {action: "ListBindings", admin: false},
 }
 
 // TLS verifies the chain; ACC additionally requires one exact DNS SAN and no
@@ -105,6 +111,11 @@ func authenticatedService(ctx context.Context, config *conf.Security) (string, e
 		return "ani-inference", nil
 	case config.ResourceDnsName:
 		return "ani-resource-service", nil
+	case "ani-node-agent":
+		if config.NodeAgentDnsName == "ani-node-agent" {
+			return "ani-node-agent", nil
+		}
+		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
 	default:
 		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
 	}
@@ -131,7 +142,7 @@ func AuthorizeStream(config *conf.Security) grpc.StreamServerInterceptor {
 		if err != nil {
 			return err
 		}
-		if service != "ani-governance" || info.FullMethod != healthpb.Health_Watch_FullMethodName {
+		if !((service == "ani-governance" && info.FullMethod == healthpb.Health_Watch_FullMethodName) || (service == "ani-node-agent" && info.FullMethod == nodepb.NodeTelemetryService_Connect_FullMethodName)) {
 			return status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
 		return next(srv, stream)

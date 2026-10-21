@@ -83,14 +83,15 @@ type DeviceRecord struct {
 	BaselineDigest       string         `json:"baseline_digest"`
 }
 type SourceWatermark struct {
-	ClusterID  string    `json:"cluster_id"`
-	NodeUID    string    `json:"node_uid"`
-	Source     string    `json:"source"`
-	Cursor     string    `json:"cursor"`
-	ObservedAt time.Time `json:"observed_at"`
-	ReceivedAt time.Time `json:"received_at"`
-	Complete   bool      `json:"complete"`
-	Issue      string    `json:"issue"`
+	ConsumedNodeRevision uint64    `json:"consumed_node_revision,omitempty"`
+	ClusterID            string    `json:"cluster_id"`
+	NodeUID              string    `json:"node_uid"`
+	Source               string    `json:"source"`
+	Cursor               string    `json:"cursor"`
+	ObservedAt           time.Time `json:"observed_at"`
+	ReceivedAt           time.Time `json:"received_at"`
+	Complete             bool      `json:"complete"`
+	Issue                string    `json:"issue"`
 	// Cluster-wide pending demand is carried only by the first configured
 	// node's Kubernetes watermark, avoiding per-node duplication.
 	PendingByGroup map[string]int64 `json:"pending_by_group,omitempty"`
@@ -117,22 +118,38 @@ type Claim struct {
 // ReleaseProof covers one actual Pod/container/device and retires only claims
 // at or before the proven observation time. A missing API object is not proof.
 type ReleaseProof struct {
-	Pod              PodRef    `json:"pod"`
-	DeviceID         string    `json:"device_id"`
-	NodeUID          string    `json:"node_uid"`
-	ObservedAt       time.Time `json:"observed_at"`
-	ReceivedAt       time.Time `json:"received_at"`
-	EvidenceRef      string    `json:"evidence_ref"`
-	RuntimeExited    bool      `json:"runtime_exited"`
-	AllocationAbsent bool      `json:"allocation_absent"`
-	NodeOnline       bool      `json:"node_online"`
-	OwnerRef         *UsageRef `json:"owner_ref"`
-	ExecutionDigest  string    `json:"execution_digest"`
+	CheckedNodeRevision uint64    `json:"checked_node_revision,omitempty"`
+	Pod                 PodRef    `json:"pod"`
+	DeviceID            string    `json:"device_id"`
+	NodeUID             string    `json:"node_uid"`
+	ObservedAt          time.Time `json:"observed_at"`
+	ReceivedAt          time.Time `json:"received_at"`
+	EvidenceRef         string    `json:"evidence_ref"`
+	RuntimeExited       bool      `json:"runtime_exited"`
+	AllocationAbsent    bool      `json:"allocation_absent"`
+	NodeOnline          bool      `json:"node_online"`
+	OwnerRef            *UsageRef `json:"owner_ref"`
+	ExecutionDigest     string    `json:"execution_digest"`
 }
 type ObservationBatch struct {
-	ClusterID  string
-	Devices    []DeviceRecord
-	Claims     []Claim
-	Releases   []ReleaseProof
-	Watermarks []SourceWatermark
+	ConnectionRef string
+	NodeRevisions map[string]uint64
+	ClusterID     string
+	Devices       []DeviceRecord
+	Claims        []Claim
+	Releases      []ReleaseProof
+	Watermarks    []SourceWatermark
+}
+
+type ReleaseRecheckScope struct {
+	Owner UsageRef
+	Pods  []PodRef
+}
+
+type NodeFactProvider interface {
+	CollectRelease(context.Context, Cluster, []SupplyGroup, *ReleaseRecheckScope) (ObservationBatch, error)
+}
+
+type ReleaseNodeLocker interface {
+	LockReleaseNodes(context.Context, string, []string) (map[string]NodeTelemetryState, error)
 }

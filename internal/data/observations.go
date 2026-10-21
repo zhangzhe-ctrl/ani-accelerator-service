@@ -2,13 +2,40 @@ package data
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
+	"github.com/jackc/pgx/v5"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"sort"
 	"time"
 )
 
 func (s *pgStore) SaveObservation(ctx context.Context, batch biz.ObservationBatch) error {
 	if err := biz.ValidateObservationBatch(batch); err != nil {
 		return err
+	}
+	locked := map[string]biz.NodeTelemetryState{}
+	nodes := make([]string, 0, len(batch.NodeRevisions))
+	for node := range batch.NodeRevisions {
+		nodes = append(nodes, node)
+	}
+	sort.Strings(nodes)
+	for _, node := range nodes {
+		payload, err := s.q.LockNodeTelemetryState(ctx, batch.ConnectionRef, node)
+		if errors.Is(err, pgx.ErrNoRows) && batch.NodeRevisions[node] == 0 {
+			continue
+		}
+		if err != nil {
+			return cleanError(err)
+		}
+		var state biz.NodeTelemetryState
+		if json.Unmarshal(payload, &state) != nil {
+			return biz.Precondition("STORED_TELEMETRY_INVALID")
+		}
+		if state.CurrentRevision != batch.NodeRevisions[node] {
+			return biz.Conflict("NODE_REVISION_CONFLICT")
+		}
+		locked[node] = state
 	}
 	if err := s.Lock(ctx, "observation:"+batch.ClusterID); err != nil {
 		return err
@@ -101,7 +128,42 @@ func (s *pgStore) SaveObservation(ctx context.Context, batch biz.ObservationBatc
 			return err
 		}
 	}
+	for _, node := range nodes {
+		state, found := locked[node]
+		if !found {
+			continue
+		}
+		state.ConsumedRevision = state.CurrentRevision
+		payload, err := json.Marshal(state)
+		if err != nil {
+			return err
+		}
+		if err = s.q.UpdateNodeTelemetryState(ctx, batch.ConnectionRef, node, state.Epoch, state.Identity.LogID, state.LastSequence, state.LastPayloadDigest, state.CurrentRevision, state.ConsumedRevision, payload); err != nil {
+			return cleanError(err)
+		}
+	}
 	return nil
+}
+
+func (s *pgStore) LockReleaseNodes(ctx context.Context, connection string, nodes []string) (map[string]biz.NodeTelemetryState, error) {
+	nodes = append([]string(nil), nodes...)
+	sort.Strings(nodes)
+	states := make(map[string]biz.NodeTelemetryState, len(nodes))
+	for _, node := range nodes {
+		payload, err := s.q.LockNodeTelemetryState(ctx, connection, node)
+		if errors.Is(err, pgx.ErrNoRows) {
+			continue
+		}
+		if err != nil {
+			return nil, cleanError(err)
+		}
+		var state biz.NodeTelemetryState
+		if json.Unmarshal(payload, &state) != nil {
+			return nil, biz.Precondition("STORED_TELEMETRY_INVALID")
+		}
+		states[node] = state
+	}
+	return states, nil
 }
 func (s *pgStore) reconcileBinding(ctx context.Context, p biz.PodRef, device string) error {
 	if err := s.Lock(ctx, "binding:"+p.ClusterID+":"+p.UID+":"+p.ContainerName+":"+device); err != nil {

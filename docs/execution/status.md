@@ -1,5 +1,19 @@
 # Accelerator 执行状态
 
+## Node Agent / 初始化 B/C（2026-10-21，执行中）
+
+- 固定入口：`ANI-node-agent-initialization-GOAL-v1.2-20261021.md`；主方案 SHA256 `f6668bcbc264d2df6e22f0033ccf38e46d24e678e40d07dcb2353dfa78d0bfa7`。基线 ACC `9d45df6`、Gov `323eb749`、Resource `6bff99f`，任务工作树根 `/home/chabking/.codex/worktrees/node-agent-initialization-bc`，分支 `codex/node-agent-initialization-bc`。原工作区未覆盖。
+- 用户追加范围：本批不修改前端代码，前端由专人接入五个 BFF；不再把页面交付作为本批实现项。D 退役/解绑/换组、P2 容量 revision 新门禁、自动安装平台、新训练/真实 Inference 验收继续延期。
+- 软件 PASS：真实 Agent 进程经 mTLS、TokenReview 与实际对象绑定的外部 K8s 边界进入生产 ACC/PG；ACK 丢失、重启、原记录重放、journal 正向补证与旧退出阻断均已运行。外部 NVML/socket/K8s 测试边界与真实 GPU 验收分开。
+- 软件 PASS：两节点正常连续上报经生产 Collect/SaveObservation 消费；真实 Running/UNKNOWN 拒绝旧 revision，合法清理在五秒预算内完成 ObserveRelease。初始化真实 PG 核心验证幂等、部分成功/重启/Retry、版本链 OPEN 和人工干预冲突。真实 Gov JWT/缓存/PG 策略/Casbin → 五 HTTP → mTLS → ACC/PG/worker 联合链通过；最小八项权限身份完成 Create/重放 → BLOCKED → Retry → SUCCEEDED，匿名 401、租户 403。K8s 发现/标签仍为明确外部边界。
+- Fedora 唯一证据/恢复根：`/home/chabking/codex-runs/node-agent-initialization-bc`。`postgres/environment.sh` 对应本任务独占容器 `acc-node-agent-bc-20261021`；另有明确隔离的 C1/B3 库，不修改共享应用角色。原失败日志保留，运行结果以各 evidence 的退出码为准。
+- 门禁 PASS：Fedora `integrated` 的 `make verify` 退出 0，覆盖正式生成/SQLC、测试、race、构建、恢复 17 张关系、漏洞及敏感信息扫描；日志 `evidence/integrated-verify.log`。保留原失败：固定工具路径缺失退出 127、早期 provider race 释放断言一次失败，以及 Go 1.26.9 标准库 GO-2026-6809；已用正确工具路径、真实 telemetry fixture 和 Go 1.26.10 完成集成门禁。最后窄差异另按受影响行为核验，不重复全量。
+- 实际环境只读核实：`kubernetes-admin@ani-lab`，API `172.16.101.10:6443`，节点 ani-01/02/03 为 `.10/.11/.12`。单张 T4 位于 ani-03；ani-02/03 当前不可调度且存在既有运行实例，不自动解禁、清理或切插件模式。两批 GPU 节点/缺少模式的硬件验收目前 NOT_RUN。
+- 运行切换尚未执行：活动中心在 `ani-accelerator`，`ani-system` 同名部署为零副本；必须按保留历史、单一权威和恢复快照受控切换。预检中发生一次 ACC DSN 误输出，凭据按已暴露处理；切换前核验专用角色并实施窄轮换，不复述原值、不修改共享 `ani_app`。
+- 独立 Agent 工程已建立；用户建立 `git@github.com:zhangzhe-ctrl/ani-node-agent.git` 后 SSH 重试成功，原远端缺失已解除。当前准备提交/SSH 推送固定 API；Agent/Gov 候选联合验证已通过，正式固定模块无 replace 复验尚待发布。
+
+## 既往批次记录
+
 2026-10-17 已部署绑定 baseline、无时间自动失效的硬件验收资格 v2，并解除运行采集/释放与准入资格的耦合。两组资格用原真实实验 manifest 显式签发，保留原 baseline/spec/Node UID/设备预算/verified_at，不含 expires_at；新 ConfigMap 挂载与新 ACC 镜像一起部署，原 v1 文件、ConfigMap 和回执保留。数据库、profile 与 baseline 未替换。当前镜像与完整来源摘要见[baseline 资格回执](../evidence/gpu-live-20261017/baseline-qualification-receipt.json)。
 
 本轮单 T4 顺序执行的最小真实主链均通过：整卡正式百分比计划 Resolve→Iris CUDA→ACTIVE 绑定→CRI 正向退出→正常删除→RELEASE_CONFIRMED/ALLOCATION_RELEASED，容量 `1→0→1`；共享同样以真实 CUDA 和绑定达到 `10→9`，随后在受保护 scheduler ConfigMap 加入未被 scheduler 消费的额外 data 键制造漂移。漂移时 Resolve 实际拒绝 CONFIG_DRIFT，同一活绑定仍产生新的完整观测；漂移仍存在时正常退出/删除后确认释放。最后 CAS 移除该键、逐字节恢复原 data，Resolve 恢复、完整可用容量回到 10。调度配置正文、scheduler 镜像与运行 Pod 未为此实验切换。

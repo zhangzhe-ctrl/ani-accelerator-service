@@ -23,12 +23,12 @@ func (unavailableInventory) Read(context.Context) ([]Inventory, error) {
 	return nil, biz.Precondition("NVML_UNAVAILABLE")
 }
 
-func configurationObservation(t *testing.T, fault string, adapter *Provider, state *replayState, cluster biz.Cluster, group biz.SupplyGroup, db *data.Postgres, u *biz.Usecase, owner context.Context, ref *biz.UsageRef, pod biz.PodRef, capacity func() *biz.CapacityView) {
+func configurationObservation(t *testing.T, fault string, adapter *Provider, telemetry *nodeTelemetryFixture, state *replayState, cluster biz.Cluster, group biz.SupplyGroup, db *data.Postgres, u *biz.Usecase, owner context.Context, ref *biz.UsageRef, pod biz.PodRef, capacity func() *biz.CapacityView) {
 	t.Helper()
 	ctx := context.Background()
 	switch fault {
 	case "inventory_missing":
-		adapter.inventory = unavailableInventory{}
+		telemetry.inventory = unavailableInventory{}
 	case "cri":
 		state.mu.Lock()
 		state.runtimeFailed = true
@@ -37,6 +37,7 @@ func configurationObservation(t *testing.T, fault string, adapter *Provider, sta
 		state.setFault(fault)
 	}
 	sourceFailure := fault == "cri" || fault == "podresources"
+	telemetry.refresh(t)
 	if !sourceFailure {
 		if _, err := adapter.Inspect(ctx, cluster, group); err == nil {
 			t.Fatalf("admission accepted configuration drift %s", fault)
@@ -44,6 +45,7 @@ func configurationObservation(t *testing.T, fault string, adapter *Provider, sta
 	}
 	collect := func() biz.ObservationBatch {
 		t.Helper()
+		telemetry.refresh(t)
 		batch, err := adapter.Collect(ctx, cluster, []biz.SupplyGroup{group})
 		if err != nil {
 			t.Fatal(err)

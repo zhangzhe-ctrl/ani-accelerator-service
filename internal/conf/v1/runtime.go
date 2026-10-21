@@ -46,5 +46,8 @@ func (s *Security) ValidateServiceIdentities() error {
 	if s == nil || s.GovernanceDnsName != "ani-governance" || s.InferenceDnsName != "ani-inference-service" || s.ResourceDnsName != "ani-resource-service" {
 		return fmt.Errorf("exact registered service DNS identities are required")
 	}
+	if s.NodeAgentDnsName != "" && s.NodeAgentDnsName != "ani-node-agent" {
+		return fmt.Errorf("exact registered node agent DNS identity is required")
+	}
 	return nil
 }

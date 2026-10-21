@@ -67,6 +67,46 @@ type AcceleratorGroupNode struct {
 	GroupID   string
 }
 
+type AcceleratorInitializationOperation struct {
+	OperationID    string
+	ConnectionRef  string
+	Version        uint64
+	State          string
+	LeaseOwner     string
+	LeaseEpoch     uint64
+	LeaseExpiresAt time.Time
+	CreatedAt      time.Time
+	Payload        []byte
+}
+
+type AcceleratorInitializationStep struct {
+	StepID      string
+	OperationID string
+	ObjectKey   string
+	StepKind    string
+	StepOrder   int32
+	Payload     []byte
+}
+
+type AcceleratorNodeRuntimeAttempt struct {
+	ConnectionRef string
+	NodeUid       string
+	ContainerID   string
+	Payload       []byte
+}
+
+type AcceleratorNodeTelemetryState struct {
+	ConnectionRef        string
+	NodeUid              string
+	Epoch                uint64
+	ActiveLogID          string
+	LastSequence         uint64
+	LastPayloadDigest    string
+	CurrentNodeRevision  uint64
+	ConsumedNodeRevision uint64
+	Payload              []byte
+}
+
 type AcceleratorPool struct {
 	PoolID    string
 	ClusterID string

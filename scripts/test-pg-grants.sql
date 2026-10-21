@@ -11,4 +11,6 @@ GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA accelerator TO :"runtime_role";
 REVOKE INSERT ON accelerator.schema_migrations FROM :"runtime_role";
 GRANT UPDATE ON accelerator.profiles, accelerator.supply_groups, accelerator.usages,
  accelerator.devices, accelerator.claims, accelerator.release_proofs,
- accelerator.bindings, accelerator.source_watermarks TO :"runtime_role";
+ accelerator.bindings, accelerator.source_watermarks,
+ accelerator.node_telemetry_state, accelerator.node_runtime_attempts,
+ accelerator.initialization_operations, accelerator.initialization_steps TO :"runtime_role";
