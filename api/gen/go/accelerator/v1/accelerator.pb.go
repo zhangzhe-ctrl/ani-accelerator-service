@@ -5289,6 +5289,1726 @@ func (x *ReleaseObservation) GetEvidenceDigest() string {
 	return ""
 }
 
+type InitializationCheck struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           string                 `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Source        string                 `protobuf:"bytes,2,opt,name=source,proto3" json:"source,omitempty"`
+	State         string                 `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	Reason        string                 `protobuf:"bytes,4,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitializationCheck) Reset() {
+	*x = InitializationCheck{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationCheck) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationCheck) ProtoMessage() {}
+
+func (x *InitializationCheck) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationCheck.ProtoReflect.Descriptor instead.
+func (*InitializationCheck) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *InitializationCheck) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *InitializationCheck) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *InitializationCheck) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *InitializationCheck) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type Initialization struct {
+	state                 protoimpl.MessageState   `protogen:"open.v1"`
+	Registered            bool                     `protobuf:"varint,1,opt,name=registered,proto3" json:"registered,omitempty"`
+	ConnectionRef         string                   `protobuf:"bytes,2,opt,name=connection_ref,proto3" json:"connection_ref,omitempty"`
+	ClusterId             string                   `protobuf:"bytes,3,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
+	DisplayName           string                   `protobuf:"bytes,4,opt,name=display_name,proto3" json:"display_name,omitempty"`
+	ConfigurationState    string                   `protobuf:"bytes,5,opt,name=configuration_state,proto3" json:"configuration_state,omitempty"`
+	Checks                []*InitializationCheck   `protobuf:"bytes,6,rep,name=checks,proto3" json:"checks,omitempty"`
+	LatestOperation       *InitializationOperation `protobuf:"bytes,7,opt,name=latest_operation,proto3" json:"latest_operation,omitempty"`
+	ConfigurationComplete bool                     `protobuf:"varint,8,opt,name=configuration_complete,proto3" json:"configuration_complete,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *Initialization) Reset() {
+	*x = Initialization{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Initialization) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Initialization) ProtoMessage() {}
+
+func (x *Initialization) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Initialization.ProtoReflect.Descriptor instead.
+func (*Initialization) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *Initialization) GetRegistered() bool {
+	if x != nil {
+		return x.Registered
+	}
+	return false
+}
+
+func (x *Initialization) GetConnectionRef() string {
+	if x != nil {
+		return x.ConnectionRef
+	}
+	return ""
+}
+
+func (x *Initialization) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *Initialization) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *Initialization) GetConfigurationState() string {
+	if x != nil {
+		return x.ConfigurationState
+	}
+	return ""
+}
+
+func (x *Initialization) GetChecks() []*InitializationCheck {
+	if x != nil {
+		return x.Checks
+	}
+	return nil
+}
+
+func (x *Initialization) GetLatestOperation() *InitializationOperation {
+	if x != nil {
+		return x.LatestOperation
+	}
+	return nil
+}
+
+func (x *Initialization) GetConfigurationComplete() bool {
+	if x != nil {
+		return x.ConfigurationComplete
+	}
+	return false
+}
+
+type DiscoveredGPU struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Uuid                string                 `protobuf:"bytes,1,opt,name=uuid,proto3" json:"uuid,omitempty"`
+	ModelKey            string                 `protobuf:"bytes,2,opt,name=model_key,proto3" json:"model_key,omitempty"`
+	PhysicalMemoryBytes uint64                 `protobuf:"varint,3,opt,name=physical_memory_bytes,proto3" json:"physical_memory_bytes,omitempty"`
+	SafeMemoryBudgetMib *int64                 `protobuf:"varint,4,opt,name=safe_memory_budget_mib,proto3,oneof" json:"safe_memory_budget_mib,omitempty"`
+	BudgetReason        string                 `protobuf:"bytes,5,opt,name=budget_reason,proto3" json:"budget_reason,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *DiscoveredGPU) Reset() {
+	*x = DiscoveredGPU{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveredGPU) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveredGPU) ProtoMessage() {}
+
+func (x *DiscoveredGPU) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveredGPU.ProtoReflect.Descriptor instead.
+func (*DiscoveredGPU) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *DiscoveredGPU) GetUuid() string {
+	if x != nil {
+		return x.Uuid
+	}
+	return ""
+}
+
+func (x *DiscoveredGPU) GetModelKey() string {
+	if x != nil {
+		return x.ModelKey
+	}
+	return ""
+}
+
+func (x *DiscoveredGPU) GetPhysicalMemoryBytes() uint64 {
+	if x != nil {
+		return x.PhysicalMemoryBytes
+	}
+	return 0
+}
+
+func (x *DiscoveredGPU) GetSafeMemoryBudgetMib() int64 {
+	if x != nil && x.SafeMemoryBudgetMib != nil {
+		return *x.SafeMemoryBudgetMib
+	}
+	return 0
+}
+
+func (x *DiscoveredGPU) GetBudgetReason() string {
+	if x != nil {
+		return x.BudgetReason
+	}
+	return ""
+}
+
+type DiscoveredBaseline struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	BaselineRef   string                 `protobuf:"bytes,1,opt,name=baseline_ref,proto3" json:"baseline_ref,omitempty"`
+	Mode          string                 `protobuf:"bytes,2,opt,name=mode,proto3" json:"mode,omitempty"`
+	Source        string                 `protobuf:"bytes,3,opt,name=source,proto3" json:"source,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DiscoveredBaseline) Reset() {
+	*x = DiscoveredBaseline{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveredBaseline) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveredBaseline) ProtoMessage() {}
+
+func (x *DiscoveredBaseline) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveredBaseline.ProtoReflect.Descriptor instead.
+func (*DiscoveredBaseline) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *DiscoveredBaseline) GetBaselineRef() string {
+	if x != nil {
+		return x.BaselineRef
+	}
+	return ""
+}
+
+func (x *DiscoveredBaseline) GetMode() string {
+	if x != nil {
+		return x.Mode
+	}
+	return ""
+}
+
+func (x *DiscoveredBaseline) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+type NodeSource struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Source        string                 `protobuf:"bytes,1,opt,name=source,proto3" json:"source,omitempty"`
+	ObservedAt    string                 `protobuf:"bytes,2,opt,name=observed_at,proto3" json:"observed_at,omitempty"`
+	ReceivedAt    string                 `protobuf:"bytes,3,opt,name=received_at,proto3" json:"received_at,omitempty"`
+	Complete      bool                   `protobuf:"varint,4,opt,name=complete,proto3" json:"complete,omitempty"`
+	Issues        []string               `protobuf:"bytes,5,rep,name=issues,proto3" json:"issues,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *NodeSource) Reset() {
+	*x = NodeSource{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeSource) ProtoMessage() {}
+
+func (x *NodeSource) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeSource.ProtoReflect.Descriptor instead.
+func (*NodeSource) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *NodeSource) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *NodeSource) GetObservedAt() string {
+	if x != nil {
+		return x.ObservedAt
+	}
+	return ""
+}
+
+func (x *NodeSource) GetReceivedAt() string {
+	if x != nil {
+		return x.ReceivedAt
+	}
+	return ""
+}
+
+func (x *NodeSource) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+func (x *NodeSource) GetIssues() []string {
+	if x != nil {
+		return x.Issues
+	}
+	return nil
+}
+
+type DiscoveredNode struct {
+	state               protoimpl.MessageState `protogen:"open.v1"`
+	Node                *NodeRef               `protobuf:"bytes,1,opt,name=node,proto3" json:"node,omitempty"`
+	GroupId             string                 `protobuf:"bytes,2,opt,name=group_id,proto3" json:"group_id,omitempty"`
+	Gpus                []*DiscoveredGPU       `protobuf:"bytes,3,rep,name=gpus,proto3" json:"gpus,omitempty"`
+	Baselines           []*DiscoveredBaseline  `protobuf:"bytes,4,rep,name=baselines,proto3" json:"baselines,omitempty"`
+	AgentOnline         bool                   `protobuf:"varint,5,opt,name=agent_online,proto3" json:"agent_online,omitempty"`
+	AgentLeaseExpiresAt string                 `protobuf:"bytes,6,opt,name=agent_lease_expires_at,proto3" json:"agent_lease_expires_at,omitempty"`
+	Sources             []*NodeSource          `protobuf:"bytes,7,rep,name=sources,proto3" json:"sources,omitempty"`
+	Selectable          bool                   `protobuf:"varint,8,opt,name=selectable,proto3" json:"selectable,omitempty"`
+	BlockingReasons     []string               `protobuf:"bytes,9,rep,name=blocking_reasons,proto3" json:"blocking_reasons,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
+}
+
+func (x *DiscoveredNode) Reset() {
+	*x = DiscoveredNode{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveredNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveredNode) ProtoMessage() {}
+
+func (x *DiscoveredNode) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveredNode.ProtoReflect.Descriptor instead.
+func (*DiscoveredNode) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *DiscoveredNode) GetNode() *NodeRef {
+	if x != nil {
+		return x.Node
+	}
+	return nil
+}
+
+func (x *DiscoveredNode) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *DiscoveredNode) GetGpus() []*DiscoveredGPU {
+	if x != nil {
+		return x.Gpus
+	}
+	return nil
+}
+
+func (x *DiscoveredNode) GetBaselines() []*DiscoveredBaseline {
+	if x != nil {
+		return x.Baselines
+	}
+	return nil
+}
+
+func (x *DiscoveredNode) GetAgentOnline() bool {
+	if x != nil {
+		return x.AgentOnline
+	}
+	return false
+}
+
+func (x *DiscoveredNode) GetAgentLeaseExpiresAt() string {
+	if x != nil {
+		return x.AgentLeaseExpiresAt
+	}
+	return ""
+}
+
+func (x *DiscoveredNode) GetSources() []*NodeSource {
+	if x != nil {
+		return x.Sources
+	}
+	return nil
+}
+
+func (x *DiscoveredNode) GetSelectable() bool {
+	if x != nil {
+		return x.Selectable
+	}
+	return false
+}
+
+func (x *DiscoveredNode) GetBlockingReasons() []string {
+	if x != nil {
+		return x.BlockingReasons
+	}
+	return nil
+}
+
+type DiscoveredNodes struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Items             []*DiscoveredNode      `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Total             uint64                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
+	DiscoveryRevision string                 `protobuf:"bytes,3,opt,name=discovery_revision,proto3" json:"discovery_revision,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *DiscoveredNodes) Reset() {
+	*x = DiscoveredNodes{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DiscoveredNodes) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DiscoveredNodes) ProtoMessage() {}
+
+func (x *DiscoveredNodes) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DiscoveredNodes.ProtoReflect.Descriptor instead.
+func (*DiscoveredNodes) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *DiscoveredNodes) GetItems() []*DiscoveredNode {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *DiscoveredNodes) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *DiscoveredNodes) GetDiscoveryRevision() string {
+	if x != nil {
+		return x.DiscoveryRevision
+	}
+	return ""
+}
+
+type InitializationNewPool struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	DisplayName   string                 `protobuf:"bytes,1,opt,name=display_name,proto3" json:"display_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitializationNewPool) Reset() {
+	*x = InitializationNewPool{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationNewPool) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationNewPool) ProtoMessage() {}
+
+func (x *InitializationNewPool) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationNewPool.ProtoReflect.Descriptor instead.
+func (*InitializationNewPool) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *InitializationNewPool) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+type InitializationPoolInput struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ClientKey string                 `protobuf:"bytes,1,opt,name=client_key,proto3" json:"client_key,omitempty"`
+	// Types that are valid to be assigned to Pool:
+	//
+	//	*InitializationPoolInput_ExistingPoolId
+	//	*InitializationPoolInput_NewPool
+	Pool          isInitializationPoolInput_Pool `protobuf_oneof:"pool"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitializationPoolInput) Reset() {
+	*x = InitializationPoolInput{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationPoolInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationPoolInput) ProtoMessage() {}
+
+func (x *InitializationPoolInput) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationPoolInput.ProtoReflect.Descriptor instead.
+func (*InitializationPoolInput) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *InitializationPoolInput) GetClientKey() string {
+	if x != nil {
+		return x.ClientKey
+	}
+	return ""
+}
+
+func (x *InitializationPoolInput) GetPool() isInitializationPoolInput_Pool {
+	if x != nil {
+		return x.Pool
+	}
+	return nil
+}
+
+func (x *InitializationPoolInput) GetExistingPoolId() string {
+	if x != nil {
+		if x, ok := x.Pool.(*InitializationPoolInput_ExistingPoolId); ok {
+			return x.ExistingPoolId
+		}
+	}
+	return ""
+}
+
+func (x *InitializationPoolInput) GetNewPool() *InitializationNewPool {
+	if x != nil {
+		if x, ok := x.Pool.(*InitializationPoolInput_NewPool); ok {
+			return x.NewPool
+		}
+	}
+	return nil
+}
+
+type isInitializationPoolInput_Pool interface {
+	isInitializationPoolInput_Pool()
+}
+
+type InitializationPoolInput_ExistingPoolId struct {
+	ExistingPoolId string `protobuf:"bytes,2,opt,name=existing_pool_id,proto3,oneof"`
+}
+
+type InitializationPoolInput_NewPool struct {
+	NewPool *InitializationNewPool `protobuf:"bytes,3,opt,name=new_pool,proto3,oneof"`
+}
+
+func (*InitializationPoolInput_ExistingPoolId) isInitializationPoolInput_Pool() {}
+
+func (*InitializationPoolInput_NewPool) isInitializationPoolInput_Pool() {}
+
+type InitializationExistingGroup struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	GroupId         string                 `protobuf:"bytes,1,opt,name=group_id,proto3" json:"group_id,omitempty"`
+	ExpectedVersion uint64                 `protobuf:"varint,2,opt,name=expected_version,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *InitializationExistingGroup) Reset() {
+	*x = InitializationExistingGroup{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationExistingGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationExistingGroup) ProtoMessage() {}
+
+func (x *InitializationExistingGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationExistingGroup.ProtoReflect.Descriptor instead.
+func (*InitializationExistingGroup) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *InitializationExistingGroup) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *InitializationExistingGroup) GetExpectedVersion() uint64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
+type InitializationNewGroup struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PoolKey       string                 `protobuf:"bytes,1,opt,name=pool_key,proto3" json:"pool_key,omitempty"`
+	DisplayName   string                 `protobuf:"bytes,2,opt,name=display_name,proto3" json:"display_name,omitempty"`
+	Nodes         []*NodeRef             `protobuf:"bytes,3,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	BaselineRef   string                 `protobuf:"bytes,4,opt,name=baseline_ref,proto3" json:"baseline_ref,omitempty"`
+	QueueName     string                 `protobuf:"bytes,5,opt,name=queue_name,proto3" json:"queue_name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitializationNewGroup) Reset() {
+	*x = InitializationNewGroup{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationNewGroup) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationNewGroup) ProtoMessage() {}
+
+func (x *InitializationNewGroup) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationNewGroup.ProtoReflect.Descriptor instead.
+func (*InitializationNewGroup) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *InitializationNewGroup) GetPoolKey() string {
+	if x != nil {
+		return x.PoolKey
+	}
+	return ""
+}
+
+func (x *InitializationNewGroup) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *InitializationNewGroup) GetNodes() []*NodeRef {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *InitializationNewGroup) GetBaselineRef() string {
+	if x != nil {
+		return x.BaselineRef
+	}
+	return ""
+}
+
+func (x *InitializationNewGroup) GetQueueName() string {
+	if x != nil {
+		return x.QueueName
+	}
+	return ""
+}
+
+type InitializationGroupInput struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	ClientKey string                 `protobuf:"bytes,1,opt,name=client_key,proto3" json:"client_key,omitempty"`
+	// Types that are valid to be assigned to Group:
+	//
+	//	*InitializationGroupInput_ExistingGroup
+	//	*InitializationGroupInput_NewGroup
+	Group         isInitializationGroupInput_Group `protobuf_oneof:"group"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitializationGroupInput) Reset() {
+	*x = InitializationGroupInput{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationGroupInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationGroupInput) ProtoMessage() {}
+
+func (x *InitializationGroupInput) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationGroupInput.ProtoReflect.Descriptor instead.
+func (*InitializationGroupInput) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *InitializationGroupInput) GetClientKey() string {
+	if x != nil {
+		return x.ClientKey
+	}
+	return ""
+}
+
+func (x *InitializationGroupInput) GetGroup() isInitializationGroupInput_Group {
+	if x != nil {
+		return x.Group
+	}
+	return nil
+}
+
+func (x *InitializationGroupInput) GetExistingGroup() *InitializationExistingGroup {
+	if x != nil {
+		if x, ok := x.Group.(*InitializationGroupInput_ExistingGroup); ok {
+			return x.ExistingGroup
+		}
+	}
+	return nil
+}
+
+func (x *InitializationGroupInput) GetNewGroup() *InitializationNewGroup {
+	if x != nil {
+		if x, ok := x.Group.(*InitializationGroupInput_NewGroup); ok {
+			return x.NewGroup
+		}
+	}
+	return nil
+}
+
+type isInitializationGroupInput_Group interface {
+	isInitializationGroupInput_Group()
+}
+
+type InitializationGroupInput_ExistingGroup struct {
+	ExistingGroup *InitializationExistingGroup `protobuf:"bytes,2,opt,name=existing_group,proto3,oneof"`
+}
+
+type InitializationGroupInput_NewGroup struct {
+	NewGroup *InitializationNewGroup `protobuf:"bytes,3,opt,name=new_group,proto3,oneof"`
+}
+
+func (*InitializationGroupInput_ExistingGroup) isInitializationGroupInput_Group() {}
+
+func (*InitializationGroupInput_NewGroup) isInitializationGroupInput_Group() {}
+
+type InitializationProfileInput struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ClientKey            string                 `protobuf:"bytes,1,opt,name=client_key,proto3" json:"client_key,omitempty"`
+	GroupKey             string                 `protobuf:"bytes,2,opt,name=group_key,proto3" json:"group_key,omitempty"`
+	DisplayName          string                 `protobuf:"bytes,3,opt,name=display_name,proto3" json:"display_name,omitempty"`
+	MemoryMibPerDevice   int64                  `protobuf:"varint,4,opt,name=memory_mib_per_device,proto3" json:"memory_mib_per_device,omitempty"`
+	CoreLimitPercent     uint32                 `protobuf:"varint,5,opt,name=core_limit_percent,proto3" json:"core_limit_percent,omitempty"`
+	MaxDevicesPerReplica uint32                 `protobuf:"varint,6,opt,name=max_devices_per_replica,proto3" json:"max_devices_per_replica,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *InitializationProfileInput) Reset() {
+	*x = InitializationProfileInput{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationProfileInput) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationProfileInput) ProtoMessage() {}
+
+func (x *InitializationProfileInput) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationProfileInput.ProtoReflect.Descriptor instead.
+func (*InitializationProfileInput) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *InitializationProfileInput) GetClientKey() string {
+	if x != nil {
+		return x.ClientKey
+	}
+	return ""
+}
+
+func (x *InitializationProfileInput) GetGroupKey() string {
+	if x != nil {
+		return x.GroupKey
+	}
+	return ""
+}
+
+func (x *InitializationProfileInput) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
+	}
+	return ""
+}
+
+func (x *InitializationProfileInput) GetMemoryMibPerDevice() int64 {
+	if x != nil {
+		return x.MemoryMibPerDevice
+	}
+	return 0
+}
+
+func (x *InitializationProfileInput) GetCoreLimitPercent() uint32 {
+	if x != nil {
+		return x.CoreLimitPercent
+	}
+	return 0
+}
+
+func (x *InitializationProfileInput) GetMaxDevicesPerReplica() uint32 {
+	if x != nil {
+		return x.MaxDevicesPerReplica
+	}
+	return 0
+}
+
+type InitializationPoolResult struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ClientKey     string                 `protobuf:"bytes,1,opt,name=client_key,proto3" json:"client_key,omitempty"`
+	PoolId        string                 `protobuf:"bytes,2,opt,name=pool_id,proto3" json:"pool_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *InitializationPoolResult) Reset() {
+	*x = InitializationPoolResult{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationPoolResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationPoolResult) ProtoMessage() {}
+
+func (x *InitializationPoolResult) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationPoolResult.ProtoReflect.Descriptor instead.
+func (*InitializationPoolResult) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *InitializationPoolResult) GetClientKey() string {
+	if x != nil {
+		return x.ClientKey
+	}
+	return ""
+}
+
+func (x *InitializationPoolResult) GetPoolId() string {
+	if x != nil {
+		return x.PoolId
+	}
+	return ""
+}
+
+type InitializationGroupResult struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	ClientKey            string                 `protobuf:"bytes,1,opt,name=client_key,proto3" json:"client_key,omitempty"`
+	GroupId              string                 `protobuf:"bytes,2,opt,name=group_id,proto3" json:"group_id,omitempty"`
+	RecordedGroupVersion uint64                 `protobuf:"varint,3,opt,name=recorded_group_version,proto3" json:"recorded_group_version,omitempty"`
+	AutoOpenResult       string                 `protobuf:"bytes,4,opt,name=auto_open_result,proto3" json:"auto_open_result,omitempty"`
+	Admission            string                 `protobuf:"bytes,5,opt,name=admission,proto3" json:"admission,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *InitializationGroupResult) Reset() {
+	*x = InitializationGroupResult{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationGroupResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationGroupResult) ProtoMessage() {}
+
+func (x *InitializationGroupResult) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationGroupResult.ProtoReflect.Descriptor instead.
+func (*InitializationGroupResult) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *InitializationGroupResult) GetClientKey() string {
+	if x != nil {
+		return x.ClientKey
+	}
+	return ""
+}
+
+func (x *InitializationGroupResult) GetGroupId() string {
+	if x != nil {
+		return x.GroupId
+	}
+	return ""
+}
+
+func (x *InitializationGroupResult) GetRecordedGroupVersion() uint64 {
+	if x != nil {
+		return x.RecordedGroupVersion
+	}
+	return 0
+}
+
+func (x *InitializationGroupResult) GetAutoOpenResult() string {
+	if x != nil {
+		return x.AutoOpenResult
+	}
+	return ""
+}
+
+func (x *InitializationGroupResult) GetAdmission() string {
+	if x != nil {
+		return x.Admission
+	}
+	return ""
+}
+
+type InitializationProfileResult struct {
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	ClientKey        string                 `protobuf:"bytes,1,opt,name=client_key,proto3" json:"client_key,omitempty"`
+	ProfileId        string                 `protobuf:"bytes,2,opt,name=profile_id,proto3" json:"profile_id,omitempty"`
+	RecordedRevision uint64                 `protobuf:"varint,3,opt,name=recorded_revision,proto3" json:"recorded_revision,omitempty"`
+	RecordedState    string                 `protobuf:"bytes,4,opt,name=recorded_state,proto3" json:"recorded_state,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *InitializationProfileResult) Reset() {
+	*x = InitializationProfileResult{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationProfileResult) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationProfileResult) ProtoMessage() {}
+
+func (x *InitializationProfileResult) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationProfileResult.ProtoReflect.Descriptor instead.
+func (*InitializationProfileResult) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *InitializationProfileResult) GetClientKey() string {
+	if x != nil {
+		return x.ClientKey
+	}
+	return ""
+}
+
+func (x *InitializationProfileResult) GetProfileId() string {
+	if x != nil {
+		return x.ProfileId
+	}
+	return ""
+}
+
+func (x *InitializationProfileResult) GetRecordedRevision() uint64 {
+	if x != nil {
+		return x.RecordedRevision
+	}
+	return 0
+}
+
+func (x *InitializationProfileResult) GetRecordedState() string {
+	if x != nil {
+		return x.RecordedState
+	}
+	return ""
+}
+
+type InitializationStep struct {
+	state              protoimpl.MessageState `protogen:"open.v1"`
+	StepId             string                 `protobuf:"bytes,1,opt,name=step_id,proto3" json:"step_id,omitempty"`
+	ObjectKey          string                 `protobuf:"bytes,2,opt,name=object_key,proto3" json:"object_key,omitempty"`
+	Kind               string                 `protobuf:"bytes,3,opt,name=kind,proto3" json:"kind,omitempty"`
+	State              string                 `protobuf:"bytes,4,opt,name=state,proto3" json:"state,omitempty"`
+	ResourceId         string                 `protobuf:"bytes,5,opt,name=resource_id,proto3" json:"resource_id,omitempty"`
+	InputGroupVersion  uint64                 `protobuf:"varint,6,opt,name=input_group_version,proto3" json:"input_group_version,omitempty"`
+	OutputGroupVersion uint64                 `protobuf:"varint,7,opt,name=output_group_version,proto3" json:"output_group_version,omitempty"`
+	Reason             string                 `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *InitializationStep) Reset() {
+	*x = InitializationStep{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationStep) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationStep) ProtoMessage() {}
+
+func (x *InitializationStep) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationStep.ProtoReflect.Descriptor instead.
+func (*InitializationStep) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *InitializationStep) GetStepId() string {
+	if x != nil {
+		return x.StepId
+	}
+	return ""
+}
+
+func (x *InitializationStep) GetObjectKey() string {
+	if x != nil {
+		return x.ObjectKey
+	}
+	return ""
+}
+
+func (x *InitializationStep) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *InitializationStep) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *InitializationStep) GetResourceId() string {
+	if x != nil {
+		return x.ResourceId
+	}
+	return ""
+}
+
+func (x *InitializationStep) GetInputGroupVersion() uint64 {
+	if x != nil {
+		return x.InputGroupVersion
+	}
+	return 0
+}
+
+func (x *InitializationStep) GetOutputGroupVersion() uint64 {
+	if x != nil {
+		return x.OutputGroupVersion
+	}
+	return 0
+}
+
+func (x *InitializationStep) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+type InitializationOperation struct {
+	state           protoimpl.MessageState         `protogen:"open.v1"`
+	OperationId     string                         `protobuf:"bytes,1,opt,name=operation_id,proto3" json:"operation_id,omitempty"`
+	Version         uint64                         `protobuf:"varint,2,opt,name=version,proto3" json:"version,omitempty"`
+	State           string                         `protobuf:"bytes,3,opt,name=state,proto3" json:"state,omitempty"`
+	CreatedAt       string                         `protobuf:"bytes,4,opt,name=created_at,proto3" json:"created_at,omitempty"`
+	UpdatedAt       string                         `protobuf:"bytes,5,opt,name=updated_at,proto3" json:"updated_at,omitempty"`
+	CurrentStep     string                         `protobuf:"bytes,6,opt,name=current_step,proto3" json:"current_step,omitempty"`
+	Retryable       bool                           `protobuf:"varint,7,opt,name=retryable,proto3" json:"retryable,omitempty"`
+	Reason          string                         `protobuf:"bytes,8,opt,name=reason,proto3" json:"reason,omitempty"`
+	RequiredActions []string                       `protobuf:"bytes,9,rep,name=required_actions,proto3" json:"required_actions,omitempty"`
+	ClusterId       string                         `protobuf:"bytes,10,opt,name=cluster_id,proto3" json:"cluster_id,omitempty"`
+	Pools           []*InitializationPoolResult    `protobuf:"bytes,11,rep,name=pools,proto3" json:"pools,omitempty"`
+	Groups          []*InitializationGroupResult   `protobuf:"bytes,12,rep,name=groups,proto3" json:"groups,omitempty"`
+	Profiles        []*InitializationProfileResult `protobuf:"bytes,13,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	Steps           []*InitializationStep          `protobuf:"bytes,14,rep,name=steps,proto3" json:"steps,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *InitializationOperation) Reset() {
+	*x = InitializationOperation{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *InitializationOperation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*InitializationOperation) ProtoMessage() {}
+
+func (x *InitializationOperation) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use InitializationOperation.ProtoReflect.Descriptor instead.
+func (*InitializationOperation) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *InitializationOperation) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *InitializationOperation) GetVersion() uint64 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *InitializationOperation) GetState() string {
+	if x != nil {
+		return x.State
+	}
+	return ""
+}
+
+func (x *InitializationOperation) GetCreatedAt() string {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return ""
+}
+
+func (x *InitializationOperation) GetUpdatedAt() string {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return ""
+}
+
+func (x *InitializationOperation) GetCurrentStep() string {
+	if x != nil {
+		return x.CurrentStep
+	}
+	return ""
+}
+
+func (x *InitializationOperation) GetRetryable() bool {
+	if x != nil {
+		return x.Retryable
+	}
+	return false
+}
+
+func (x *InitializationOperation) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
+func (x *InitializationOperation) GetRequiredActions() []string {
+	if x != nil {
+		return x.RequiredActions
+	}
+	return nil
+}
+
+func (x *InitializationOperation) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
+func (x *InitializationOperation) GetPools() []*InitializationPoolResult {
+	if x != nil {
+		return x.Pools
+	}
+	return nil
+}
+
+func (x *InitializationOperation) GetGroups() []*InitializationGroupResult {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *InitializationOperation) GetProfiles() []*InitializationProfileResult {
+	if x != nil {
+		return x.Profiles
+	}
+	return nil
+}
+
+func (x *InitializationOperation) GetSteps() []*InitializationStep {
+	if x != nil {
+		return x.Steps
+	}
+	return nil
+}
+
+type GetInitializationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *AdminRead             `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInitializationRequest) Reset() {
+	*x = GetInitializationRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInitializationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInitializationRequest) ProtoMessage() {}
+
+func (x *GetInitializationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInitializationRequest.ProtoReflect.Descriptor instead.
+func (*GetInitializationRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *GetInitializationRequest) GetContext() *AdminRead {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+type ListDiscoveredNodesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *AdminRead             `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	Page          uint32                 `protobuf:"varint,2,opt,name=page,proto3" json:"page,omitempty"`
+	PageSize      uint32                 `protobuf:"varint,3,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDiscoveredNodesRequest) Reset() {
+	*x = ListDiscoveredNodesRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDiscoveredNodesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDiscoveredNodesRequest) ProtoMessage() {}
+
+func (x *ListDiscoveredNodesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDiscoveredNodesRequest.ProtoReflect.Descriptor instead.
+func (*ListDiscoveredNodesRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *ListDiscoveredNodesRequest) GetContext() *AdminRead {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *ListDiscoveredNodesRequest) GetPage() uint32 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ListDiscoveredNodesRequest) GetPageSize() uint32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type CreateInitializationRequest struct {
+	state             protoimpl.MessageState        `protogen:"open.v1"`
+	Mutation          *AdminMutation                `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
+	DiscoveryRevision string                        `protobuf:"bytes,2,opt,name=discovery_revision,proto3" json:"discovery_revision,omitempty"`
+	Pools             []*InitializationPoolInput    `protobuf:"bytes,3,rep,name=pools,proto3" json:"pools,omitempty"`
+	Groups            []*InitializationGroupInput   `protobuf:"bytes,4,rep,name=groups,proto3" json:"groups,omitempty"`
+	Profiles          []*InitializationProfileInput `protobuf:"bytes,5,rep,name=profiles,proto3" json:"profiles,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *CreateInitializationRequest) Reset() {
+	*x = CreateInitializationRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateInitializationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateInitializationRequest) ProtoMessage() {}
+
+func (x *CreateInitializationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateInitializationRequest.ProtoReflect.Descriptor instead.
+func (*CreateInitializationRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *CreateInitializationRequest) GetMutation() *AdminMutation {
+	if x != nil {
+		return x.Mutation
+	}
+	return nil
+}
+
+func (x *CreateInitializationRequest) GetDiscoveryRevision() string {
+	if x != nil {
+		return x.DiscoveryRevision
+	}
+	return ""
+}
+
+func (x *CreateInitializationRequest) GetPools() []*InitializationPoolInput {
+	if x != nil {
+		return x.Pools
+	}
+	return nil
+}
+
+func (x *CreateInitializationRequest) GetGroups() []*InitializationGroupInput {
+	if x != nil {
+		return x.Groups
+	}
+	return nil
+}
+
+func (x *CreateInitializationRequest) GetProfiles() []*InitializationProfileInput {
+	if x != nil {
+		return x.Profiles
+	}
+	return nil
+}
+
+type GetInitializationOperationRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Context       *AdminRead             `protobuf:"bytes,1,opt,name=context,proto3" json:"context,omitempty"`
+	OperationId   string                 `protobuf:"bytes,2,opt,name=operation_id,proto3" json:"operation_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetInitializationOperationRequest) Reset() {
+	*x = GetInitializationOperationRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetInitializationOperationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetInitializationOperationRequest) ProtoMessage() {}
+
+func (x *GetInitializationOperationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetInitializationOperationRequest.ProtoReflect.Descriptor instead.
+func (*GetInitializationOperationRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *GetInitializationOperationRequest) GetContext() *AdminRead {
+	if x != nil {
+		return x.Context
+	}
+	return nil
+}
+
+func (x *GetInitializationOperationRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+type RetryInitializationOperationRequest struct {
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Mutation        *AdminMutation         `protobuf:"bytes,1,opt,name=mutation,proto3" json:"mutation,omitempty"`
+	OperationId     string                 `protobuf:"bytes,2,opt,name=operation_id,proto3" json:"operation_id,omitempty"`
+	ExpectedVersion uint64                 `protobuf:"varint,3,opt,name=expected_version,proto3" json:"expected_version,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *RetryInitializationOperationRequest) Reset() {
+	*x = RetryInitializationOperationRequest{}
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RetryInitializationOperationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RetryInitializationOperationRequest) ProtoMessage() {}
+
+func (x *RetryInitializationOperationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_accelerator_v1_accelerator_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RetryInitializationOperationRequest.ProtoReflect.Descriptor instead.
+func (*RetryInitializationOperationRequest) Descriptor() ([]byte, []int) {
+	return file_accelerator_v1_accelerator_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *RetryInitializationOperationRequest) GetMutation() *AdminMutation {
+	if x != nil {
+		return x.Mutation
+	}
+	return nil
+}
+
+func (x *RetryInitializationOperationRequest) GetOperationId() string {
+	if x != nil {
+		return x.OperationId
+	}
+	return ""
+}
+
+func (x *RetryInitializationOperationRequest) GetExpectedVersion() uint64 {
+	if x != nil {
+		return x.ExpectedVersion
+	}
+	return 0
+}
+
 var File_accelerator_v1_accelerator_proto protoreflect.FileDescriptor
 
 const file_accelerator_v1_accelerator_proto_rawDesc = "" +
@@ -5757,7 +7477,169 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\x0factive_pod_uids\x18\x04 \x03(\tR\x0factive_pod_uids\x120\n" +
 	"\x13uncertain_node_uids\x18\x05 \x03(\tR\x13uncertain_node_uids\x12=\n" +
 	"\vobservation\x18\x06 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\x12(\n" +
-	"\x0fevidence_digest\x18\a \x01(\tR\x0fevidence_digest*P\n" +
+	"\x0fevidence_digest\x18\a \x01(\tR\x0fevidence_digest\"m\n" +
+	"\x13InitializationCheck\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x16\n" +
+	"\x06source\x18\x02 \x01(\tR\x06source\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12\x16\n" +
+	"\x06reason\x18\x04 \x01(\tR\x06reason\"\x98\x03\n" +
+	"\x0eInitialization\x12\x1e\n" +
+	"\n" +
+	"registered\x18\x01 \x01(\bR\n" +
+	"registered\x12&\n" +
+	"\x0econnection_ref\x18\x02 \x01(\tR\x0econnection_ref\x12\x1e\n" +
+	"\n" +
+	"cluster_id\x18\x03 \x01(\tR\n" +
+	"cluster_id\x12\"\n" +
+	"\fdisplay_name\x18\x04 \x01(\tR\fdisplay_name\x120\n" +
+	"\x13configuration_state\x18\x05 \x01(\tR\x13configuration_state\x12;\n" +
+	"\x06checks\x18\x06 \x03(\v2#.accelerator.v1.InitializationCheckR\x06checks\x12S\n" +
+	"\x10latest_operation\x18\a \x01(\v2'.accelerator.v1.InitializationOperationR\x10latest_operation\x126\n" +
+	"\x16configuration_complete\x18\b \x01(\bR\x16configuration_complete\"\xf5\x01\n" +
+	"\rDiscoveredGPU\x12\x12\n" +
+	"\x04uuid\x18\x01 \x01(\tR\x04uuid\x12\x1c\n" +
+	"\tmodel_key\x18\x02 \x01(\tR\tmodel_key\x124\n" +
+	"\x15physical_memory_bytes\x18\x03 \x01(\x04R\x15physical_memory_bytes\x12;\n" +
+	"\x16safe_memory_budget_mib\x18\x04 \x01(\x03H\x00R\x16safe_memory_budget_mib\x88\x01\x01\x12$\n" +
+	"\rbudget_reason\x18\x05 \x01(\tR\rbudget_reasonB\x19\n" +
+	"\x17_safe_memory_budget_mib\"d\n" +
+	"\x12DiscoveredBaseline\x12\"\n" +
+	"\fbaseline_ref\x18\x01 \x01(\tR\fbaseline_ref\x12\x12\n" +
+	"\x04mode\x18\x02 \x01(\tR\x04mode\x12\x16\n" +
+	"\x06source\x18\x03 \x01(\tR\x06source\"\x9c\x01\n" +
+	"\n" +
+	"NodeSource\x12\x16\n" +
+	"\x06source\x18\x01 \x01(\tR\x06source\x12 \n" +
+	"\vobserved_at\x18\x02 \x01(\tR\vobserved_at\x12 \n" +
+	"\vreceived_at\x18\x03 \x01(\tR\vreceived_at\x12\x1a\n" +
+	"\bcomplete\x18\x04 \x01(\bR\bcomplete\x12\x16\n" +
+	"\x06issues\x18\x05 \x03(\tR\x06issues\"\xac\x03\n" +
+	"\x0eDiscoveredNode\x12+\n" +
+	"\x04node\x18\x01 \x01(\v2\x17.accelerator.v1.NodeRefR\x04node\x12\x1a\n" +
+	"\bgroup_id\x18\x02 \x01(\tR\bgroup_id\x121\n" +
+	"\x04gpus\x18\x03 \x03(\v2\x1d.accelerator.v1.DiscoveredGPUR\x04gpus\x12@\n" +
+	"\tbaselines\x18\x04 \x03(\v2\".accelerator.v1.DiscoveredBaselineR\tbaselines\x12\"\n" +
+	"\fagent_online\x18\x05 \x01(\bR\fagent_online\x126\n" +
+	"\x16agent_lease_expires_at\x18\x06 \x01(\tR\x16agent_lease_expires_at\x124\n" +
+	"\asources\x18\a \x03(\v2\x1a.accelerator.v1.NodeSourceR\asources\x12\x1e\n" +
+	"\n" +
+	"selectable\x18\b \x01(\bR\n" +
+	"selectable\x12*\n" +
+	"\x10blocking_reasons\x18\t \x03(\tR\x10blocking_reasons\"\x8d\x01\n" +
+	"\x0fDiscoveredNodes\x124\n" +
+	"\x05items\x18\x01 \x03(\v2\x1e.accelerator.v1.DiscoveredNodeR\x05items\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\x04R\x05total\x12.\n" +
+	"\x12discovery_revision\x18\x03 \x01(\tR\x12discovery_revision\";\n" +
+	"\x15InitializationNewPool\x12\"\n" +
+	"\fdisplay_name\x18\x01 \x01(\tR\fdisplay_name\"\xb4\x01\n" +
+	"\x17InitializationPoolInput\x12\x1e\n" +
+	"\n" +
+	"client_key\x18\x01 \x01(\tR\n" +
+	"client_key\x12,\n" +
+	"\x10existing_pool_id\x18\x02 \x01(\tH\x00R\x10existing_pool_id\x12C\n" +
+	"\bnew_pool\x18\x03 \x01(\v2%.accelerator.v1.InitializationNewPoolH\x00R\bnew_poolB\x06\n" +
+	"\x04pool\"e\n" +
+	"\x1bInitializationExistingGroup\x12\x1a\n" +
+	"\bgroup_id\x18\x01 \x01(\tR\bgroup_id\x12*\n" +
+	"\x10expected_version\x18\x02 \x01(\x04R\x10expected_version\"\xcb\x01\n" +
+	"\x16InitializationNewGroup\x12\x1a\n" +
+	"\bpool_key\x18\x01 \x01(\tR\bpool_key\x12\"\n" +
+	"\fdisplay_name\x18\x02 \x01(\tR\fdisplay_name\x12-\n" +
+	"\x05nodes\x18\x03 \x03(\v2\x17.accelerator.v1.NodeRefR\x05nodes\x12\"\n" +
+	"\fbaseline_ref\x18\x04 \x01(\tR\fbaseline_ref\x12\x1e\n" +
+	"\n" +
+	"queue_name\x18\x05 \x01(\tR\n" +
+	"queue_name\"\xe2\x01\n" +
+	"\x18InitializationGroupInput\x12\x1e\n" +
+	"\n" +
+	"client_key\x18\x01 \x01(\tR\n" +
+	"client_key\x12U\n" +
+	"\x0eexisting_group\x18\x02 \x01(\v2+.accelerator.v1.InitializationExistingGroupH\x00R\x0eexisting_group\x12F\n" +
+	"\tnew_group\x18\x03 \x01(\v2&.accelerator.v1.InitializationNewGroupH\x00R\tnew_groupB\a\n" +
+	"\x05group\"\x9e\x02\n" +
+	"\x1aInitializationProfileInput\x12\x1e\n" +
+	"\n" +
+	"client_key\x18\x01 \x01(\tR\n" +
+	"client_key\x12\x1c\n" +
+	"\tgroup_key\x18\x02 \x01(\tR\tgroup_key\x12\"\n" +
+	"\fdisplay_name\x18\x03 \x01(\tR\fdisplay_name\x124\n" +
+	"\x15memory_mib_per_device\x18\x04 \x01(\x03R\x15memory_mib_per_device\x12.\n" +
+	"\x12core_limit_percent\x18\x05 \x01(\rR\x12core_limit_percent\x128\n" +
+	"\x17max_devices_per_replica\x18\x06 \x01(\rR\x17max_devices_per_replica\"T\n" +
+	"\x18InitializationPoolResult\x12\x1e\n" +
+	"\n" +
+	"client_key\x18\x01 \x01(\tR\n" +
+	"client_key\x12\x18\n" +
+	"\apool_id\x18\x02 \x01(\tR\apool_id\"\xd9\x01\n" +
+	"\x19InitializationGroupResult\x12\x1e\n" +
+	"\n" +
+	"client_key\x18\x01 \x01(\tR\n" +
+	"client_key\x12\x1a\n" +
+	"\bgroup_id\x18\x02 \x01(\tR\bgroup_id\x126\n" +
+	"\x16recorded_group_version\x18\x03 \x01(\x04R\x16recorded_group_version\x12*\n" +
+	"\x10auto_open_result\x18\x04 \x01(\tR\x10auto_open_result\x12\x1c\n" +
+	"\tadmission\x18\x05 \x01(\tR\tadmission\"\xb3\x01\n" +
+	"\x1bInitializationProfileResult\x12\x1e\n" +
+	"\n" +
+	"client_key\x18\x01 \x01(\tR\n" +
+	"client_key\x12\x1e\n" +
+	"\n" +
+	"profile_id\x18\x02 \x01(\tR\n" +
+	"profile_id\x12,\n" +
+	"\x11recorded_revision\x18\x03 \x01(\x04R\x11recorded_revision\x12&\n" +
+	"\x0erecorded_state\x18\x04 \x01(\tR\x0erecorded_state\"\x98\x02\n" +
+	"\x12InitializationStep\x12\x18\n" +
+	"\astep_id\x18\x01 \x01(\tR\astep_id\x12\x1e\n" +
+	"\n" +
+	"object_key\x18\x02 \x01(\tR\n" +
+	"object_key\x12\x12\n" +
+	"\x04kind\x18\x03 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05state\x18\x04 \x01(\tR\x05state\x12 \n" +
+	"\vresource_id\x18\x05 \x01(\tR\vresource_id\x120\n" +
+	"\x13input_group_version\x18\x06 \x01(\x04R\x13input_group_version\x122\n" +
+	"\x14output_group_version\x18\a \x01(\x04R\x14output_group_version\x12\x16\n" +
+	"\x06reason\x18\b \x01(\tR\x06reason\"\xd9\x04\n" +
+	"\x17InitializationOperation\x12\"\n" +
+	"\foperation_id\x18\x01 \x01(\tR\foperation_id\x12\x18\n" +
+	"\aversion\x18\x02 \x01(\x04R\aversion\x12\x14\n" +
+	"\x05state\x18\x03 \x01(\tR\x05state\x12\x1e\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\tR\n" +
+	"created_at\x12\x1e\n" +
+	"\n" +
+	"updated_at\x18\x05 \x01(\tR\n" +
+	"updated_at\x12\"\n" +
+	"\fcurrent_step\x18\x06 \x01(\tR\fcurrent_step\x12\x1c\n" +
+	"\tretryable\x18\a \x01(\bR\tretryable\x12\x16\n" +
+	"\x06reason\x18\b \x01(\tR\x06reason\x12*\n" +
+	"\x10required_actions\x18\t \x03(\tR\x10required_actions\x12\x1e\n" +
+	"\n" +
+	"cluster_id\x18\n" +
+	" \x01(\tR\n" +
+	"cluster_id\x12>\n" +
+	"\x05pools\x18\v \x03(\v2(.accelerator.v1.InitializationPoolResultR\x05pools\x12A\n" +
+	"\x06groups\x18\f \x03(\v2).accelerator.v1.InitializationGroupResultR\x06groups\x12G\n" +
+	"\bprofiles\x18\r \x03(\v2+.accelerator.v1.InitializationProfileResultR\bprofiles\x128\n" +
+	"\x05steps\x18\x0e \x03(\v2\".accelerator.v1.InitializationStepR\x05steps\"O\n" +
+	"\x18GetInitializationRequest\x123\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\"\x82\x01\n" +
+	"\x1aListDiscoveredNodesRequest\x123\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x12\n" +
+	"\x04page\x18\x02 \x01(\rR\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x03 \x01(\rR\bpageSize\"\xd1\x02\n" +
+	"\x1bCreateInitializationRequest\x129\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12.\n" +
+	"\x12discovery_revision\x18\x02 \x01(\tR\x12discovery_revision\x12=\n" +
+	"\x05pools\x18\x03 \x03(\v2'.accelerator.v1.InitializationPoolInputR\x05pools\x12@\n" +
+	"\x06groups\x18\x04 \x03(\v2(.accelerator.v1.InitializationGroupInputR\x06groups\x12F\n" +
+	"\bprofiles\x18\x05 \x03(\v2*.accelerator.v1.InitializationProfileInputR\bprofiles\"|\n" +
+	"!GetInitializationOperationRequest\x123\n" +
+	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\"\n" +
+	"\foperation_id\x18\x02 \x01(\tR\foperation_id\"\xb0\x01\n" +
+	"#RetryInitializationOperationRequest\x129\n" +
+	"\bmutation\x18\x01 \x01(\v2\x1d.accelerator.v1.AdminMutationR\bmutation\x12\"\n" +
+	"\foperation_id\x18\x02 \x01(\tR\foperation_id\x12*\n" +
+	"\x10expected_version\x18\x03 \x01(\x04R\x10expected_version*P\n" +
 	"\n" +
 	"SupplyMode\x12\x1b\n" +
 	"\x17SUPPLY_MODE_UNSPECIFIED\x10\x00\x12\x13\n" +
@@ -5797,9 +7679,13 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\x19PROFILE_STATE_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0ePROFILE_ACTIVE\x10\x01\x12\x14\n" +
 	"\x10PROFILE_DISABLED\x10\x02\x12\x13\n" +
-	"\x0fPROFILE_DELETED\x10\x032\xc7\n" +
-	"\n" +
-	"\x17AcceleratorAdminService\x12R\n" +
+	"\x0fPROFILE_DELETED\x10\x032\xf0\x0e\n" +
+	"\x17AcceleratorAdminService\x12]\n" +
+	"\x11GetInitialization\x12(.accelerator.v1.GetInitializationRequest\x1a\x1e.accelerator.v1.Initialization\x12b\n" +
+	"\x13ListDiscoveredNodes\x12*.accelerator.v1.ListDiscoveredNodesRequest\x1a\x1f.accelerator.v1.DiscoveredNodes\x12l\n" +
+	"\x14CreateInitialization\x12+.accelerator.v1.CreateInitializationRequest\x1a'.accelerator.v1.InitializationOperation\x12x\n" +
+	"\x1aGetInitializationOperation\x121.accelerator.v1.GetInitializationOperationRequest\x1a'.accelerator.v1.InitializationOperation\x12|\n" +
+	"\x1cRetryInitializationOperation\x123.accelerator.v1.RetryInitializationOperationRequest\x1a'.accelerator.v1.InitializationOperation\x12R\n" +
 	"\x0fRegisterCluster\x12&.accelerator.v1.RegisterClusterRequest\x1a\x17.accelerator.v1.Cluster\x12Y\n" +
 	"\fListClusters\x12#.accelerator.v1.ListClustersRequest\x1a$.accelerator.v1.ListClustersResponse\x12E\n" +
 	"\n" +
@@ -5843,82 +7729,105 @@ func file_accelerator_v1_accelerator_proto_rawDescGZIP() []byte {
 }
 
 var file_accelerator_v1_accelerator_proto_enumTypes = make([]protoimpl.EnumInfo, 8)
-var file_accelerator_v1_accelerator_proto_msgTypes = make([]protoimpl.MessageInfo, 66)
+var file_accelerator_v1_accelerator_proto_msgTypes = make([]protoimpl.MessageInfo, 89)
 var file_accelerator_v1_accelerator_proto_goTypes = []any{
-	(SupplyMode)(0),                  // 0: accelerator.v1.SupplyMode
-	(AdmissionState)(0),              // 1: accelerator.v1.AdmissionState
-	(UsageState)(0),                  // 2: accelerator.v1.UsageState
-	(UsageEndReason)(0),              // 3: accelerator.v1.UsageEndReason
-	(AllocationState)(0),             // 4: accelerator.v1.AllocationState
-	(FitStatus)(0),                   // 5: accelerator.v1.FitStatus
-	(ReleaseFinding)(0),              // 6: accelerator.v1.ReleaseFinding
-	(ProfileState)(0),                // 7: accelerator.v1.ProfileState
-	(*Actor)(nil),                    // 8: accelerator.v1.Actor
-	(*TenantContext)(nil),            // 9: accelerator.v1.TenantContext
-	(*AdminRead)(nil),                // 10: accelerator.v1.AdminRead
-	(*AdminMutation)(nil),            // 11: accelerator.v1.AdminMutation
-	(*Page)(nil),                     // 12: accelerator.v1.Page
-	(*KeyValue)(nil),                 // 13: accelerator.v1.KeyValue
-	(*Observation)(nil),              // 14: accelerator.v1.Observation
-	(*ProviderBaseline)(nil),         // 15: accelerator.v1.ProviderBaseline
-	(*NodeRef)(nil),                  // 16: accelerator.v1.NodeRef
-	(*Cluster)(nil),                  // 17: accelerator.v1.Cluster
-	(*RegisterClusterRequest)(nil),   // 18: accelerator.v1.RegisterClusterRequest
-	(*ListClustersRequest)(nil),      // 19: accelerator.v1.ListClustersRequest
-	(*ListClustersResponse)(nil),     // 20: accelerator.v1.ListClustersResponse
-	(*Pool)(nil),                     // 21: accelerator.v1.Pool
-	(*CreatePoolRequest)(nil),        // 22: accelerator.v1.CreatePoolRequest
-	(*ListPoolsRequest)(nil),         // 23: accelerator.v1.ListPoolsRequest
-	(*ListPoolsResponse)(nil),        // 24: accelerator.v1.ListPoolsResponse
-	(*SupplyGroup)(nil),              // 25: accelerator.v1.SupplyGroup
-	(*AdoptSupplyGroupRequest)(nil),  // 26: accelerator.v1.AdoptSupplyGroupRequest
-	(*ListSupplyGroupsRequest)(nil),  // 27: accelerator.v1.ListSupplyGroupsRequest
-	(*ListSupplyGroupsResponse)(nil), // 28: accelerator.v1.ListSupplyGroupsResponse
-	(*SetAdmissionRequest)(nil),      // 29: accelerator.v1.SetAdmissionRequest
-	(*ProfileSpec)(nil),              // 30: accelerator.v1.ProfileSpec
-	(*GpuProfile)(nil),               // 31: accelerator.v1.GpuProfile
-	(*CreateProfileRequest)(nil),     // 32: accelerator.v1.CreateProfileRequest
-	(*ListProfilesRequest)(nil),      // 33: accelerator.v1.ListProfilesRequest
-	(*ListProfilesResponse)(nil),     // 34: accelerator.v1.ListProfilesResponse
-	(*ProfileScope)(nil),             // 35: accelerator.v1.ProfileScope
-	(*AdminListProfilesRequest)(nil), // 36: accelerator.v1.AdminListProfilesRequest
-	(*GetProfileRequest)(nil),        // 37: accelerator.v1.GetProfileRequest
-	(*GpuRequest)(nil),               // 38: accelerator.v1.GpuRequest
-	(*GpuExecution)(nil),             // 39: accelerator.v1.GpuExecution
-	(*GpuDisplay)(nil),               // 40: accelerator.v1.GpuDisplay
-	(*GpuQuotaItem)(nil),             // 41: accelerator.v1.GpuQuotaItem
-	(*ResolvedGpuRequest)(nil),       // 42: accelerator.v1.ResolvedGpuRequest
-	(*PreviewProfileRequest)(nil),    // 43: accelerator.v1.PreviewProfileRequest
-	(*ProfilePreview)(nil),           // 44: accelerator.v1.ProfilePreview
-	(*SetProfileStateRequest)(nil),   // 45: accelerator.v1.SetProfileStateRequest
-	(*DeleteProfileRequest)(nil),     // 46: accelerator.v1.DeleteProfileRequest
-	(*ResolveGpuRequestRequest)(nil), // 47: accelerator.v1.ResolveGpuRequestRequest
-	(*DeviceCapacity)(nil),           // 48: accelerator.v1.DeviceCapacity
-	(*CapacityView)(nil),             // 49: accelerator.v1.CapacityView
-	(*GetCapacityRequest)(nil),       // 50: accelerator.v1.GetCapacityRequest
-	(*AdminGetCapacityRequest)(nil),  // 51: accelerator.v1.AdminGetCapacityRequest
-	(*GpuFit)(nil),                   // 52: accelerator.v1.GpuFit
-	(*CheckGpuFitRequest)(nil),       // 53: accelerator.v1.CheckGpuFitRequest
-	(*PhysicalDevice)(nil),           // 54: accelerator.v1.PhysicalDevice
-	(*ListDevicesRequest)(nil),       // 55: accelerator.v1.ListDevicesRequest
-	(*ListDevicesResponse)(nil),      // 56: accelerator.v1.ListDevicesResponse
-	(*GpuUsageRef)(nil),              // 57: accelerator.v1.GpuUsageRef
-	(*GpuUsageProjection)(nil),       // 58: accelerator.v1.GpuUsageProjection
-	(*SyncGpuUsageRequest)(nil),      // 59: accelerator.v1.SyncGpuUsageRequest
-	(*SyncGpuUsageResponse)(nil),     // 60: accelerator.v1.SyncGpuUsageResponse
-	(*GetGpuUsageRequest)(nil),       // 61: accelerator.v1.GetGpuUsageRequest
-	(*ListGpuUsagesRequest)(nil),     // 62: accelerator.v1.ListGpuUsagesRequest
-	(*ListGpuUsagesResponse)(nil),    // 63: accelerator.v1.ListGpuUsagesResponse
-	(*PodRef)(nil),                   // 64: accelerator.v1.PodRef
-	(*GpuBinding)(nil),               // 65: accelerator.v1.GpuBinding
-	(*ListBindingsRequest)(nil),      // 66: accelerator.v1.ListBindingsRequest
-	(*AdminListBindingsRequest)(nil), // 67: accelerator.v1.AdminListBindingsRequest
-	(*ListBindingsResponse)(nil),     // 68: accelerator.v1.ListBindingsResponse
-	(*ObserveReleaseRequest)(nil),    // 69: accelerator.v1.ObserveReleaseRequest
-	(*ReleaseObservation)(nil),       // 70: accelerator.v1.ReleaseObservation
-	nil,                              // 71: accelerator.v1.GpuExecution.NodeSelectorEntry
-	nil,                              // 72: accelerator.v1.GpuExecution.PodAnnotationsEntry
-	nil,                              // 73: accelerator.v1.GpuExecution.ResourcesEntry
+	(SupplyMode)(0),                             // 0: accelerator.v1.SupplyMode
+	(AdmissionState)(0),                         // 1: accelerator.v1.AdmissionState
+	(UsageState)(0),                             // 2: accelerator.v1.UsageState
+	(UsageEndReason)(0),                         // 3: accelerator.v1.UsageEndReason
+	(AllocationState)(0),                        // 4: accelerator.v1.AllocationState
+	(FitStatus)(0),                              // 5: accelerator.v1.FitStatus
+	(ReleaseFinding)(0),                         // 6: accelerator.v1.ReleaseFinding
+	(ProfileState)(0),                           // 7: accelerator.v1.ProfileState
+	(*Actor)(nil),                               // 8: accelerator.v1.Actor
+	(*TenantContext)(nil),                       // 9: accelerator.v1.TenantContext
+	(*AdminRead)(nil),                           // 10: accelerator.v1.AdminRead
+	(*AdminMutation)(nil),                       // 11: accelerator.v1.AdminMutation
+	(*Page)(nil),                                // 12: accelerator.v1.Page
+	(*KeyValue)(nil),                            // 13: accelerator.v1.KeyValue
+	(*Observation)(nil),                         // 14: accelerator.v1.Observation
+	(*ProviderBaseline)(nil),                    // 15: accelerator.v1.ProviderBaseline
+	(*NodeRef)(nil),                             // 16: accelerator.v1.NodeRef
+	(*Cluster)(nil),                             // 17: accelerator.v1.Cluster
+	(*RegisterClusterRequest)(nil),              // 18: accelerator.v1.RegisterClusterRequest
+	(*ListClustersRequest)(nil),                 // 19: accelerator.v1.ListClustersRequest
+	(*ListClustersResponse)(nil),                // 20: accelerator.v1.ListClustersResponse
+	(*Pool)(nil),                                // 21: accelerator.v1.Pool
+	(*CreatePoolRequest)(nil),                   // 22: accelerator.v1.CreatePoolRequest
+	(*ListPoolsRequest)(nil),                    // 23: accelerator.v1.ListPoolsRequest
+	(*ListPoolsResponse)(nil),                   // 24: accelerator.v1.ListPoolsResponse
+	(*SupplyGroup)(nil),                         // 25: accelerator.v1.SupplyGroup
+	(*AdoptSupplyGroupRequest)(nil),             // 26: accelerator.v1.AdoptSupplyGroupRequest
+	(*ListSupplyGroupsRequest)(nil),             // 27: accelerator.v1.ListSupplyGroupsRequest
+	(*ListSupplyGroupsResponse)(nil),            // 28: accelerator.v1.ListSupplyGroupsResponse
+	(*SetAdmissionRequest)(nil),                 // 29: accelerator.v1.SetAdmissionRequest
+	(*ProfileSpec)(nil),                         // 30: accelerator.v1.ProfileSpec
+	(*GpuProfile)(nil),                          // 31: accelerator.v1.GpuProfile
+	(*CreateProfileRequest)(nil),                // 32: accelerator.v1.CreateProfileRequest
+	(*ListProfilesRequest)(nil),                 // 33: accelerator.v1.ListProfilesRequest
+	(*ListProfilesResponse)(nil),                // 34: accelerator.v1.ListProfilesResponse
+	(*ProfileScope)(nil),                        // 35: accelerator.v1.ProfileScope
+	(*AdminListProfilesRequest)(nil),            // 36: accelerator.v1.AdminListProfilesRequest
+	(*GetProfileRequest)(nil),                   // 37: accelerator.v1.GetProfileRequest
+	(*GpuRequest)(nil),                          // 38: accelerator.v1.GpuRequest
+	(*GpuExecution)(nil),                        // 39: accelerator.v1.GpuExecution
+	(*GpuDisplay)(nil),                          // 40: accelerator.v1.GpuDisplay
+	(*GpuQuotaItem)(nil),                        // 41: accelerator.v1.GpuQuotaItem
+	(*ResolvedGpuRequest)(nil),                  // 42: accelerator.v1.ResolvedGpuRequest
+	(*PreviewProfileRequest)(nil),               // 43: accelerator.v1.PreviewProfileRequest
+	(*ProfilePreview)(nil),                      // 44: accelerator.v1.ProfilePreview
+	(*SetProfileStateRequest)(nil),              // 45: accelerator.v1.SetProfileStateRequest
+	(*DeleteProfileRequest)(nil),                // 46: accelerator.v1.DeleteProfileRequest
+	(*ResolveGpuRequestRequest)(nil),            // 47: accelerator.v1.ResolveGpuRequestRequest
+	(*DeviceCapacity)(nil),                      // 48: accelerator.v1.DeviceCapacity
+	(*CapacityView)(nil),                        // 49: accelerator.v1.CapacityView
+	(*GetCapacityRequest)(nil),                  // 50: accelerator.v1.GetCapacityRequest
+	(*AdminGetCapacityRequest)(nil),             // 51: accelerator.v1.AdminGetCapacityRequest
+	(*GpuFit)(nil),                              // 52: accelerator.v1.GpuFit
+	(*CheckGpuFitRequest)(nil),                  // 53: accelerator.v1.CheckGpuFitRequest
+	(*PhysicalDevice)(nil),                      // 54: accelerator.v1.PhysicalDevice
+	(*ListDevicesRequest)(nil),                  // 55: accelerator.v1.ListDevicesRequest
+	(*ListDevicesResponse)(nil),                 // 56: accelerator.v1.ListDevicesResponse
+	(*GpuUsageRef)(nil),                         // 57: accelerator.v1.GpuUsageRef
+	(*GpuUsageProjection)(nil),                  // 58: accelerator.v1.GpuUsageProjection
+	(*SyncGpuUsageRequest)(nil),                 // 59: accelerator.v1.SyncGpuUsageRequest
+	(*SyncGpuUsageResponse)(nil),                // 60: accelerator.v1.SyncGpuUsageResponse
+	(*GetGpuUsageRequest)(nil),                  // 61: accelerator.v1.GetGpuUsageRequest
+	(*ListGpuUsagesRequest)(nil),                // 62: accelerator.v1.ListGpuUsagesRequest
+	(*ListGpuUsagesResponse)(nil),               // 63: accelerator.v1.ListGpuUsagesResponse
+	(*PodRef)(nil),                              // 64: accelerator.v1.PodRef
+	(*GpuBinding)(nil),                          // 65: accelerator.v1.GpuBinding
+	(*ListBindingsRequest)(nil),                 // 66: accelerator.v1.ListBindingsRequest
+	(*AdminListBindingsRequest)(nil),            // 67: accelerator.v1.AdminListBindingsRequest
+	(*ListBindingsResponse)(nil),                // 68: accelerator.v1.ListBindingsResponse
+	(*ObserveReleaseRequest)(nil),               // 69: accelerator.v1.ObserveReleaseRequest
+	(*ReleaseObservation)(nil),                  // 70: accelerator.v1.ReleaseObservation
+	(*InitializationCheck)(nil),                 // 71: accelerator.v1.InitializationCheck
+	(*Initialization)(nil),                      // 72: accelerator.v1.Initialization
+	(*DiscoveredGPU)(nil),                       // 73: accelerator.v1.DiscoveredGPU
+	(*DiscoveredBaseline)(nil),                  // 74: accelerator.v1.DiscoveredBaseline
+	(*NodeSource)(nil),                          // 75: accelerator.v1.NodeSource
+	(*DiscoveredNode)(nil),                      // 76: accelerator.v1.DiscoveredNode
+	(*DiscoveredNodes)(nil),                     // 77: accelerator.v1.DiscoveredNodes
+	(*InitializationNewPool)(nil),               // 78: accelerator.v1.InitializationNewPool
+	(*InitializationPoolInput)(nil),             // 79: accelerator.v1.InitializationPoolInput
+	(*InitializationExistingGroup)(nil),         // 80: accelerator.v1.InitializationExistingGroup
+	(*InitializationNewGroup)(nil),              // 81: accelerator.v1.InitializationNewGroup
+	(*InitializationGroupInput)(nil),            // 82: accelerator.v1.InitializationGroupInput
+	(*InitializationProfileInput)(nil),          // 83: accelerator.v1.InitializationProfileInput
+	(*InitializationPoolResult)(nil),            // 84: accelerator.v1.InitializationPoolResult
+	(*InitializationGroupResult)(nil),           // 85: accelerator.v1.InitializationGroupResult
+	(*InitializationProfileResult)(nil),         // 86: accelerator.v1.InitializationProfileResult
+	(*InitializationStep)(nil),                  // 87: accelerator.v1.InitializationStep
+	(*InitializationOperation)(nil),             // 88: accelerator.v1.InitializationOperation
+	(*GetInitializationRequest)(nil),            // 89: accelerator.v1.GetInitializationRequest
+	(*ListDiscoveredNodesRequest)(nil),          // 90: accelerator.v1.ListDiscoveredNodesRequest
+	(*CreateInitializationRequest)(nil),         // 91: accelerator.v1.CreateInitializationRequest
+	(*GetInitializationOperationRequest)(nil),   // 92: accelerator.v1.GetInitializationOperationRequest
+	(*RetryInitializationOperationRequest)(nil), // 93: accelerator.v1.RetryInitializationOperationRequest
+	nil, // 94: accelerator.v1.GpuExecution.NodeSelectorEntry
+	nil, // 95: accelerator.v1.GpuExecution.PodAnnotationsEntry
+	nil, // 96: accelerator.v1.GpuExecution.ResourcesEntry
 }
 var file_accelerator_v1_accelerator_proto_depIdxs = []int32{
 	8,   // 0: accelerator.v1.TenantContext.actor:type_name -> accelerator.v1.Actor
@@ -5958,9 +7867,9 @@ var file_accelerator_v1_accelerator_proto_depIdxs = []int32{
 	10,  // 34: accelerator.v1.AdminListProfilesRequest.context:type_name -> accelerator.v1.AdminRead
 	12,  // 35: accelerator.v1.AdminListProfilesRequest.page:type_name -> accelerator.v1.Page
 	9,   // 36: accelerator.v1.GetProfileRequest.context:type_name -> accelerator.v1.TenantContext
-	71,  // 37: accelerator.v1.GpuExecution.node_selector:type_name -> accelerator.v1.GpuExecution.NodeSelectorEntry
-	72,  // 38: accelerator.v1.GpuExecution.pod_annotations:type_name -> accelerator.v1.GpuExecution.PodAnnotationsEntry
-	73,  // 39: accelerator.v1.GpuExecution.resources:type_name -> accelerator.v1.GpuExecution.ResourcesEntry
+	94,  // 37: accelerator.v1.GpuExecution.node_selector:type_name -> accelerator.v1.GpuExecution.NodeSelectorEntry
+	95,  // 38: accelerator.v1.GpuExecution.pod_annotations:type_name -> accelerator.v1.GpuExecution.PodAnnotationsEntry
+	96,  // 39: accelerator.v1.GpuExecution.resources:type_name -> accelerator.v1.GpuExecution.ResourcesEntry
 	0,   // 40: accelerator.v1.GpuDisplay.mode:type_name -> accelerator.v1.SupplyMode
 	39,  // 41: accelerator.v1.ResolvedGpuRequest.execution:type_name -> accelerator.v1.GpuExecution
 	41,  // 42: accelerator.v1.ResolvedGpuRequest.quota_items:type_name -> accelerator.v1.GpuQuotaItem
@@ -6014,61 +7923,94 @@ var file_accelerator_v1_accelerator_proto_depIdxs = []int32{
 	57,  // 90: accelerator.v1.ReleaseObservation.ref:type_name -> accelerator.v1.GpuUsageRef
 	6,   // 91: accelerator.v1.ReleaseObservation.finding:type_name -> accelerator.v1.ReleaseFinding
 	14,  // 92: accelerator.v1.ReleaseObservation.observation:type_name -> accelerator.v1.Observation
-	18,  // 93: accelerator.v1.AcceleratorAdminService.RegisterCluster:input_type -> accelerator.v1.RegisterClusterRequest
-	19,  // 94: accelerator.v1.AcceleratorAdminService.ListClusters:input_type -> accelerator.v1.ListClustersRequest
-	22,  // 95: accelerator.v1.AcceleratorAdminService.CreatePool:input_type -> accelerator.v1.CreatePoolRequest
-	23,  // 96: accelerator.v1.AcceleratorAdminService.ListPools:input_type -> accelerator.v1.ListPoolsRequest
-	26,  // 97: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:input_type -> accelerator.v1.AdoptSupplyGroupRequest
-	27,  // 98: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:input_type -> accelerator.v1.ListSupplyGroupsRequest
-	29,  // 99: accelerator.v1.AcceleratorAdminService.SetAdmission:input_type -> accelerator.v1.SetAdmissionRequest
-	32,  // 100: accelerator.v1.AcceleratorAdminService.CreateProfile:input_type -> accelerator.v1.CreateProfileRequest
-	43,  // 101: accelerator.v1.AcceleratorAdminService.PreviewProfile:input_type -> accelerator.v1.PreviewProfileRequest
-	45,  // 102: accelerator.v1.AcceleratorAdminService.SetProfileState:input_type -> accelerator.v1.SetProfileStateRequest
-	46,  // 103: accelerator.v1.AcceleratorAdminService.DeleteProfile:input_type -> accelerator.v1.DeleteProfileRequest
-	36,  // 104: accelerator.v1.AcceleratorAdminService.AdminListProfiles:input_type -> accelerator.v1.AdminListProfilesRequest
-	67,  // 105: accelerator.v1.AcceleratorAdminService.AdminListBindings:input_type -> accelerator.v1.AdminListBindingsRequest
-	55,  // 106: accelerator.v1.AcceleratorAdminService.ListDevices:input_type -> accelerator.v1.ListDevicesRequest
-	51,  // 107: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:input_type -> accelerator.v1.AdminGetCapacityRequest
-	33,  // 108: accelerator.v1.AcceleratorCatalogService.ListProfiles:input_type -> accelerator.v1.ListProfilesRequest
-	37,  // 109: accelerator.v1.AcceleratorCatalogService.GetProfile:input_type -> accelerator.v1.GetProfileRequest
-	47,  // 110: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:input_type -> accelerator.v1.ResolveGpuRequestRequest
-	50,  // 111: accelerator.v1.AcceleratorCatalogService.GetCapacity:input_type -> accelerator.v1.GetCapacityRequest
-	53,  // 112: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:input_type -> accelerator.v1.CheckGpuFitRequest
-	59,  // 113: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:input_type -> accelerator.v1.SyncGpuUsageRequest
-	61,  // 114: accelerator.v1.AcceleratorUsageService.GetGpuUsage:input_type -> accelerator.v1.GetGpuUsageRequest
-	62,  // 115: accelerator.v1.AcceleratorUsageService.ListGpuUsages:input_type -> accelerator.v1.ListGpuUsagesRequest
-	66,  // 116: accelerator.v1.AcceleratorUsageService.ListBindings:input_type -> accelerator.v1.ListBindingsRequest
-	69,  // 117: accelerator.v1.AcceleratorUsageService.ObserveRelease:input_type -> accelerator.v1.ObserveReleaseRequest
-	17,  // 118: accelerator.v1.AcceleratorAdminService.RegisterCluster:output_type -> accelerator.v1.Cluster
-	20,  // 119: accelerator.v1.AcceleratorAdminService.ListClusters:output_type -> accelerator.v1.ListClustersResponse
-	21,  // 120: accelerator.v1.AcceleratorAdminService.CreatePool:output_type -> accelerator.v1.Pool
-	24,  // 121: accelerator.v1.AcceleratorAdminService.ListPools:output_type -> accelerator.v1.ListPoolsResponse
-	25,  // 122: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:output_type -> accelerator.v1.SupplyGroup
-	28,  // 123: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:output_type -> accelerator.v1.ListSupplyGroupsResponse
-	25,  // 124: accelerator.v1.AcceleratorAdminService.SetAdmission:output_type -> accelerator.v1.SupplyGroup
-	31,  // 125: accelerator.v1.AcceleratorAdminService.CreateProfile:output_type -> accelerator.v1.GpuProfile
-	44,  // 126: accelerator.v1.AcceleratorAdminService.PreviewProfile:output_type -> accelerator.v1.ProfilePreview
-	31,  // 127: accelerator.v1.AcceleratorAdminService.SetProfileState:output_type -> accelerator.v1.GpuProfile
-	31,  // 128: accelerator.v1.AcceleratorAdminService.DeleteProfile:output_type -> accelerator.v1.GpuProfile
-	34,  // 129: accelerator.v1.AcceleratorAdminService.AdminListProfiles:output_type -> accelerator.v1.ListProfilesResponse
-	68,  // 130: accelerator.v1.AcceleratorAdminService.AdminListBindings:output_type -> accelerator.v1.ListBindingsResponse
-	56,  // 131: accelerator.v1.AcceleratorAdminService.ListDevices:output_type -> accelerator.v1.ListDevicesResponse
-	49,  // 132: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:output_type -> accelerator.v1.CapacityView
-	34,  // 133: accelerator.v1.AcceleratorCatalogService.ListProfiles:output_type -> accelerator.v1.ListProfilesResponse
-	31,  // 134: accelerator.v1.AcceleratorCatalogService.GetProfile:output_type -> accelerator.v1.GpuProfile
-	42,  // 135: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:output_type -> accelerator.v1.ResolvedGpuRequest
-	49,  // 136: accelerator.v1.AcceleratorCatalogService.GetCapacity:output_type -> accelerator.v1.CapacityView
-	52,  // 137: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:output_type -> accelerator.v1.GpuFit
-	60,  // 138: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:output_type -> accelerator.v1.SyncGpuUsageResponse
-	58,  // 139: accelerator.v1.AcceleratorUsageService.GetGpuUsage:output_type -> accelerator.v1.GpuUsageProjection
-	63,  // 140: accelerator.v1.AcceleratorUsageService.ListGpuUsages:output_type -> accelerator.v1.ListGpuUsagesResponse
-	68,  // 141: accelerator.v1.AcceleratorUsageService.ListBindings:output_type -> accelerator.v1.ListBindingsResponse
-	70,  // 142: accelerator.v1.AcceleratorUsageService.ObserveRelease:output_type -> accelerator.v1.ReleaseObservation
-	118, // [118:143] is the sub-list for method output_type
-	93,  // [93:118] is the sub-list for method input_type
-	93,  // [93:93] is the sub-list for extension type_name
-	93,  // [93:93] is the sub-list for extension extendee
-	0,   // [0:93] is the sub-list for field type_name
+	71,  // 93: accelerator.v1.Initialization.checks:type_name -> accelerator.v1.InitializationCheck
+	88,  // 94: accelerator.v1.Initialization.latest_operation:type_name -> accelerator.v1.InitializationOperation
+	16,  // 95: accelerator.v1.DiscoveredNode.node:type_name -> accelerator.v1.NodeRef
+	73,  // 96: accelerator.v1.DiscoveredNode.gpus:type_name -> accelerator.v1.DiscoveredGPU
+	74,  // 97: accelerator.v1.DiscoveredNode.baselines:type_name -> accelerator.v1.DiscoveredBaseline
+	75,  // 98: accelerator.v1.DiscoveredNode.sources:type_name -> accelerator.v1.NodeSource
+	76,  // 99: accelerator.v1.DiscoveredNodes.items:type_name -> accelerator.v1.DiscoveredNode
+	78,  // 100: accelerator.v1.InitializationPoolInput.new_pool:type_name -> accelerator.v1.InitializationNewPool
+	16,  // 101: accelerator.v1.InitializationNewGroup.nodes:type_name -> accelerator.v1.NodeRef
+	80,  // 102: accelerator.v1.InitializationGroupInput.existing_group:type_name -> accelerator.v1.InitializationExistingGroup
+	81,  // 103: accelerator.v1.InitializationGroupInput.new_group:type_name -> accelerator.v1.InitializationNewGroup
+	84,  // 104: accelerator.v1.InitializationOperation.pools:type_name -> accelerator.v1.InitializationPoolResult
+	85,  // 105: accelerator.v1.InitializationOperation.groups:type_name -> accelerator.v1.InitializationGroupResult
+	86,  // 106: accelerator.v1.InitializationOperation.profiles:type_name -> accelerator.v1.InitializationProfileResult
+	87,  // 107: accelerator.v1.InitializationOperation.steps:type_name -> accelerator.v1.InitializationStep
+	10,  // 108: accelerator.v1.GetInitializationRequest.context:type_name -> accelerator.v1.AdminRead
+	10,  // 109: accelerator.v1.ListDiscoveredNodesRequest.context:type_name -> accelerator.v1.AdminRead
+	11,  // 110: accelerator.v1.CreateInitializationRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	79,  // 111: accelerator.v1.CreateInitializationRequest.pools:type_name -> accelerator.v1.InitializationPoolInput
+	82,  // 112: accelerator.v1.CreateInitializationRequest.groups:type_name -> accelerator.v1.InitializationGroupInput
+	83,  // 113: accelerator.v1.CreateInitializationRequest.profiles:type_name -> accelerator.v1.InitializationProfileInput
+	10,  // 114: accelerator.v1.GetInitializationOperationRequest.context:type_name -> accelerator.v1.AdminRead
+	11,  // 115: accelerator.v1.RetryInitializationOperationRequest.mutation:type_name -> accelerator.v1.AdminMutation
+	89,  // 116: accelerator.v1.AcceleratorAdminService.GetInitialization:input_type -> accelerator.v1.GetInitializationRequest
+	90,  // 117: accelerator.v1.AcceleratorAdminService.ListDiscoveredNodes:input_type -> accelerator.v1.ListDiscoveredNodesRequest
+	91,  // 118: accelerator.v1.AcceleratorAdminService.CreateInitialization:input_type -> accelerator.v1.CreateInitializationRequest
+	92,  // 119: accelerator.v1.AcceleratorAdminService.GetInitializationOperation:input_type -> accelerator.v1.GetInitializationOperationRequest
+	93,  // 120: accelerator.v1.AcceleratorAdminService.RetryInitializationOperation:input_type -> accelerator.v1.RetryInitializationOperationRequest
+	18,  // 121: accelerator.v1.AcceleratorAdminService.RegisterCluster:input_type -> accelerator.v1.RegisterClusterRequest
+	19,  // 122: accelerator.v1.AcceleratorAdminService.ListClusters:input_type -> accelerator.v1.ListClustersRequest
+	22,  // 123: accelerator.v1.AcceleratorAdminService.CreatePool:input_type -> accelerator.v1.CreatePoolRequest
+	23,  // 124: accelerator.v1.AcceleratorAdminService.ListPools:input_type -> accelerator.v1.ListPoolsRequest
+	26,  // 125: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:input_type -> accelerator.v1.AdoptSupplyGroupRequest
+	27,  // 126: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:input_type -> accelerator.v1.ListSupplyGroupsRequest
+	29,  // 127: accelerator.v1.AcceleratorAdminService.SetAdmission:input_type -> accelerator.v1.SetAdmissionRequest
+	32,  // 128: accelerator.v1.AcceleratorAdminService.CreateProfile:input_type -> accelerator.v1.CreateProfileRequest
+	43,  // 129: accelerator.v1.AcceleratorAdminService.PreviewProfile:input_type -> accelerator.v1.PreviewProfileRequest
+	45,  // 130: accelerator.v1.AcceleratorAdminService.SetProfileState:input_type -> accelerator.v1.SetProfileStateRequest
+	46,  // 131: accelerator.v1.AcceleratorAdminService.DeleteProfile:input_type -> accelerator.v1.DeleteProfileRequest
+	36,  // 132: accelerator.v1.AcceleratorAdminService.AdminListProfiles:input_type -> accelerator.v1.AdminListProfilesRequest
+	67,  // 133: accelerator.v1.AcceleratorAdminService.AdminListBindings:input_type -> accelerator.v1.AdminListBindingsRequest
+	55,  // 134: accelerator.v1.AcceleratorAdminService.ListDevices:input_type -> accelerator.v1.ListDevicesRequest
+	51,  // 135: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:input_type -> accelerator.v1.AdminGetCapacityRequest
+	33,  // 136: accelerator.v1.AcceleratorCatalogService.ListProfiles:input_type -> accelerator.v1.ListProfilesRequest
+	37,  // 137: accelerator.v1.AcceleratorCatalogService.GetProfile:input_type -> accelerator.v1.GetProfileRequest
+	47,  // 138: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:input_type -> accelerator.v1.ResolveGpuRequestRequest
+	50,  // 139: accelerator.v1.AcceleratorCatalogService.GetCapacity:input_type -> accelerator.v1.GetCapacityRequest
+	53,  // 140: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:input_type -> accelerator.v1.CheckGpuFitRequest
+	59,  // 141: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:input_type -> accelerator.v1.SyncGpuUsageRequest
+	61,  // 142: accelerator.v1.AcceleratorUsageService.GetGpuUsage:input_type -> accelerator.v1.GetGpuUsageRequest
+	62,  // 143: accelerator.v1.AcceleratorUsageService.ListGpuUsages:input_type -> accelerator.v1.ListGpuUsagesRequest
+	66,  // 144: accelerator.v1.AcceleratorUsageService.ListBindings:input_type -> accelerator.v1.ListBindingsRequest
+	69,  // 145: accelerator.v1.AcceleratorUsageService.ObserveRelease:input_type -> accelerator.v1.ObserveReleaseRequest
+	72,  // 146: accelerator.v1.AcceleratorAdminService.GetInitialization:output_type -> accelerator.v1.Initialization
+	77,  // 147: accelerator.v1.AcceleratorAdminService.ListDiscoveredNodes:output_type -> accelerator.v1.DiscoveredNodes
+	88,  // 148: accelerator.v1.AcceleratorAdminService.CreateInitialization:output_type -> accelerator.v1.InitializationOperation
+	88,  // 149: accelerator.v1.AcceleratorAdminService.GetInitializationOperation:output_type -> accelerator.v1.InitializationOperation
+	88,  // 150: accelerator.v1.AcceleratorAdminService.RetryInitializationOperation:output_type -> accelerator.v1.InitializationOperation
+	17,  // 151: accelerator.v1.AcceleratorAdminService.RegisterCluster:output_type -> accelerator.v1.Cluster
+	20,  // 152: accelerator.v1.AcceleratorAdminService.ListClusters:output_type -> accelerator.v1.ListClustersResponse
+	21,  // 153: accelerator.v1.AcceleratorAdminService.CreatePool:output_type -> accelerator.v1.Pool
+	24,  // 154: accelerator.v1.AcceleratorAdminService.ListPools:output_type -> accelerator.v1.ListPoolsResponse
+	25,  // 155: accelerator.v1.AcceleratorAdminService.AdoptSupplyGroup:output_type -> accelerator.v1.SupplyGroup
+	28,  // 156: accelerator.v1.AcceleratorAdminService.ListSupplyGroups:output_type -> accelerator.v1.ListSupplyGroupsResponse
+	25,  // 157: accelerator.v1.AcceleratorAdminService.SetAdmission:output_type -> accelerator.v1.SupplyGroup
+	31,  // 158: accelerator.v1.AcceleratorAdminService.CreateProfile:output_type -> accelerator.v1.GpuProfile
+	44,  // 159: accelerator.v1.AcceleratorAdminService.PreviewProfile:output_type -> accelerator.v1.ProfilePreview
+	31,  // 160: accelerator.v1.AcceleratorAdminService.SetProfileState:output_type -> accelerator.v1.GpuProfile
+	31,  // 161: accelerator.v1.AcceleratorAdminService.DeleteProfile:output_type -> accelerator.v1.GpuProfile
+	34,  // 162: accelerator.v1.AcceleratorAdminService.AdminListProfiles:output_type -> accelerator.v1.ListProfilesResponse
+	68,  // 163: accelerator.v1.AcceleratorAdminService.AdminListBindings:output_type -> accelerator.v1.ListBindingsResponse
+	56,  // 164: accelerator.v1.AcceleratorAdminService.ListDevices:output_type -> accelerator.v1.ListDevicesResponse
+	49,  // 165: accelerator.v1.AcceleratorAdminService.AdminGetCapacity:output_type -> accelerator.v1.CapacityView
+	34,  // 166: accelerator.v1.AcceleratorCatalogService.ListProfiles:output_type -> accelerator.v1.ListProfilesResponse
+	31,  // 167: accelerator.v1.AcceleratorCatalogService.GetProfile:output_type -> accelerator.v1.GpuProfile
+	42,  // 168: accelerator.v1.AcceleratorCatalogService.ResolveGpuRequest:output_type -> accelerator.v1.ResolvedGpuRequest
+	49,  // 169: accelerator.v1.AcceleratorCatalogService.GetCapacity:output_type -> accelerator.v1.CapacityView
+	52,  // 170: accelerator.v1.AcceleratorCatalogService.CheckGpuFit:output_type -> accelerator.v1.GpuFit
+	60,  // 171: accelerator.v1.AcceleratorUsageService.SyncGpuUsage:output_type -> accelerator.v1.SyncGpuUsageResponse
+	58,  // 172: accelerator.v1.AcceleratorUsageService.GetGpuUsage:output_type -> accelerator.v1.GpuUsageProjection
+	63,  // 173: accelerator.v1.AcceleratorUsageService.ListGpuUsages:output_type -> accelerator.v1.ListGpuUsagesResponse
+	68,  // 174: accelerator.v1.AcceleratorUsageService.ListBindings:output_type -> accelerator.v1.ListBindingsResponse
+	70,  // 175: accelerator.v1.AcceleratorUsageService.ObserveRelease:output_type -> accelerator.v1.ReleaseObservation
+	146, // [146:176] is the sub-list for method output_type
+	116, // [116:146] is the sub-list for method input_type
+	116, // [116:116] is the sub-list for extension type_name
+	116, // [116:116] is the sub-list for extension extendee
+	0,   // [0:116] is the sub-list for field type_name
 }
 
 func init() { file_accelerator_v1_accelerator_proto_init() }
@@ -6076,13 +8018,22 @@ func file_accelerator_v1_accelerator_proto_init() {
 	if File_accelerator_v1_accelerator_proto != nil {
 		return
 	}
+	file_accelerator_v1_accelerator_proto_msgTypes[65].OneofWrappers = []any{}
+	file_accelerator_v1_accelerator_proto_msgTypes[71].OneofWrappers = []any{
+		(*InitializationPoolInput_ExistingPoolId)(nil),
+		(*InitializationPoolInput_NewPool)(nil),
+	}
+	file_accelerator_v1_accelerator_proto_msgTypes[74].OneofWrappers = []any{
+		(*InitializationGroupInput_ExistingGroup)(nil),
+		(*InitializationGroupInput_NewGroup)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_accelerator_v1_accelerator_proto_rawDesc), len(file_accelerator_v1_accelerator_proto_rawDesc)),
 			NumEnums:      8,
-			NumMessages:   66,
+			NumMessages:   89,
 			NumExtensions: 0,
 			NumServices:   3,
 		},
