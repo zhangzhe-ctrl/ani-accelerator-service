@@ -39,7 +39,7 @@ func testProfile(mode SupplyMode) (*Profile, *SupplyGroup) {
 func testPlan(t *testing.T, mode SupplyMode, _ uint32) *ResolvedGpuRequest {
 	t.Helper()
 	p, g := testProfile(mode)
-	v, e := BuildResolution(quantityRequest(1, 2), p, g, 16)
+	v, e := BuildResolution(quantityRequest(1, 2), p, g, 16, nil)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -77,7 +77,7 @@ func TestAbsoluteMemorySharedAndWhole(t *testing.T) {
 func TestOneMiBStepAndIntegerSafety(t *testing.T) {
 	s := testSpec(Shared)
 	s.MemoryMiBPerDevice = 1
-	e, err := Render(s, baselineForTest(1, Shared), "gpu", 1)
+	e, err := Render(s, baselineForTest(1, Shared), "gpu", 1, nil)
 	if err != nil || e.Resources["volcano.sh/vgpu-memory"] != "1" {
 		t.Fatal(e, err)
 	}
@@ -86,7 +86,7 @@ func TestOneMiBStepAndIntegerSafety(t *testing.T) {
 	_, err = Add(math.MaxInt64, 1)
 	requireReason(t, err, "INTEGER_OVERFLOW")
 	s.MemoryMiBPerDevice = int64(math.MaxInt32) + 1
-	_, err = Render(s, baselineForTest(1, Shared), "gpu", 1)
+	_, err = Render(s, baselineForTest(1, Shared), "gpu", 1, nil)
 	requireReason(t, err, "PROVIDER_INTEGER_OVERFLOW")
 	n, err := QuantizedBlocks([]uint64{15360 << 20, 15361 << 20}, 1)
 	if err != nil || n != 30721 {
@@ -97,7 +97,7 @@ func TestOneMiBStepAndIntegerSafety(t *testing.T) {
 }
 func TestExecutionDigestFixedFieldsAndCatalogIndependence(t *testing.T) {
 	p, g := testProfile(Shared)
-	v, err := BuildResolution(quantityRequest(1, 1), p, g, 16)
+	v, err := BuildResolution(quantityRequest(1, 1), p, g, 16, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +105,7 @@ func TestExecutionDigestFixedFieldsAndCatalogIndependence(t *testing.T) {
 	p.State = ProfileDisabled
 	p.Revision++
 	p.DisplayName = "changed display"
-	w, err := BuildResolution(quantityRequest(1, 1), p, g, 16)
+	w, err := BuildResolution(quantityRequest(1, 1), p, g, 16, nil)
 	if err != nil || w.Execution.ExecutionDigest != d {
 		t.Fatal(w, err)
 	}

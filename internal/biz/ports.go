@@ -60,7 +60,15 @@ type Provider interface {
 	Inspect(context.Context, Cluster, SupplyGroup) (GroupInspection, error)
 	Collect(context.Context, Cluster, []SupplyGroup) (ObservationBatch, error)
 }
+type RuntimeClassInspection struct {
+	Name            string
+	UID             string
+	ResourceVersion string
+	NodeSelector    map[string]string
+}
+
 type GroupInspection struct {
+	RuntimeClass   RuntimeClassInspection
 	BaselineDigest string
 	Nodes          []InspectedNode
 	QueueName      string

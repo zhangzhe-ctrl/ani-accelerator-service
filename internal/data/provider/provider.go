@@ -114,7 +114,11 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 	if err = k.get(ctx, "/apis/scheduling.volcano.sh/v1beta1/queues/"+g.QueueName, &queue); err != nil || queue.Metadata.Name != g.QueueName || queue.Status.State != "Open" {
 		return biz.GroupInspection{}, biz.Precondition("QUEUE_UNAVAILABLE")
 	}
-	inspection := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
+	runtimeClass, err := k.runtimeClass(ctx, g.Baseline.RuntimeClassName)
+	if err != nil {
+		return biz.GroupInspection{}, err
+	}
+	inspection := biz.GroupInspection{RuntimeClass: runtimeClass, BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
 	views, err := p.loadTelemetry(ctx, c.ConnectionRef)
 	if err != nil {
 		return inspection, err
@@ -129,6 +133,13 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 			if ns[i].Metadata.UID == want.UID && ns[i].Metadata.Name == want.Name {
 				found = &ns[i]
 				break
+			}
+		}
+		if found != nil {
+			for key, value := range runtimeClass.NodeSelector {
+				if found.Metadata.Labels[key] != value {
+					return inspection, biz.Precondition("RUNTIME_CLASS_NODE_MISMATCH")
+				}
 			}
 		}
 		if found == nil || !k.nodeOnline(ctx, *found, time.Now(), p.freshness) {

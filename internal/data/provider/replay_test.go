@@ -159,6 +159,10 @@ func unixServer(t *testing.T, name string, register func(*grpc.Server)) string {
 	return path
 }
 
+func TestProviderRuntimeClassSelectorFrozenAndConflictsRejected(t *testing.T) {
+	providerControlledSources(t, "v1.15.2", "runtimeclass_selector")
+}
+
 func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
 	for _, version := range []string{"v1.12.0", "v1.15.2", "v1.16.0"} {
 		t.Run(version, func(t *testing.T) { providerControlledSources(t, version, "") })
@@ -193,6 +197,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	if configurationFault == "restart_release" {
 		nodeUID, podUID = biz.NewID(), biz.NewID()
 	}
+	runtimeClassUID := biz.NewID()
 	groupID := biz.NewID()
 	cmData := map[string]string{"config.yaml": "constructed-source-fixture: true", schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
 	cm := map[string]any{"data": cmData, "binaryData": nil}
@@ -207,6 +212,9 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	g := biz.SupplyGroup{GroupID: groupID, PoolID: pool.PoolID, ClusterID: cluster.ClusterID, DisplayName: "replay", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: nodeUID, Name: "replay-node"}}, ModelKey: "nvidia-test", Baseline: b, Admission: biz.Closed, QueueName: "gpu", Version: 1, AdoptedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	if configurationFault == "revision_continuity" {
 		g.Nodes = append(g.Nodes, biz.NodeRef{UID: nodeUID2, Name: "replay-node-2"})
+	}
+	if configurationFault == "runtimeclass_selector" {
+		g.Admission = biz.Open
 	}
 	spec := &biz.ProfileSpec{GroupID: groupID, Mode: biz.Shared, ModelKey: g.ModelKey, MemoryMiBPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}
 	sd, _ := biz.SpecDigest(spec, b.BaselineID)
@@ -260,7 +268,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		var response any
 		switch {
 		case r.URL.Path == "/api/v1/nodes":
-			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24576,NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4,24576,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
+			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID, "kubernetes.io/hostname": "replay-node"}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24576,NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4,24576,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
 			if fault == "registration" {
 				response.(map[string]any)["items"].([]any)[0].(map[string]any)["metadata"].(map[string]any)["annotations"].(map[string]string)[NodeRegister] = "invalid-registration"
 			}
@@ -287,6 +295,40 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 				response.(map[string]any)["items"] = append(response.(map[string]any)["items"].([]any), second)
 			}
 
+		case r.URL.Path == "/apis/node.k8s.io/v1/runtimeclasses/nvidia":
+			if fault == "runtimeclass_missing" {
+				http.NotFound(w, r)
+				return
+			}
+			meta := map[string]any{"name": "nvidia", "uid": runtimeClassUID, "resourceVersion": "1"}
+			rc := map[string]any{"metadata": meta, "handler": "nvidia"}
+			selector := map[string]string{}
+			if configurationFault == "runtimeclass_selector" {
+				selector["kubernetes.io/hostname"] = "replay-node"
+			}
+			scheduling := map[string]any{"nodeSelector": selector}
+			rc["scheduling"] = scheduling
+			switch fault {
+			case "runtimeclass_name":
+				meta["name"] = "replacement"
+			case "runtimeclass_uid":
+				meta["uid"] = ""
+			case "runtimeclass_rv":
+				delete(meta, "resourceVersion")
+			case "runtimeclass_overhead":
+				rc["overhead"] = map[string]any{"podFixed": map[string]string{"cpu": "1"}}
+			case "runtimeclass_toleration":
+				scheduling["tolerations"] = []any{map[string]string{"operator": "Exists"}}
+			case "runtimeclass_unknown_selector":
+				selector["untrusted.example/placement"] = "any"
+			case "runtimeclass_identity_conflict":
+				selector[biz.GroupLabel] = biz.NewID()
+			case "runtimeclass_bad_selector":
+				selector["kubernetes.io/hostname"] = "bad/value"
+			case "runtimeclass_wrong_node":
+				selector["kubernetes.io/hostname"] = "foreign-node"
+			}
+			response = rc
 		case r.URL.Path == "/api/v1/pods":
 			items := []any{}
 			items = append(items, map[string]any{"metadata": map[string]any{"uid": "pending-1", "name": "pending", "namespace": "replay"}, "spec": map[string]any{"nodeSelector": map[string]string{biz.GroupLabel: g.GroupID}, "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1"}}}}}, "status": map[string]string{"phase": "Pending"}})
@@ -540,6 +582,31 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	u, err := biz.NewUsecase(db, adapter, codec, []string{cluster.ConnectionRef}, 16, time.Minute)
 	if err != nil {
 		t.Fatal(err)
+	}
+	if configurationFault == "runtimeclass_selector" {
+		actor := biz.Actor{Type: "user", ID: "runtimeclass-test"}
+		scoped := biz.WithCaller(ctx, biz.Caller{Service: "ani-governance", Actor: actor, Action: "ResolveGpuRequest", TenantID: ref.TenantID})
+		request := &biz.GpuRequest{ClusterID: cluster.ClusterID, PoolID: pool.PoolID, ProfileID: profile.ProfileID, ProfileVersion: 1, Replicas: 1, DevicesPerReplica: 1, ContainerName: "node"}
+		tc := &biz.TenantContext{RequestID: "runtimeclass", TenantID: ref.TenantID, Actor: &actor}
+		resolved, err := u.Resolve(scoped, tc, request)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(resolved.Execution.NodeSelector) != 4 || resolved.Execution.NodeSelector["kubernetes.io/hostname"] != "replay-node" {
+			t.Fatalf("actual RuntimeClass placement missing from frozen execution: %+v", resolved.Execution)
+		}
+		before, _ := biz.Canonical(resolved)
+		for _, fault := range []string{"runtimeclass_missing", "runtimeclass_name", "runtimeclass_uid", "runtimeclass_rv", "runtimeclass_overhead", "runtimeclass_toleration", "runtimeclass_unknown_selector", "runtimeclass_identity_conflict", "runtimeclass_bad_selector", "runtimeclass_wrong_node"} {
+			state.setFault(fault)
+			if _, err := u.Resolve(scoped, tc, request); err == nil {
+				t.Fatalf("accepted unsupported/drifted RuntimeClass %s", fault)
+			}
+			after, _ := biz.Canonical(resolved)
+			if string(before) != string(after) {
+				t.Fatal("previous frozen execution changed")
+			}
+		}
+		return
 	}
 	actor := biz.Actor{Type: "user", ID: "replay"}
 	admin := biz.WithCaller(ctx, biz.Caller{Service: "ani-governance", Actor: actor, Action: "AdminGetCapacity"})

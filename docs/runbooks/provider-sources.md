@@ -7,6 +7,7 @@
 | 来源 | 固定合同/读取字段 | 身份、单位及信任 |
 |---|---|---|
 | Kubernetes core/v1、coordination.k8s.io/v1 Lease | HTTPS GET Nodes、Pods、指定 ConfigMaps；Ready lastHeartbeatTime、Node UID、annotations、容器与资源、imageID；旧 Node status 再 GET 同名 kube-node-lease Lease | Ready 必须 True。status 心跳新鲜则直接采用；过旧时核对 Lease name/namespace、ownerReference 的 Node UID/name、holderIdentity 和 renewTime，时限取 freshness 与 leaseDurationSeconds 的较小值。受管 CA/server_name、client cert 或 token 文件；只读 RBAC，无写入；缺权限/失联/过期不当在线；分页截断拒绝 |
+| Kubernetes `node.k8s.io/v1` RuntimeClass | HTTPS GET the managed baseline's exact `runtimeclasses/{name}`; metadata name/UID/resourceVersion, handler, scheduling and overhead | Read-only `get` permission is required. Only optional `kubernetes.io/hostname` scheduling is supported; it must match each original group Node UID's actual label. Nonempty overhead/tolerations, missing facts and unknown/conflicting selectors fail closed. No global RuntimeClass writes or owner fallback. |
 | Volcano v1.12.0 | `volcano.sh/node-vgpu-register` 的 UUID/count/memory/model/health/mode；`volcano.sh/node-vgpu-handshake` | memory 是 BLOCKS，绑定受控 F；heartbeat 为实际上游时间，非本服务接收时间 |
 | Volcano device plugin v1.12.0 | 实际 Ready 插件 imageID；显式 `--gpu-memory-factor`、`--device-split-count`；ConfigMap摘要 | 按镜像 SHA256、F、K、组 Node UID 核对。未显式暴露有效参数拒绝，不能仅信请求 baseline |
 | Volcano scheduler v1.12.0 | scheduler imageID/config 摘要、Queue Open；`volcano.sh/vgpu-ids-new`、`volcano.sh/vgpu-time` | 分配字符串为 UUID/NVIDIA/blocks/cores，按 GPU 容器顺序；时间 Unix 秒。调度分配是历史事实，不续写为新 runtime 观测 |

@@ -240,7 +240,7 @@ func (b *instanceQuantityBoundary) build(request *biz.GpuRequest) (*biz.Resolved
 	for _, profile := range b.profiles {
 		if profile.ProfileID == request.ProfileID {
 			group := b.groups[profile.Spec.GroupID]
-			plan, err := biz.BuildResolution(request, profile, group, 16)
+			plan, err := biz.BuildResolution(request, profile, group, 16, nil)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}

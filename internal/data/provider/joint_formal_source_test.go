@@ -54,6 +54,8 @@ func TestJointFormalProviderSource(t *testing.T) {
 		switch {
 		case r.URL.Path == "/api/v1/nodes":
 			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": node.UID, "name": node.Name, "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: strings.TrimSpace(string(group)), biz.ModelLabel: "nvidia-test", biz.BaselineLabel: baseline.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24576,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
+		case r.URL.Path == "/apis/node.k8s.io/v1/runtimeclasses/nvidia":
+			response = map[string]any{"metadata": map[string]any{"name": "nvidia", "uid": "10000000-0000-4000-8000-000000000099", "resourceVersion": "1"}, "handler": "nvidia"}
 		case r.URL.Path == "/api/v1/pods":
 			response = map[string]any{"items": []any{}}
 		case strings.Contains(r.URL.Path, "/configmaps/"):
