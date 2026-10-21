@@ -8,6 +8,8 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -123,6 +125,109 @@ func TestVerifyNodeIdentityBindsReviewedTokenToLiveObjects(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestVerifyNodeIdentityRunsFourLiveReadsAfterTokenReview(t *testing.T) {
+	request, objects := identityTestObjects()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	reviewStarted := make(chan struct{})
+	reviewRelease := make(chan struct{})
+	getStarted := make(chan string, 4)
+	getRelease := make(chan struct{})
+	var reviewed atomic.Bool
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, incoming *http.Request) {
+		if incoming.URL.Path == "/apis/authentication.k8s.io/v1/tokenreviews" {
+			close(reviewStarted)
+			select {
+			case <-reviewRelease:
+			case <-incoming.Context().Done():
+				return
+			}
+			reviewed.Store(true)
+			_ = json.NewEncoder(writer).Encode(objects["tokenreviews"])
+			return
+		}
+		if !reviewed.Load() {
+			t.Error("live object read preceded successful TokenReview")
+		}
+		getStarted <- incoming.URL.Path
+		select {
+		case <-getRelease:
+		case <-incoming.Context().Done():
+			return
+		}
+		_ = json.NewEncoder(writer).Encode(identityTestLiveObject(objects, incoming.URL.Path))
+	}))
+	defer server.Close()
+	reader := &kubeReader{config: Connection{APIServer: server.URL, NodeAgentIdentity: &NodeAgentIdentityConfig{Namespace: request.PodNamespace, ServiceAccount: "ani-node-agent", DaemonSet: "ani-node-agent", Audience: "ani-node-agent"}}, client: server.Client()}
+	provider := &Provider{connections: map[string]*kubeReader{request.ConnectionRef: reader}}
+	verified := make(chan error, 1)
+	go func() {
+		_, err := provider.VerifyNodeIdentity(ctx, request)
+		verified <- err
+	}()
+	select {
+	case <-reviewStarted:
+	case <-ctx.Done():
+		t.Fatal("TokenReview did not start")
+	}
+	select {
+	case <-getStarted:
+		t.Error("live object read started before TokenReview completed")
+	default:
+	}
+	close(reviewRelease)
+	started := map[string]bool{}
+	for len(started) < 4 {
+		select {
+		case path := <-getStarted:
+			started[path] = true
+		case <-ctx.Done():
+			close(getRelease)
+			t.Fatalf("four independent live reads were not concurrent: %d started", len(started))
+		}
+	}
+	close(getRelease)
+	if err := <-verified; err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestVerifyNodeIdentityAnyLiveReadFailureFailsClosed(t *testing.T) {
+	for _, failing := range []string{"pods", "serviceaccounts", "daemonsets", "nodes"} {
+		t.Run(failing, func(t *testing.T) {
+			request, objects := identityTestObjects()
+			server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, incoming *http.Request) {
+				if incoming.URL.Path == "/apis/authentication.k8s.io/v1/tokenreviews" {
+					_ = json.NewEncoder(writer).Encode(objects["tokenreviews"])
+					return
+				}
+				object := identityTestLiveObject(objects, incoming.URL.Path)
+				if object == nil || strings.Contains(incoming.URL.Path, "/"+failing+"/") {
+					writer.WriteHeader(http.StatusServiceUnavailable)
+					return
+				}
+				_ = json.NewEncoder(writer).Encode(object)
+			}))
+			defer server.Close()
+			reader := &kubeReader{config: Connection{APIServer: server.URL, NodeAgentIdentity: &NodeAgentIdentityConfig{Namespace: request.PodNamespace, ServiceAccount: "ani-node-agent", DaemonSet: "ani-node-agent", Audience: "ani-node-agent"}}, client: server.Client()}
+			provider := &Provider{connections: map[string]*kubeReader{request.ConnectionRef: reader}}
+			identity, err := provider.VerifyNodeIdentity(context.Background(), request)
+			if err == nil || identity != (biz.NodeIdentity{}) {
+				t.Fatal("failed live object read returned an authenticated identity")
+			}
+		})
+	}
+}
+
+func identityTestLiveObject(objects map[string]map[string]any, path string) map[string]any {
+	for _, kind := range []string{"pods", "serviceaccounts", "daemonsets", "nodes"} {
+		if strings.Contains(path, "/"+kind+"/") {
+			return objects[kind]
+		}
+	}
+	return nil
 }
 
 func TestKubeReaderReloadsTokenFileForReadsAndReviews(t *testing.T) {

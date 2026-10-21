@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -357,6 +358,7 @@ func (s *NodeTelemetryServer) Connect(stream grpc.BidiStreamingServer[nodepb.Age
 	session := s.registerRecoverySession(identity.ConnectionRef, identity.NodeUID, state.Epoch)
 	defer s.closeRecoverySession(identity.ConnectionRef, identity.NodeUID, session)
 	resetNodeLease(lease, state.LeaseExpiresAt)
+	processedReports := uint64(0)
 	for {
 		var next received
 		select {
@@ -412,7 +414,9 @@ func (s *NodeTelemetryServer) Connect(stream grpc.BidiStreamingServer[nodepb.Age
 			}
 			continue
 		}
+		verificationStarted := time.Now()
 		verified, verifyErr := s.verifier.VerifyNodeIdentity(stream.Context(), request)
+		verificationDuration := time.Since(verificationStarted)
 		if verifyErr != nil || !biz.SameNodeIdentity(identity, verified) {
 			return status.Error(codes.PermissionDenied, "NODE_IDENTITY_DENIED")
 		}
@@ -426,6 +430,7 @@ func (s *NodeTelemetryServer) Connect(stream grpc.BidiStreamingServer[nodepb.Age
 			continue
 		}
 		if report := message.GetReport(); report != nil {
+			decodeStarted := time.Now()
 			converted, convertErr := decodeNodeReport(report, time.Now().UTC())
 			if convertErr != nil {
 				return nodeStreamError(convertErr)
@@ -445,12 +450,20 @@ func (s *NodeTelemetryServer) Connect(stream grpc.BidiStreamingServer[nodepb.Age
 					return nodeStreamError(err)
 				}
 			}
+			decodeDuration := time.Since(decodeStarted)
+			saveStarted := time.Now()
 			state, err = s.store.SaveNodeReport(stream.Context(), identity.ConnectionRef, identity.NodeUID, converted, time.Now().UTC())
+			saveDuration := time.Since(saveStarted)
 			if err != nil {
 				return nodeStreamError(err)
 			}
+			sendStarted := time.Now()
 			if err = stream.Send(&nodepb.CenterMessage{Message: &nodepb.CenterMessage_Ack{Ack: &nodepb.Ack{LogId: converted.LogID, Sequence: state.LastSequence, PayloadDigest: state.LastPayloadDigest}}}); err != nil {
 				return err
+			}
+			processedReports++
+			if processedReports == 1 || processedReports%16 == 0 {
+				slog.InfoContext(stream.Context(), "node_telemetry_report_duration", "verify_ms", verificationDuration.Milliseconds(), "decode_ms", decodeDuration.Milliseconds(), "save_ms", saveDuration.Milliseconds(), "send_ms", time.Since(sendStarted).Milliseconds(), "total_ms", time.Since(verificationStarted).Milliseconds())
 			}
 			if converted.JournalRequestID != "" && recoveryPod.UID != "" {
 				s.finishNodeRecovery(stream.Context(), identity.ConnectionRef, identity.NodeUID, state.Epoch, session, converted, report.Record.GetJournalExit().Found)

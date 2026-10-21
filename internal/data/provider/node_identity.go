@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
@@ -142,21 +143,8 @@ func (p *Provider) VerifyNodeIdentity(ctx context.Context, request biz.NodeIdent
 		return identity, err
 	}
 	var currentPod nodeIdentityPod
-	namespacePath := "/api/v1/namespaces/" + url.PathEscape(config.Namespace)
-	if err := reader.get(ctx, namespacePath+"/pods/"+url.PathEscape(request.PodName), &currentPod); err != nil {
-		return identity, err
-	}
-	if currentPod.Metadata.UID != request.PodUID || currentPod.Metadata.Name != request.PodName || currentPod.Metadata.Namespace != config.Namespace || currentPod.Metadata.DeletionTimestamp != "" || currentPod.Spec.ServiceAccountName != config.ServiceAccount || currentPod.Spec.NodeName != request.NodeName {
-		return identity, biz.Denied()
-	}
 	var serviceAccount struct {
 		Metadata metadata `json:"metadata"`
-	}
-	if err := reader.get(ctx, namespacePath+"/serviceaccounts/"+url.PathEscape(config.ServiceAccount), &serviceAccount); err != nil {
-		return identity, err
-	}
-	if serviceAccount.Metadata.Name != config.ServiceAccount || serviceAccount.Metadata.Namespace != config.Namespace || serviceAccount.Metadata.UID == "" || serviceAccount.Metadata.UID != review.Status.User.UID || serviceAccount.Metadata.DeletionTimestamp != "" {
-		return identity, biz.Denied()
 	}
 	var daemonSet struct {
 		Metadata metadata `json:"metadata"`
@@ -168,8 +156,42 @@ func (p *Provider) VerifyNodeIdentity(ctx context.Context, request biz.NodeIdent
 			} `json:"template"`
 		} `json:"spec"`
 	}
-	if err := reader.get(ctx, "/apis/apps/v1/namespaces/"+url.PathEscape(config.Namespace)+"/daemonsets/"+url.PathEscape(config.DaemonSet), &daemonSet); err != nil {
-		return identity, err
+	var currentNode struct {
+		Metadata metadata `json:"metadata"`
+	}
+	namespacePath := "/api/v1/namespaces/" + url.PathEscape(config.Namespace)
+	reads := []struct {
+		path   string
+		output any
+	}{
+		{namespacePath + "/pods/" + url.PathEscape(request.PodName), &currentPod},
+		{namespacePath + "/serviceaccounts/" + url.PathEscape(config.ServiceAccount), &serviceAccount},
+		{"/apis/apps/v1/namespaces/" + url.PathEscape(config.Namespace) + "/daemonsets/" + url.PathEscape(config.DaemonSet), &daemonSet},
+		{"/api/v1/nodes/" + url.PathEscape(request.NodeName), &currentNode},
+	}
+	readContext, cancelReads := context.WithCancel(ctx)
+	defer cancelReads()
+	readErrors := make([]error, len(reads))
+	var workers sync.WaitGroup
+	for index, read := range reads {
+		workers.Go(func() {
+			readErrors[index] = reader.get(readContext, read.path, read.output)
+			if readErrors[index] != nil {
+				cancelReads()
+			}
+		})
+	}
+	workers.Wait()
+	for _, readError := range readErrors {
+		if readError != nil {
+			return identity, readError
+		}
+	}
+	if currentPod.Metadata.UID != request.PodUID || currentPod.Metadata.Name != request.PodName || currentPod.Metadata.Namespace != config.Namespace || currentPod.Metadata.DeletionTimestamp != "" || currentPod.Spec.ServiceAccountName != config.ServiceAccount || currentPod.Spec.NodeName != request.NodeName {
+		return identity, biz.Denied()
+	}
+	if serviceAccount.Metadata.Name != config.ServiceAccount || serviceAccount.Metadata.Namespace != config.Namespace || serviceAccount.Metadata.UID == "" || serviceAccount.Metadata.UID != review.Status.User.UID || serviceAccount.Metadata.DeletionTimestamp != "" {
+		return identity, biz.Denied()
 	}
 	if daemonSet.Metadata.Name != config.DaemonSet || daemonSet.Metadata.Namespace != config.Namespace || daemonSet.Metadata.UID == "" || daemonSet.Metadata.DeletionTimestamp != "" || daemonSet.Spec.Template.Spec.ServiceAccountName != config.ServiceAccount {
 		return identity, biz.Denied()
@@ -185,12 +207,6 @@ func (p *Provider) VerifyNodeIdentity(ctx context.Context, request biz.NodeIdent
 	}
 	if owners != 1 {
 		return identity, biz.Denied()
-	}
-	var currentNode struct {
-		Metadata metadata `json:"metadata"`
-	}
-	if err := reader.get(ctx, "/api/v1/nodes/"+url.PathEscape(request.NodeName), &currentNode); err != nil {
-		return identity, err
 	}
 	if currentNode.Metadata.Name != request.NodeName || !biz.UUID(currentNode.Metadata.UID) || (request.NodeUID != "" && currentNode.Metadata.UID != request.NodeUID) || currentNode.Metadata.DeletionTimestamp != "" || !expiresAt.After(time.Now()) {
 		return identity, biz.Denied()
