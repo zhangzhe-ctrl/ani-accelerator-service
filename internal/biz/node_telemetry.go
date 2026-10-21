@@ -249,23 +249,9 @@ func telemetryMeaning(state NodeTelemetryState, attempts []RuntimeAttempt) (stri
 			sources = append(sources, sourceMeaning{source.Name, source.Complete, source.Issues})
 		}
 		devices = append([]TelemetryDevice(nil), state.Snapshot.Devices...)
-		allocations = append([]TelemetryAllocation(nil), state.Snapshot.Allocations...)
+		allocations = canonicalTelemetryAllocations(state.Snapshot.Allocations)
 	}
 	sort.Slice(devices, func(left, right int) bool { return devices[left].UUID < devices[right].UUID })
-	for allocationIndex := range allocations {
-		allocations[allocationIndex].DeviceIDs = append([]string(nil), allocations[allocationIndex].DeviceIDs...)
-		sort.Strings(allocations[allocationIndex].DeviceIDs)
-	}
-	sort.Slice(allocations, func(left, right int) bool {
-		leftKey := allocations[left].Namespace + "\x00" + allocations[left].PodName + "\x00" + allocations[left].ContainerName + "\x00" + allocations[left].ResourceName
-		rightKey := allocations[right].Namespace + "\x00" + allocations[right].PodName + "\x00" + allocations[right].ContainerName + "\x00" + allocations[right].ResourceName
-		if leftKey == rightKey {
-			leftHash, _ := Hash(allocations[left])
-			rightHash, _ := Hash(allocations[right])
-			return leftHash < rightHash
-		}
-		return leftKey < rightKey
-	})
 	sort.Slice(sources, func(left, right int) bool { return sources[left].Name < sources[right].Name })
 	meaning := make([]attemptMeaning, 0, len(attempts))
 	for _, attempt := range attempts {
@@ -280,6 +266,35 @@ func telemetryMeaning(state NodeTelemetryState, attempts []RuntimeAttempt) (stri
 		Gaps              map[string]TelemetryGap
 		Revoked, Degraded bool
 	}{sources, devices, allocations, meaning, state.Gaps, state.Revoked, state.Degraded})
+}
+
+func canonicalTelemetryAllocations(input []TelemetryAllocation) []TelemetryAllocation {
+	type rankedAllocation struct {
+		value TelemetryAllocation
+		key   string
+		hash  string
+	}
+	ranked := make([]rankedAllocation, len(input))
+	for index, allocation := range input {
+		allocation.DeviceIDs = append([]string(nil), allocation.DeviceIDs...)
+		sort.Strings(allocation.DeviceIDs)
+		digest, _ := Hash(allocation)
+		ranked[index] = rankedAllocation{value: allocation, key: allocation.Namespace + "\x00" + allocation.PodName + "\x00" + allocation.ContainerName + "\x00" + allocation.ResourceName, hash: digest}
+	}
+	sort.Slice(ranked, func(left, right int) bool {
+		if ranked[left].key == ranked[right].key {
+			return ranked[left].hash < ranked[right].hash
+		}
+		return ranked[left].key < ranked[right].key
+	})
+	var output []TelemetryAllocation
+	if len(input) > 0 {
+		output = make([]TelemetryAllocation, len(input))
+	}
+	for index, allocation := range ranked {
+		output[index] = allocation.value
+	}
+	return output
 }
 
 func SameNodeIdentity(left, right NodeIdentity) bool {
