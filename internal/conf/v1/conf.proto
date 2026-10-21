@@ -29,6 +29,7 @@ message Security {
   string inference_dns_name = 10;
   string resource_dns_name = 11;
   string node_agent_dns_name = 12;
+  string modeldev_dns_name = 13;
 }
 
 message Accelerator {
@@ -43,6 +44,8 @@ message Accelerator {
   string owner_public_key_file = 7;
   // Optional Resource instance signing key; never reuses the Inference key.
   string resource_owner_public_key_file = 8;
+  // Optional ModelDev training signing key; never reuses another owner's key.
+  string modeldev_owner_public_key_file = 9;
 }
 
 message Server {

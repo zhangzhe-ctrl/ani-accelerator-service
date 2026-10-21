@@ -201,7 +201,7 @@ func TestNodeTelemetryAgentProcessDurableMTLSPostgres(testContext *testing.T) {
 	if err != nil {
 		testContext.Fatal(err)
 	}
-	security := &conf.Security{CaFile: pki.CAFile, CertFile: serverCert, KeyFile: serverKey, GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", NodeAgentDnsName: "ani-node-agent"}
+	security := &conf.Security{CaFile: pki.CAFile, CertFile: serverCert, KeyFile: serverKey, GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service", NodeAgentDnsName: "ani-node-agent"}
 	transport, err := server.LoadServerTLS(security)
 	if err != nil {
 		testContext.Fatal(err)

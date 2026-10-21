@@ -18,6 +18,7 @@ security:
   governance_dns_name: "ani-governance"
   inference_dns_name: "ani-inference-service"
   resource_dns_name: "ani-resource-service"
+  modeldev_dns_name: "ani-modeldev-service"
   cursor_key_file: "${CURSOR_KEY_FILE:/run/secrets/accelerator/cursor-key}"
 accelerator:
   max_replicas: 16
@@ -25,3 +26,4 @@ accelerator:
   collect_interval: 10s
   provider_config_file: "${PROVIDER_CONFIG_FILE:/etc/accelerator/provider.json}"
   owner_public_key_file: "${OWNER_PUBLIC_KEY_FILE:/etc/accelerator/inference.pub}"
+  modeldev_owner_public_key_file: "${MODELDEV_OWNER_PUBLIC_KEY_FILE:}"

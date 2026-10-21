@@ -338,7 +338,7 @@ func TestInstanceQuantityBoundaryRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceDnsName: c.GovernanceDNSName, InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service"}
+	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceDnsName: c.GovernanceDNSName, InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service"}
 	tlsConfig, err := server.LoadServerTLS(security)
 	if err != nil {
 		t.Fatal(err)

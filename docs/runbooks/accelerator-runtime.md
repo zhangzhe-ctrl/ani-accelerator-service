@@ -26,7 +26,9 @@ baseline 不可原位替换。切换 scheduler 镜像时，先关闭旧供给、
 
 执行前停下本服务写入，确认目标数据库与迁移 owner，使用 `pg_dump -Fc` 保存恢复点。将 PGHOST/PGPORT/PGDATABASE/PGUSER 和 PGPASSFILE 配置到操作者环境，不把密码放命令行或日志。由独立迁移 owner 执行 `bash scripts/migrate 0001`；`migrations/0001_accelerator.sql` 在单一事务中建 schema，版本 1，不对已有 schema 做猜测性升级。失败回滚后检查版本和恢复点，不重复绕过错误。
 
-当前实例 owner 接入的 runtime 要求 schema 3：新库依次显式执行 `0001`、`0002`、`0003`；现有 schema 2 从恢复点执行 `bash scripts/migrate 0003`。该事务只将 usages/claims/release_proofs 的固定 owner 集合扩为 Inference 与 Resource，保留原身份 JSON、租户、原 CREATE 和 FK 约束。应用不自动升级，不接受未迁移 schema；恢复旧二进制还需恢复与其匹配的数据库恢复点，不能只恢复启动配置或手改版本记录。
+当前 ModelDev owner 接入的 runtime 要求 schema 7：新库依次显式执行 `0001` 至 `0007`；现有 schema 6 在保留恢复点后执行 `bash scripts/migrate 0007`，保留原 NodeAgent telemetry/initialization 的 0005/0006。0007 只将 usages/claims/release_proofs 的固定 owner 集合扩为 Inference、Resource 与 `ani-modeldev-service`，保留原身份 JSON、租户、原 CREATE、execution digest 和 FK 约束。应用不自动升级，不接受未迁移 schema；恢复旧二进制还需恢复与其匹配的数据库恢复点，不能只恢复启动配置或手改版本记录。
+
+ModelDev 客户端证书唯一 DNS SAN 为 `ani-modeldev-service`，ACC 配置 `security.modeldev_dns_name` 同值。该身份只允许 `/accelerator.v1.AcceleratorUsageService/ObserveRelease`；不得共用其他 owner 的客户端身份或签名公钥。启用实际训练 ownership 采集时挂载独立 `accelerator.modeldev_owner_public_key_file`，标准 Base64 原始 32 字节 Ed25519 公钥。缺少该 key 时相关物理占用仍保留而不会被关联到 ModelDev。实际 Pod UID/container、签名域及独立 close UUID 规则见[接入合同](../contracts/accelerator-consumer-contract.md#ownership-usage-and-release)。
 
 运行角色与 schema/table owner 分开，禁止 SUPERUSER/CREATEDB/CREATEROLE 与数据库/schema CREATE，以及任何表所有权。示例授权使用已审核的实际角色名：
 

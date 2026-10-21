@@ -19,6 +19,9 @@ func (c *Bootstrap) ValidateRuntime() error {
 	if c.Accelerator.ResourceOwnerPublicKeyFile != "" && !filepath.IsAbs(c.Accelerator.ResourceOwnerPublicKeyFile) {
 		return fmt.Errorf("Resource owner public key must use an absolute path")
 	}
+	if c.Accelerator.ModeldevOwnerPublicKeyFile != "" && !filepath.IsAbs(c.Accelerator.ModeldevOwnerPublicKeyFile) {
+		return fmt.Errorf("ModelDev owner public key must use an absolute path")
+	}
 	for _, path := range []string{s.CaFile, s.CertFile, s.KeyFile, s.CursorKeyFile, c.Accelerator.ProviderConfigFile, c.Accelerator.OwnerPublicKeyFile} {
 		if !filepath.IsAbs(path) {
 			return fmt.Errorf("runtime secret/config references must be absolute paths")
@@ -43,7 +46,7 @@ func (c *Bootstrap) ValidateRuntime() error {
 }
 
 func (s *Security) ValidateServiceIdentities() error {
-	if s == nil || s.GovernanceDnsName != "ani-governance" || s.InferenceDnsName != "ani-inference-service" || s.ResourceDnsName != "ani-resource-service" {
+	if s == nil || s.GovernanceDnsName != "ani-governance" || s.InferenceDnsName != "ani-inference-service" || s.ResourceDnsName != "ani-resource-service" || s.ModeldevDnsName != "ani-modeldev-service" {
 		return fmt.Errorf("exact registered service DNS identities are required")
 	}
 	if s.NodeAgentDnsName != "" && s.NodeAgentDnsName != "ani-node-agent" {

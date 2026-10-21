@@ -116,6 +116,8 @@ func authenticatedService(ctx context.Context, config *conf.Security) (string, e
 			return "ani-node-agent", nil
 		}
 		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
+	case config.ModeldevDnsName:
+		return "ani-modeldev-service", nil
 	default:
 		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
 	}
@@ -160,7 +162,7 @@ func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 		policy, delegated := governanceRPCs[info.FullMethod]
 		sync := info.FullMethod == pb.AcceleratorUsageService_SyncGpuUsage_FullMethodName
 		release := info.FullMethod == pb.AcceleratorUsageService_ObserveRelease_FullMethodName
-		if !(service == "ani-governance" && (delegated || sync)) && !((service == "ani-inference" || service == "ani-resource-service") && release) {
+		if !(service == "ani-governance" && (delegated || sync)) && !((service == "ani-inference" || service == "ani-resource-service" || service == "ani-modeldev-service") && release) {
 			return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
 		if message, ok := request.(proto.Message); !ok || hasUnknown(message.ProtoReflect()) {

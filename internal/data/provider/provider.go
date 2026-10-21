@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
@@ -22,6 +23,7 @@ type Provider struct {
 	connections      map[string]*kubeReader
 	ownerKey         ed25519.PublicKey
 	resourceOwnerKey ed25519.PublicKey
+	modeldevOwnerKey ed25519.PublicKey
 	repo             biz.Repository
 	freshness        time.Duration
 	runtimeEvents    *runtimeEvents
@@ -35,6 +37,16 @@ func (p *Provider) ConfigureResourceOwnerKey(key ed25519.PublicKey) error {
 		return biz.Invalid("RESOURCE_OWNER_KEY_INVALID")
 	}
 	p.resourceOwnerKey = append(ed25519.PublicKey(nil), key...)
+	return nil
+}
+
+// ConfigureModeldevOwnerKey installs the independent training-owner verifier.
+// Without this key, ModelDev allocations remain counted and unassociated.
+func (p *Provider) ConfigureModeldevOwnerKey(key ed25519.PublicKey) error {
+	if len(key) != ed25519.PublicKeySize || bytes.Equal(key, p.ownerKey) || bytes.Equal(key, p.resourceOwnerKey) {
+		return biz.Invalid("MODELDEV_OWNER_KEY_INVALID")
+	}
+	p.modeldevOwnerKey = append(ed25519.PublicKey(nil), key...)
 	return nil
 }
 
@@ -657,6 +669,9 @@ func (p *Provider) verifyOwner(pod biz.PodRef, labels, annotations map[string]st
 	key := p.ownerKey
 	if labels["accelerator.ani.io/owner-service"] == "ani-resource-service" {
 		key = p.resourceOwnerKey
+	}
+	if labels["accelerator.ani.io/owner-service"] == "ani-modeldev-service" {
+		key = p.modeldevOwnerKey
 	}
 	return VerifyOwnerAssertion(pod, labels, annotations, key)
 }

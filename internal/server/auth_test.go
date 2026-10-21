@@ -25,7 +25,7 @@ import (
 )
 
 func serviceSecurity() *conf.Security {
-	return &conf.Security{GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service"}
+	return &conf.Security{GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service"}
 }
 func verifiedContext(t *testing.T, pki *testkit.PKI, certFile string) context.Context {
 	t.Helper()
@@ -60,6 +60,7 @@ func TestServiceIdentityRequiresUniqueExactDNSSAN(t *testing.T) {
 		{name: "governance", dns: []string{"ani-governance"}, allow: true},
 		{name: "resource", dns: []string{"ani-resource-service"}, allow: true},
 		{name: "inference", dns: []string{"ani-inference-service"}, allow: true},
+		{name: "modeldev", dns: []string{"ani-modeldev-service"}, allow: true},
 		{name: "legacy-uri", uris: []*url.URL{uri}},
 		{name: "mixed-uri", dns: []string{"ani-governance"}, uris: []*url.URL{uri}},
 		{name: "mixed-ip", dns: []string{"ani-governance"}, ips: []net.IP{net.ParseIP("127.0.0.1")}},
@@ -87,7 +88,7 @@ func TestServiceIdentityRequiresUniqueExactDNSSAN(t *testing.T) {
 }
 func TestGeneratedRPCAllowlistAndTrustedDelegation(t *testing.T) {
 	pki := testkit.NewPKI(t)
-	for _, identity := range []string{"ani-governance", "ani-resource-service", "ani-inference-service"} {
+	for _, identity := range []string{"ani-governance", "ani-resource-service", "ani-inference-service", "ani-modeldev-service"} {
 		cert, _ := pki.Issue(t, identity, identity, false)
 		ctx := verifiedContext(t, pki, cert)
 		services := pb.File_accelerator_v1_accelerator_proto.Services()

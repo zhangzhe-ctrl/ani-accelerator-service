@@ -6,7 +6,9 @@ import (
 	"os"
 	"strings"
 
+	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/pkg/gpuprotocol"
 )
 
 func ReadPublicKey(path string) (ed25519.PublicKey, error) {
@@ -39,8 +41,10 @@ func VerifyOwnerAssertion(pod biz.PodRef, labels map[string]string, annotations 
 	if err != nil {
 		return nil, ""
 	}
-	payload, err := biz.Canonical(OwnerAssertion{pod, *r, digest})
-	if err != nil || !ed25519.Verify(key, append([]byte("acc-owner-pod-v2\n"), payload...), sig) {
+	payload, err := gpuprotocol.OwnerAssertionSigningBytes(
+		&pb.PodRef{ClusterId: pod.ClusterID, Namespace: pod.Namespace, Name: pod.Name, Uid: pod.UID, ContainerName: pod.ContainerName},
+		&pb.GpuUsageRef{TenantId: r.TenantID, OwnerService: r.OwnerService, ResourceId: r.ResourceID, CreateOperationId: r.CreateOperationID}, digest)
+	if err != nil || !ed25519.Verify(key, payload, sig) {
 		return nil, ""
 	}
 	return r, digest
