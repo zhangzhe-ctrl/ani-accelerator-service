@@ -189,6 +189,10 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	nodeUID := "node-" + biz.NewID()
 	nodeUID2 := "node-" + biz.NewID()
 	podUID := "pod-" + biz.NewID()
+	replacementPodUID := biz.NewID()
+	if configurationFault == "restart_release" {
+		nodeUID, podUID = biz.NewID(), biz.NewID()
+	}
 	groupID := biz.NewID()
 	cmData := map[string]string{"config.yaml": "constructed-source-fixture: true", schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
 	cm := map[string]any{"data": cmData, "binaryData": nil}
@@ -216,7 +220,14 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	podRef := biz.PodRef{ClusterID: cluster.ClusterID, Namespace: "replay", Name: "workload", UID: podUID, ContainerName: "inference"}
 	assertion, _ := biz.Canonical(OwnerAssertion{podRef, *ref, executionDigest})
 	signature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v2\n"), assertion...)))
+	replacementPodRef := podRef
+	replacementPodRef.UID = replacementPodUID
+	replacementAssertion, _ := biz.Canonical(OwnerAssertion{replacementPodRef, *ref, executionDigest})
+	replacementSignature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v2\n"), replacementAssertion...)))
 	state := &replayState{memory: 6144}
+	if configurationFault == "restart_release" {
+		state.runtimeID = strings.Repeat("c", 64)
+	}
 	if configurationFault == "late_owner" {
 		state.setFault("pending_owner")
 	}
@@ -229,6 +240,9 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		now := time.Now().UTC()
 		fault := state.getFault()
 		currentSignature := signature
+		if fault == "replacement_pod" {
+			currentSignature = replacementSignature
+		}
 		if fault == "pending_owner" {
 			currentSignature = ""
 		}
@@ -280,6 +294,14 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: assignmentValue, AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/execution-digest": executionDigest, "accelerator.ani.io/owner-signature": currentSignature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6144"}}}}}})
 			}
 			response = map[string]any{"items": items}
+			if fault == "replacement_pod" {
+				for _, item := range items {
+					metadata := item.(map[string]any)["metadata"].(map[string]any)
+					if metadata["uid"] == podUID {
+						metadata["uid"] = replacementPodUID
+					}
+				}
+			}
 		case strings.Contains(r.URL.Path, "/configmaps/"):
 			response = cm
 			if fault == "scheduler_config" && strings.HasSuffix(r.URL.Path, "/scheduler") {
@@ -394,6 +416,10 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		}
 	}
 	collect()
+	if configurationFault == "restart_release" {
+		providerRestartReleaseContract(t, db, adapter, cluster, g, podRef, replacementPodUID, state, telemetry)
+		return
+	}
 	if configurationFault == "discovery_contract" {
 		providerDiscoveryContract(t, db, adapter, cluster, g, state, telemetry)
 		return
