@@ -115,6 +115,12 @@ func TestLegacyHistoryRealPostgresReplayConflictAndOldExit(testContext *testing.
 	if !reflect.DeepEqual(after, readNode(testContext, repository, cluster.ConnectionRef)) {
 		testContext.Fatal("conflicting import did not roll back inserted prefix atomically")
 	}
+	if _, err := repository.RenewNodeSession(ctx, identity, state.Epoch, now.Add(-time.Minute)); err != nil {
+		testContext.Fatal(err)
+	}
+	if _, err := importLegacy(ctx, repository, dsnFile, scope, true); err == nil || err.Error() != "REAL_AUTHENTICATED_NODE_FACT_REQUIRED" {
+		testContext.Fatalf("expired real node lease admitted offline import: %v", err)
+	}
 	group.Admission = biz.Open
 	group.Version++
 	if err := repository.Transact(ctx, func(transaction biz.Transaction) error { return transaction.UpdateGroup(ctx, group, 1) }); err != nil {

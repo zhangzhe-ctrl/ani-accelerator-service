@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
+	"slices"
 	"testing"
 	"time"
 
@@ -34,6 +36,7 @@ func providerDiscoveryContract(t *testing.T, database *data.Postgres, adapter *P
 	if len(first.Nodes[0].Baselines) != 1 || first.Nodes[0].Baselines[0].BaselineRef != group.Baseline.BaselineID+":"+group.Baseline.BaselineDigest {
 		t.Fatal("manual baseline lost stable provenance")
 	}
+	providerDiscoveryHistoricalGaps(t, database, adapter, cluster.ConnectionRef, telemetry)
 	state.setFault("node_rv")
 	state.mu.Lock()
 	state.memory = 8192
@@ -109,5 +112,104 @@ func providerDiscoveryContract(t *testing.T, database *data.Postgres, adapter *P
 	ambiguous, err := adapter.DiscoverInitialization(ctx)
 	if err != nil || ambiguous.Environment.ConnectionRef != "" || ambiguous.ConfigurationState != "CONFIGURATION_REQUIRED" {
 		t.Fatal("ambiguous managed connections were guessed")
+	}
+}
+
+func providerDiscoveryHistoricalGaps(t *testing.T, database *data.Postgres, adapter *Provider, connection string, telemetry *nodeTelemetryFixture) {
+	t.Helper()
+	ctx := context.Background()
+	for _, test := range []struct {
+		name       string
+		gapEnd     time.Duration
+		open       bool
+		incomplete bool
+		stale      bool
+		zeroStart  bool
+		complete   bool
+	}{
+		{name: "closed_before_current_full_snapshot", gapEnd: -time.Second, complete: true},
+		{name: "closed_recovery_gap_unknown_start", gapEnd: -time.Second, zeroStart: true, complete: true},
+		{name: "closed_at_current_full_snapshot", complete: true},
+		{name: "open_gap", open: true},
+		{name: "gap_after_current_full_snapshot", gapEnd: time.Second},
+		{name: "incomplete_snapshot_does_not_cover_gap", gapEnd: -time.Second, incomplete: true},
+		{name: "stale_snapshot_does_not_cover_gap", gapEnd: -time.Second, stale: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			telemetry.refresh(t)
+			snapshot := *telemetry.state.Snapshot
+			snapshot.Sources = append([]biz.TelemetrySource(nil), snapshot.Sources...)
+			observed := snapshot.CaptureEnd
+			if test.stale {
+				observed = observed.Add(-2 * time.Minute)
+			}
+			for index := range snapshot.Sources {
+				snapshot.Sources[index].ObservedAt = observed
+				snapshot.Sources[index].Complete = !test.incomplete
+			}
+			gap := &biz.TelemetryGap{Sources: []string{"nvml", "podresources", "cri"}, Reason: "SOURCE_GAP", Start: observed.Add(-2 * time.Second), End: observed.Add(test.gapEnd), DiscoveredAt: time.Now().UTC()}
+			if test.open {
+				gap.End = time.Time{}
+			}
+			if test.zeroStart {
+				gap.Start = time.Time{}
+			}
+			saveDiscoveryGap(t, telemetry, &snapshot, gap)
+			before, err := database.NodeTelemetry(ctx, connection)
+			if err != nil {
+				t.Fatal(err)
+			}
+			discovery, err := adapter.DiscoverInitialization(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(discovery.Nodes) != 1 || len(discovery.Nodes[0].Sources) != 3 {
+				t.Fatalf("missing current sources: %+v", discovery)
+			}
+			for _, source := range discovery.Nodes[0].Sources {
+				if source.Complete != test.complete || !slices.Contains(source.Issues, "SOURCE_GAP") || slices.Contains(source.Issues, "SOURCE_UNKNOWN") == test.complete {
+					t.Errorf("current source completeness must be independent of covered historical gaps: %+v", source)
+				}
+			}
+			if slices.Contains(discovery.Nodes[0].BlockingReasons, "SOURCE_UNKNOWN") == test.complete {
+				t.Errorf("unexpected source blocking reasons: %v", discovery.Nodes[0].BlockingReasons)
+			}
+			after, err := database.NodeTelemetry(ctx, connection)
+			if err != nil || !reflect.DeepEqual(before[0].State.Gaps, after[0].State.Gaps) {
+				t.Fatalf("discovery changed durable historical gaps: %v", err)
+			}
+		})
+	}
+	telemetry.refresh(t)
+	closed := &biz.TelemetryGap{Sources: []string{"nvml", "podresources", "cri"}, Reason: "SOURCE_GAP", Start: time.Now().Add(-2 * time.Second), End: time.Now().Add(-time.Second), DiscoveredAt: time.Now().UTC()}
+	saveDiscoveryGap(t, telemetry, nil, closed)
+	events := &biz.TelemetryGap{Sources: []string{"cri_events"}, Reason: "SOURCE_GAP", Start: time.Now().Add(-time.Second), DiscoveredAt: time.Now().UTC()}
+	saveDiscoveryGap(t, telemetry, nil, events)
+	discovery, err := adapter.DiscoverInitialization(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, source := range discovery.Nodes[0].Sources {
+		if !source.Complete {
+			t.Fatalf("historical cri_events gap contaminated current full snapshot: %+v", source)
+		}
+	}
+	views, err := database.NodeTelemetry(ctx, connection)
+	if err != nil || !views[0].State.Gaps["cri_events"].End.IsZero() || len(views[0].State.Gaps) != 4 {
+		t.Fatalf("historical event gap was erased or rewritten: %v", err)
+	}
+}
+
+func saveDiscoveryGap(t *testing.T, telemetry *nodeTelemetryFixture, snapshot *biz.TelemetrySnapshot, gap *biz.TelemetryGap) {
+	t.Helper()
+	report := biz.NodeReport{Epoch: telemetry.state.Epoch, Sequence: telemetry.state.LastSequence + 1, LogID: telemetry.identity.LogID, OriginPodUID: telemetry.identity.PodUID, OriginInstanceID: telemetry.identity.InstanceID, OriginBootID: telemetry.identity.BootID, Snapshot: snapshot, Gap: gap}
+	var err error
+	report.PayloadDigest, err = biz.Hash(report)
+	if err != nil {
+		t.Fatal(err)
+	}
+	telemetry.state, err = telemetry.store.SaveNodeReport(context.Background(), telemetry.identity.ConnectionRef, telemetry.identity.NodeUID, report, time.Now().UTC())
+	if err != nil {
+		t.Fatal(err)
 	}
 }

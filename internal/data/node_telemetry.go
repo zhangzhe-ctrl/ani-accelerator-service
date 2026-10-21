@@ -106,6 +106,10 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 		if err != nil {
 			return err
 		}
+		previousAttempts := make(map[string]biz.RuntimeAttempt, len(attempts))
+		for _, attempt := range attempts {
+			previousAttempts[attempt.ContainerID] = attempt
+		}
 		lastSequence := state.LastSequence
 		if report.JournalRequestID != "" && !(report.Sequence == state.LastSequence && report.PayloadDigest == state.LastPayloadDigest) {
 			if _, found := state.RecoveryRequests[report.JournalRequestID]; !found {
@@ -123,6 +127,18 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 			delete(state.RecoveryRequests, report.JournalRequestID)
 		}
 		for _, attempt := range attempts {
+			if previous, found := previousAttempts[attempt.ContainerID]; found {
+				compared := attempt
+				if string(previous.JournalProvenance) == "null" {
+					previous.JournalProvenance = nil
+				}
+				if string(compared.JournalProvenance) == "null" {
+					compared.JournalProvenance = nil
+				}
+				if reflect.DeepEqual(previous, compared) {
+					continue
+				}
+			}
 			payload, err := json.Marshal(attempt)
 			if err != nil {
 				return err

@@ -139,8 +139,10 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 						source.Issues[index] = "SOURCE_UNKNOWN"
 					}
 				}
-				if _, gap := view.State.Gaps[sourceName]; gap {
-					source.Complete = false
+				if gap, found := view.State.Gaps[sourceName]; found {
+					if gap.End.IsZero() || gap.End.After(source.ObservedAt) {
+						source.Complete = false
+					}
 					source.Issues = append(source.Issues, "SOURCE_GAP")
 				}
 				if !source.Complete {

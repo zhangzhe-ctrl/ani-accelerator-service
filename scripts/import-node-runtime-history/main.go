@@ -229,7 +229,14 @@ func importLegacy(ctx context.Context, repository biz.Repository, dsnFile string
 	}
 	payload, err := queries.LockNodeTelemetryState(ctx, scope.ConnectionRef, scope.NodeUID)
 	var state biz.NodeTelemetryState
-	if err != nil || json.Unmarshal(payload, &state) != nil || state.Identity.NodeUID != scope.NodeUID || state.Identity.NodeName != scope.NodeName || state.Identity.ConnectionRef != scope.ConnectionRef || !biz.UUID(state.Identity.PodUID) || !biz.UUID(state.Identity.LogID) || state.LastSequence == 0 || state.Snapshot == nil || state.Revoked || !time.Now().Before(state.LeaseExpiresAt) {
+	if err != nil || json.Unmarshal(payload, &state) != nil || state.Identity.NodeUID != scope.NodeUID || state.Identity.NodeName != scope.NodeName || state.Identity.ConnectionRef != scope.ConnectionRef || !biz.UUID(state.Identity.PodUID) || !biz.UUID(state.Identity.LogID) || state.LastSequence == 0 || state.Snapshot == nil || state.Revoked {
+		return receipt, errors.New("REAL_AUTHENTICATED_NODE_FACT_REQUIRED")
+	}
+	var databaseNow time.Time
+	if transaction.QueryRow(ctx, "SELECT clock_timestamp()").Scan(&databaseNow) != nil {
+		return receipt, errors.New("DATABASE_CLOCK_UNAVAILABLE")
+	}
+	if !databaseNow.Before(state.LeaseExpiresAt) {
 		return receipt, errors.New("REAL_AUTHENTICATED_NODE_FACT_REQUIRED")
 	}
 	receipt.RevisionBefore = state.CurrentRevision
