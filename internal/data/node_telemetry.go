@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"reflect"
 	"sort"
 	"strings"
@@ -16,30 +17,53 @@ import (
 
 func (p *Postgres) nodeTransaction(ctx context.Context, connection, node string, update func(*accdb.Queries, *biz.NodeTelemetryState) error) (biz.NodeTelemetryState, error) {
 	var state biz.NodeTelemetryState
+	started := time.Now()
+	var beginDuration, lockDuration, applyDuration, encodeDuration, updateDuration, commitDuration time.Duration
+	var payloadBytes int
+	defer func() {
+		if time.Since(started) >= time.Second {
+			slog.InfoContext(ctx, "node_telemetry_transaction_duration", "begin_ms", beginDuration.Milliseconds(), "lock_ms", lockDuration.Milliseconds(), "apply_ms", applyDuration.Milliseconds(), "encode_ms", encodeDuration.Milliseconds(), "update_ms", updateDuration.Milliseconds(), "commit_ms", commitDuration.Milliseconds(), "payload_bytes", payloadBytes, "total_ms", time.Since(started).Milliseconds())
+		}
+	}()
 	tx, err := p.pool.BeginTx(ctx, pgx.TxOptions{})
+	beginDuration = time.Since(started)
 	if err != nil {
 		return state, cleanError(err)
 	}
 	defer tx.Rollback(context.Background())
 	queries := accdb.New(tx)
+	phaseStarted := time.Now()
 	stored, err := queries.LockNodeTelemetryState(ctx, connection, node)
+	lockDuration = time.Since(phaseStarted)
 	if err != nil {
 		return state, cleanError(err)
 	}
 	if json.Unmarshal(stored, &state) != nil {
 		return state, biz.Precondition("STORED_TELEMETRY_INVALID")
 	}
-	if err = update(queries, &state); err != nil {
-		return state, err
-	}
-	payload, err := json.Marshal(state)
+	phaseStarted = time.Now()
+	err = update(queries, &state)
+	applyDuration = time.Since(phaseStarted)
 	if err != nil {
 		return state, err
 	}
-	if err = queries.UpdateNodeTelemetryState(ctx, connection, node, state.Epoch, state.Identity.LogID, state.LastSequence, state.LastPayloadDigest, state.CurrentRevision, state.ConsumedRevision, payload); err != nil {
+	phaseStarted = time.Now()
+	payload, err := json.Marshal(state)
+	encodeDuration = time.Since(phaseStarted)
+	payloadBytes = len(payload)
+	if err != nil {
+		return state, err
+	}
+	phaseStarted = time.Now()
+	err = queries.UpdateNodeTelemetryState(ctx, connection, node, state.Epoch, state.Identity.LogID, state.LastSequence, state.LastPayloadDigest, state.CurrentRevision, state.ConsumedRevision, payload)
+	updateDuration = time.Since(phaseStarted)
+	if err != nil {
 		return state, cleanError(err)
 	}
-	return state, cleanError(tx.Commit(ctx))
+	phaseStarted = time.Now()
+	err = tx.Commit(ctx)
+	commitDuration = time.Since(phaseStarted)
+	return state, cleanError(err)
 }
 
 func (p *Postgres) OpenNodeSession(ctx context.Context, identity biz.NodeIdentity, lease time.Time) (biz.NodeTelemetryState, error) {
@@ -101,8 +125,20 @@ func (p *Postgres) HeartbeatNodeSession(ctx context.Context, connection, node st
 
 func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, report biz.NodeReport, now time.Time) (biz.NodeTelemetryState, error) {
 	return p.nodeTransaction(ctx, connection, node, func(queries *accdb.Queries, state *biz.NodeTelemetryState) error {
+		started := time.Now()
+		var listDuration, decodeDuration, mergeDuration, encodeDuration, writeDuration time.Duration
+		var existingCount, changedCount int
+		defer func() {
+			if time.Since(started) >= time.Second {
+				slog.InfoContext(ctx, "node_telemetry_attempt_duration", "list_ms", listDuration.Milliseconds(), "decode_ms", decodeDuration.Milliseconds(), "merge_ms", mergeDuration.Milliseconds(), "encode_ms", encodeDuration.Milliseconds(), "write_ms", writeDuration.Milliseconds(), "existing_count", existingCount, "changed_count", changedCount, "total_ms", time.Since(started).Milliseconds())
+			}
+		}()
 		rows, err := queries.ListNodeRuntimeAttempts(ctx, connection, node)
+		listDuration = time.Since(started)
+		phaseStarted := time.Now()
 		attempts, err := decodeMany[biz.RuntimeAttempt](rows, err)
+		decodeDuration = time.Since(phaseStarted)
+		existingCount = len(attempts)
 		if err != nil {
 			return err
 		}
@@ -116,7 +152,9 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 				return biz.Precondition("JOURNAL_REQUEST_UNKNOWN")
 			}
 		}
+		phaseStarted = time.Now()
 		attempts, err = biz.MergeNodeReport(state, attempts, report, now)
+		mergeDuration = time.Since(phaseStarted)
 		if err != nil {
 			return err
 		}
@@ -145,11 +183,17 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 		if len(changed) == 0 {
 			return nil
 		}
+		changedCount = len(changed)
+		phaseStarted = time.Now()
 		payload, err := json.Marshal(changed)
+		encodeDuration = time.Since(phaseStarted)
 		if err != nil {
 			return err
 		}
-		return cleanError(queries.SaveNodeRuntimeAttempts(ctx, connection, node, payload))
+		phaseStarted = time.Now()
+		err = queries.SaveNodeRuntimeAttempts(ctx, connection, node, payload)
+		writeDuration = time.Since(phaseStarted)
+		return cleanError(err)
 	})
 }
 
