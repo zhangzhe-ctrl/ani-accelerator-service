@@ -61,6 +61,16 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 			t.Fatal(err)
 		}
 	}
+	writeGap := func(gap biz.TelemetryGap) {
+		t.Helper()
+		report := biz.NodeReport{Epoch: telemetry.state.Epoch, Sequence: telemetry.state.LastSequence + 1, LogID: telemetry.identity.LogID, OriginPodUID: telemetry.identity.PodUID, OriginInstanceID: telemetry.identity.InstanceID, OriginBootID: telemetry.identity.BootID, Gap: &gap}
+		report.PayloadDigest, _ = biz.Hash(report)
+		var err error
+		telemetry.state, err = database.SaveNodeReport(ctx, cluster.ConnectionRef, telemetry.source.UID, report, time.Now().UTC())
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
 	initial := *telemetry.state.Snapshot
 	writeFacts := func(oldRunning bool) {
 		t.Helper()
@@ -86,6 +96,7 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 	now := time.Now().UTC()
 	exited := oldAttempt
 	exited.State, exited.ObservedAt, exited.CreatedAt, exited.FinishedAt = 3, now, now.Add(-time.Minute), now.Add(-time.Second)
+	exited.JournalObservedAt = exited.ObservedAt
 	provenance := &nodepb.JournalProvenance{MachineId: strings.Repeat("a", 32), BootId: strings.Repeat("b", 32), Unit: "containerd.service", Comm: "containerd", Uid: "0", Exe: "/usr/bin/containerd", Transport: "stdout", SandboxId: oldAttempt.SandboxID, SandboxCursor: "sandbox-cursor", CreateCursor: "create-cursor", Cursor: "exit-cursor", SandboxMonotonic: 1, CreateMonotonic: 2, ExitMonotonic: 3, CreatedAt: timestamppb.New(exited.CreatedAt), ExitedAt: timestamppb.New(exited.FinishedAt)}
 	exited.JournalProvenance, _ = json.Marshal(provenance)
 	recovery := &restartExitRecovery{requestPod: oldPod, attempt: exited, complete: true}
@@ -116,9 +127,12 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 	}
 	recovery.attempt, recovery.complete = exited, true
 	writeFacts(false)
+	closedGap := biz.TelemetryGap{Sources: []string{"cri_events"}, Reason: "CRI_EVENT_SUBSCRIPTION_GAP", End: now.Add(-10 * time.Second), DiscoveredAt: now.Add(-10 * time.Second)}
+	writeGap(closedGap)
 	recovery.persist = func() {
 		persisted := exited
 		persisted.ObservedAt = time.Now().UTC()
+		persisted.JournalObservedAt = persisted.ObservedAt
 		writeReport(nil, []biz.RuntimeAttempt{persisted})
 	}
 	batch, err := adapter.Collect(ctx, cluster, []biz.SupplyGroup{group})
@@ -183,13 +197,46 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 		t.Fatal("replacement runtime change did not advance semantic revision")
 	}
 	scope := &biz.ReleaseRecheckScope{Owner: owner, Pods: []biz.PodRef{oldPod}}
-	batch, err = adapter.CollectRelease(ctx, cluster, []biz.SupplyGroup{group}, scope)
+	scopedContext, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	batch, err = adapter.CollectRelease(scopedContext, cluster, []biz.SupplyGroup{group}, scope)
 	if err != nil || recovery.calls != recoveryCalls || len(batch.Releases) != 1 || batch.Releases[0].Pod != oldPod || batch.Releases[0].CheckedNodeRevision != telemetry.state.CurrentRevision {
 		t.Fatalf("scoped semantic-revision refresh repeated recovery or lost positive proof: calls=%d previous=%d error=%v releases=%+v", recovery.calls, recoveryCalls, err, batch.Releases)
 	}
 	if err = database.Transact(ctx, func(transaction biz.Transaction) error { return transaction.SaveObservation(ctx, batch) }); err != nil {
 		t.Fatal(err)
 	}
+	ordinary := exited
+	ordinary.ObservedAt, ordinary.JournalObservedAt, ordinary.JournalProvenance = time.Now().UTC(), time.Time{}, nil
+	previousRevision = telemetry.state.CurrentRevision
+	writeReport(nil, []biz.RuntimeAttempt{ordinary})
+	if telemetry.state.CurrentRevision != previousRevision {
+		t.Fatal("identical ordinary exit erased or refreshed durable journal coverage")
+	}
+	views, err = database.NodeTelemetry(ctx, cluster.ConnectionRef)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, attempt := range views[0].Attempts {
+		if attempt.ContainerID == oldAttempt.ContainerID && (!attempt.JournalObservedAt.Before(ordinary.ObservedAt) || attempt.JournalObservedAt.IsZero() || len(attempt.JournalProvenance) == 0) {
+			t.Fatal("ordinary exit updated or erased journal coverage")
+		}
+	}
+	if !views[0].State.Gaps["cri_events"].End.Equal(closedGap.End) {
+		t.Fatal("positive journal coverage erased historical source gap")
+	}
+	for _, gap := range []biz.TelemetryGap{
+		{Sources: []string{"cri_events"}, Reason: "NEWER_CLOSED_GAP", End: time.Now().UTC(), DiscoveredAt: time.Now().UTC()},
+		{Sources: []string{"cri_events"}, Reason: "OPEN_GAP", DiscoveredAt: time.Now().UTC()},
+	} {
+		writeGap(gap)
+		beforeRecovery := recovery.calls
+		batch, err = adapter.CollectRelease(ctx, cluster, []biz.SupplyGroup{group}, scope)
+		if err != nil || len(batch.Releases) != 0 || recovery.calls <= beforeRecovery {
+			t.Fatalf("uncovered gap bypassed scoped recovery: gap=%s calls=%d previous=%d error=%v releases=%+v", gap.Reason, recovery.calls, beforeRecovery, err, batch.Releases)
+		}
+	}
+	writeGap(closedGap)
 	for _, currentState := range []uint32{2, 4} {
 		now := time.Now().UTC()
 		snapshot := initial

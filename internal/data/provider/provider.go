@@ -725,7 +725,8 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 					continue
 				}
 				unmapped := unexplainedJournalSandboxes(snapshot, statuses, *binding.Pod)
-				_, eventGap := snapshot.SourceGaps["cri_events"]
+				gap, hasEventGap := snapshot.SourceGaps["cri_events"]
+				eventGap := hasEventGap && !closedJournalGapCovered(statuses, *binding.Pod, gap)
 				if p.exitRecovery != nil && (needsJournalExit(statuses) || len(unmapped) > 0 || eventGap) {
 					knownIDs := []string{}
 					for _, state := range statuses {
@@ -759,7 +760,7 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 							}
 						}
 						unmapped = remaining
-						eventGap = false
+						eventGap = hasEventGap && !closedJournalGapCovered(statuses, *binding.Pod, gap)
 					}
 				}
 				if len(statuses) == 0 || len(unmapped) > 0 || eventGap {
@@ -859,17 +860,8 @@ func positiveJournalSandbox(attempt biz.RuntimeAttempt, pod biz.PodRef) string {
 func unexplainedJournalSandboxes(snapshot nodeSnapshot, statuses []*cri.ContainerStatusResponse, pod biz.PodRef) []string {
 	explained := map[string]bool{}
 	for _, status := range statuses {
-		if status == nil || status.Status == nil || status.Status.Metadata == nil || status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
-			continue
-		}
-		for _, container := range snapshot.Containers {
-			if container.Id != status.Status.Id {
-				continue
-			}
-			attempt := biz.RuntimeAttempt{ContainerID: status.Status.Id, SandboxID: container.PodSandboxId, PodUID: status.Status.Labels["io.kubernetes.pod.uid"], PodNamespace: status.Status.Labels["io.kubernetes.pod.namespace"], PodName: status.Status.Labels["io.kubernetes.pod.name"], ContainerName: status.Status.Metadata.Name, State: 3, FinishedAt: time.Unix(0, status.Status.FinishedAt), JournalProvenance: json.RawMessage(status.Info["journal_evidence"])}
-			if sandbox := positiveJournalSandbox(attempt, pod); sandbox != "" {
-				explained[sandbox] = true
-			}
+		if sandbox := positiveJournalSandbox(journalStatusAttempt(status), pod); sandbox != "" {
+			explained[sandbox] = true
 		}
 	}
 	remaining := []string{}
@@ -879,6 +871,27 @@ func unexplainedJournalSandboxes(snapshot nodeSnapshot, statuses []*cri.Containe
 		}
 	}
 	return remaining
+}
+
+func journalStatusAttempt(status *cri.ContainerStatusResponse) biz.RuntimeAttempt {
+	if status == nil || status.Status == nil || status.Status.Metadata == nil || status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
+		return biz.RuntimeAttempt{}
+	}
+	observedAt, _ := time.Parse(time.RFC3339Nano, status.Info["journal_observed_at"])
+	return biz.RuntimeAttempt{ContainerID: status.Status.Id, SandboxID: status.Info["journal_sandbox_id"], PodUID: status.Status.Labels["io.kubernetes.pod.uid"], PodNamespace: status.Status.Labels["io.kubernetes.pod.namespace"], PodName: status.Status.Labels["io.kubernetes.pod.name"], ContainerName: status.Status.Metadata.Name, State: 3, FinishedAt: time.Unix(0, status.Status.FinishedAt), JournalProvenance: json.RawMessage(status.Info["journal_evidence"]), JournalObservedAt: observedAt}
+}
+
+func closedJournalGapCovered(statuses []*cri.ContainerStatusResponse, pod biz.PodRef, gap biz.TelemetryGap) bool {
+	if len(statuses) == 0 || gap.End.IsZero() || gap.End.Before(gap.Start) {
+		return false
+	}
+	for _, status := range statuses {
+		attempt := journalStatusAttempt(status)
+		if positiveJournalSandbox(attempt, pod) == "" || !attempt.JournalObservedAt.After(gap.End) {
+			return false
+		}
+	}
+	return true
 }
 
 func needsJournalExit(statuses []*cri.ContainerStatusResponse) bool {

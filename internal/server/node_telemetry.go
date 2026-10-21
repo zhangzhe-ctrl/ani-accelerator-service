@@ -197,7 +197,7 @@ func validateNodeJournalResult(journal *nodepb.JournalExitResult, pod biz.PodRef
 	machine := ""
 	for index, attempt := range report.Attempts {
 		provenance := journal.Provenance[index]
-		if !nodeContainerID.MatchString(attempt.ContainerID) || seen[attempt.ContainerID] || attempt.PodUID != pod.UID || attempt.PodNamespace != pod.Namespace || attempt.PodName != pod.Name || attempt.ContainerName != pod.ContainerName || attempt.State != 3 || attempt.FinishedAt.IsZero() {
+		if !nodeContainerID.MatchString(attempt.ContainerID) || seen[attempt.ContainerID] || attempt.PodUID != pod.UID || attempt.PodNamespace != pod.Namespace || attempt.PodName != pod.Name || attempt.ContainerName != pod.ContainerName || attempt.State != 3 || attempt.FinishedAt.IsZero() || attempt.ObservedAt.IsZero() || attempt.ObservedAt.Before(attempt.FinishedAt) {
 			return biz.Invalid("JOURNAL_SCOPE_MISMATCH")
 		}
 		seen[attempt.ContainerID] = true
@@ -229,6 +229,9 @@ func validateNodeJournalResult(journal *nodepb.JournalExitResult, pod biz.PodRef
 			return biz.Invalid("JOURNAL_KNOWN_ATTEMPT_MISSING")
 		}
 	}
+	for index := range report.Attempts {
+		report.Attempts[index].JournalObservedAt = report.Attempts[index].ObservedAt
+	}
 	return nil
 }
 
@@ -257,7 +260,7 @@ func (s *NodeTelemetryServer) finishNodeRecovery(ctx context.Context, connection
 			for _, attempt := range view.Attempts {
 				if ids[attempt.ContainerID] {
 					result.attempts = append(result.attempts, attempt)
-					if attempt.State != 3 || attempt.FinishedAt.IsZero() || len(attempt.JournalProvenance) == 0 {
+					if attempt.State != 3 || attempt.FinishedAt.IsZero() || len(attempt.JournalProvenance) == 0 || attempt.JournalObservedAt.IsZero() {
 						result.found = false
 					}
 				}

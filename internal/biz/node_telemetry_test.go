@@ -1,9 +1,58 @@
 package biz
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 )
+
+func TestNodeJournalCoveragePersistsOnlyForIdenticalOrdinaryExit(t *testing.T) {
+	now := time.Now().UTC()
+	previous := RuntimeAttempt{ContainerID: "container", SandboxID: "sandbox", PodUID: "pod", PodNamespace: "tenant", PodName: "workload", ContainerName: "app", State: 3, ObservedAt: now.Add(-time.Second), FinishedAt: now.Add(-2 * time.Second), JournalObservedAt: now.Add(-time.Second), JournalProvenance: json.RawMessage(`{"positive":"chain"}`)}
+	for _, scenario := range []struct {
+		name   string
+		change func(*RuntimeAttempt)
+		keep   bool
+	}{
+		{name: "same_exit", keep: true},
+		{name: "running", change: func(attempt *RuntimeAttempt) { attempt.State = 2 }},
+		{name: "unknown", change: func(attempt *RuntimeAttempt) { attempt.State = 4 }},
+		{name: "different_pod", change: func(attempt *RuntimeAttempt) { attempt.PodUID = "other" }},
+		{name: "different_namespace", change: func(attempt *RuntimeAttempt) { attempt.PodNamespace = "other" }},
+		{name: "different_name", change: func(attempt *RuntimeAttempt) { attempt.PodName = "other" }},
+		{name: "different_container", change: func(attempt *RuntimeAttempt) { attempt.ContainerName = "other" }},
+		{name: "different_sandbox", change: func(attempt *RuntimeAttempt) { attempt.SandboxID = "other" }},
+		{name: "different_exit", change: func(attempt *RuntimeAttempt) { attempt.FinishedAt = now.Add(-3 * time.Second) }},
+	} {
+		t.Run(scenario.name, func(t *testing.T) {
+			state := NodeTelemetryState{Identity: NodeIdentity{LogID: "log"}, Epoch: 1, LeaseExpiresAt: now.Add(time.Minute), CurrentRevision: 1}
+			incoming := previous
+			incoming.ObservedAt, incoming.JournalObservedAt, incoming.JournalProvenance = now, time.Time{}, nil
+			if scenario.change != nil {
+				scenario.change(&incoming)
+			}
+			report := NodeReport{Epoch: 1, Sequence: 1, LogID: "log", PayloadDigest: "ordinary", Attempts: []RuntimeAttempt{incoming}}
+			merged, err := MergeNodeReport(&state, []RuntimeAttempt{previous}, report, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			kept := merged[0].JournalObservedAt.Equal(previous.JournalObservedAt) && string(merged[0].JournalProvenance) == string(previous.JournalProvenance)
+			if kept != scenario.keep || (!scenario.keep && !merged[0].JournalObservedAt.IsZero()) {
+				t.Fatalf("ordinary state inherited journal coverage: %+v", merged[0])
+			}
+			if scenario.keep && state.CurrentRevision != 1 {
+				t.Fatal("ordinary observation changed coverage meaning")
+			}
+		})
+	}
+	state := NodeTelemetryState{Identity: NodeIdentity{LogID: "log"}, Epoch: 1, LeaseExpiresAt: now.Add(time.Minute), CurrentRevision: 1}
+	recovered := previous
+	recovered.ObservedAt, recovered.JournalObservedAt = now, now
+	_, err := MergeNodeReport(&state, []RuntimeAttempt{previous}, NodeReport{Epoch: 1, Sequence: 1, LogID: "log", PayloadDigest: "new-journal", Attempts: []RuntimeAttempt{recovered}}, now)
+	if err != nil || state.CurrentRevision != 2 {
+		t.Fatalf("new complete journal coverage did not advance revision: %v revision=%d", err, state.CurrentRevision)
+	}
+}
 
 func TestNodeTelemetryReceiptAndMeaningfulRevision(t *testing.T) {
 	now := time.Now().UTC()

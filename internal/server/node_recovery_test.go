@@ -20,6 +20,10 @@ func TestNodeJournalResultRequiresOriginalScopeAndPositiveChain(testContext *tes
 		{name: "different_pod", change: func(_ *nodepb.JournalExitResult, report *biz.NodeReport) { report.Attempts[0].PodUID = biz.NewID() }},
 		{name: "different_container", change: func(_ *nodepb.JournalExitResult, report *biz.NodeReport) { report.Attempts[0].ContainerName = "other" }},
 		{name: "not_exited", change: func(_ *nodepb.JournalExitResult, report *biz.NodeReport) { report.Attempts[0].State = 2 }},
+		{name: "missing_observation", change: func(_ *nodepb.JournalExitResult, report *biz.NodeReport) { report.Attempts[0].ObservedAt = time.Time{} }},
+		{name: "observed_before_exit", change: func(_ *nodepb.JournalExitResult, report *biz.NodeReport) {
+			report.Attempts[0].ObservedAt = report.Attempts[0].FinishedAt.Add(-time.Second)
+		}},
 		{name: "untrusted_uid", change: func(journal *nodepb.JournalExitResult, _ *biz.NodeReport) { journal.Provenance[0].Uid = "1000" }},
 		{name: "untrusted_unit", change: func(journal *nodepb.JournalExitResult, _ *biz.NodeReport) {
 			journal.Provenance[0].Unit = "application.service"
@@ -46,12 +50,15 @@ func TestNodeJournalResultRequiresOriginalScopeAndPositiveChain(testContext *tes
 			if scenario.change != nil {
 				scenario.change(journal, &report)
 			}
-			err := validateNodeJournalResult(journal, pod, []string{id}, &report, now)
+			err := validateNodeJournalResult(journal, pod, []string{id}, &report, now.Add(5*time.Second))
 			if (err == nil) != scenario.allow {
 				caseContext.Fatalf("positive chain acceptance mismatch: %v", err)
 			}
-			if scenario.allow && (report.Attempts[0].SandboxID != strings.Repeat("c", 64) || len(report.Attempts[0].JournalProvenance) == 0) {
+			if scenario.allow && (report.Attempts[0].SandboxID != strings.Repeat("c", 64) || len(report.Attempts[0].JournalProvenance) == 0 || !report.Attempts[0].JournalObservedAt.Equal(now)) {
 				caseContext.Fatal("validated attempt lost original provenance")
+			}
+			if !scenario.allow && !report.Attempts[0].JournalObservedAt.IsZero() {
+				caseContext.Fatal("invalid journal acquired coverage")
 			}
 		})
 	}

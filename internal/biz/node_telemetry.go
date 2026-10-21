@@ -56,6 +56,7 @@ type RuntimeAttempt struct {
 	GPUEnvironment                                                       []GPUEnvironmentEntry
 	Issues                                                               []string
 	JournalProvenance                                                    json.RawMessage
+	JournalObservedAt                                                    time.Time
 }
 
 type TelemetrySnapshot struct {
@@ -172,6 +173,7 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 			previous.State = 4
 			previous.Issues = []string{"RUNTIME_IDENTITY_CONFLICT"}
 			previous.ObservedAt = attempt.ObservedAt
+			previous.JournalObservedAt, previous.JournalProvenance = time.Time{}, nil
 			byID[attempt.ContainerID] = previous
 			continue
 		}
@@ -197,8 +199,13 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 			previous.State = 4
 			previous.Issues = []string{"RUNTIME_EXIT_ORDER_UNKNOWN"}
 			previous.ObservedAt = attempt.ObservedAt
+			previous.JournalObservedAt, previous.JournalProvenance = time.Time{}, nil
 			byID[attempt.ContainerID] = previous
 			continue
+		}
+		if attempt.State == 3 && previous.State == 3 && attempt.PodUID == previous.PodUID && attempt.PodNamespace == previous.PodNamespace && attempt.PodName == previous.PodName && attempt.ContainerName == previous.ContainerName && attempt.SandboxID == previous.SandboxID && attempt.FinishedAt.Equal(previous.FinishedAt) && attempt.JournalObservedAt.IsZero() && len(attempt.JournalProvenance) == 0 {
+			attempt.JournalObservedAt = previous.JournalObservedAt
+			attempt.JournalProvenance = previous.JournalProvenance
 		}
 		byID[attempt.ContainerID] = attempt
 	}
@@ -240,6 +247,7 @@ func telemetryMeaning(state NodeTelemetryState, attempts []RuntimeAttempt) (stri
 		GPUEnvironment                                                       []GPUEnvironmentEntry
 		Issues                                                               []string
 		JournalProvenance                                                    json.RawMessage
+		JournalObservedAt                                                    time.Time
 	}
 	var sources []sourceMeaning
 	var devices []TelemetryDevice
@@ -255,7 +263,7 @@ func telemetryMeaning(state NodeTelemetryState, attempts []RuntimeAttempt) (stri
 	sort.Slice(sources, func(left, right int) bool { return sources[left].Name < sources[right].Name })
 	meaning := make([]attemptMeaning, 0, len(attempts))
 	for _, attempt := range attempts {
-		meaning = append(meaning, attemptMeaning{attempt.ContainerID, attempt.SandboxID, attempt.PodUID, attempt.PodNamespace, attempt.PodName, attempt.ContainerName, attempt.Attempt, attempt.State, attempt.EventType, attempt.CreatedAt, attempt.StartedAt, attempt.FinishedAt, attempt.GPUEnvironment, attempt.Issues, attempt.JournalProvenance})
+		meaning = append(meaning, attemptMeaning{attempt.ContainerID, attempt.SandboxID, attempt.PodUID, attempt.PodNamespace, attempt.PodName, attempt.ContainerName, attempt.Attempt, attempt.State, attempt.EventType, attempt.CreatedAt, attempt.StartedAt, attempt.FinishedAt, attempt.GPUEnvironment, attempt.Issues, attempt.JournalProvenance, attempt.JournalObservedAt})
 	}
 	sort.Slice(meaning, func(left, right int) bool { return meaning[left].ContainerID < meaning[right].ContainerID })
 	return Hash(struct {

@@ -158,6 +158,10 @@ func runtimeAttemptInfo(attempt biz.RuntimeAttempt) map[string]string {
 	result := map[string]string{"info": string(payload)}
 	if len(attempt.JournalProvenance) > 0 {
 		result["journal_evidence"] = string(attempt.JournalProvenance)
+		result["journal_sandbox_id"] = attempt.SandboxID
+		if !attempt.JournalObservedAt.IsZero() {
+			result["journal_observed_at"] = attempt.JournalObservedAt.Format(time.RFC3339Nano)
+		}
 	}
 	return result
 }
