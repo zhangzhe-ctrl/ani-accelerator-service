@@ -128,13 +128,15 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 	if err = database.Transact(ctx, func(transaction biz.Transaction) error { return transaction.SaveObservation(ctx, batch) }); err == nil || err.Error() != "NODE_REVISION_CONFLICT" {
 		t.Fatalf("journal ingestion did not invalidate pre-recovery revision: %v", err)
 	}
+	recoveryCalls := recovery.calls
 	batch, err = adapter.Collect(ctx, cluster, []biz.SupplyGroup{group})
-	if err != nil {
-		t.Fatal(err)
+	if err != nil || recovery.calls != recoveryCalls || len(batch.Releases) != 1 {
+		t.Fatalf("durable positive journal required another recovery: calls=%d previous=%d error=%v releases=%+v", recovery.calls, recoveryCalls, err, batch.Releases)
 	}
 	if err = database.Transact(ctx, func(transaction biz.Transaction) error { return transaction.SaveObservation(ctx, batch) }); err != nil {
 		t.Fatal(err)
 	}
+	var owner biz.UsageRef
 	if err = database.View(ctx, func(reader biz.Reader) error {
 		bindings, readError := reader.Bindings(ctx, biz.BindingFilter{ClusterID: cluster.ClusterID}, "", 100)
 		if readError != nil {
@@ -152,6 +154,14 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 		if !oldReleased || !replacementActive {
 			t.Fatalf("restart did not preserve UID-scoped occupancy: old_released=%t replacement_active=%t", oldReleased, replacementActive)
 		}
+		claims, _, readError := reader.PodEvidence(ctx, oldPod)
+		if readError != nil {
+			return readError
+		}
+		if len(claims) == 0 || claims[0].OwnerRef == nil {
+			t.Fatal("old pod lost authenticated owner")
+		}
+		owner = *claims[0].OwnerRef
 		return nil
 	}); err != nil {
 		t.Fatal(err)
@@ -163,6 +173,38 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 	for _, attempt := range views[0].Attempts {
 		if attempt.ContainerID == oldAttempt.SandboxID && (attempt.State != 4 || attempt.ContainerName != "") {
 			t.Fatal("positive sandbox explanation rewrote historical unknown event")
+		}
+	}
+	previousRevision := telemetry.state.CurrentRevision
+	eventType := uint32(1)
+	newAttempt.EventType, newAttempt.ObservedAt = &eventType, time.Now().UTC()
+	writeReport(nil, []biz.RuntimeAttempt{newAttempt})
+	if telemetry.state.CurrentRevision <= previousRevision {
+		t.Fatal("replacement runtime change did not advance semantic revision")
+	}
+	scope := &biz.ReleaseRecheckScope{Owner: owner, Pods: []biz.PodRef{oldPod}}
+	batch, err = adapter.CollectRelease(ctx, cluster, []biz.SupplyGroup{group}, scope)
+	if err != nil || recovery.calls != recoveryCalls || len(batch.Releases) != 1 || batch.Releases[0].Pod != oldPod || batch.Releases[0].CheckedNodeRevision != telemetry.state.CurrentRevision {
+		t.Fatalf("scoped semantic-revision refresh repeated recovery or lost positive proof: calls=%d previous=%d error=%v releases=%+v", recovery.calls, recoveryCalls, err, batch.Releases)
+	}
+	if err = database.Transact(ctx, func(transaction biz.Transaction) error { return transaction.SaveObservation(ctx, batch) }); err != nil {
+		t.Fatal(err)
+	}
+	for _, currentState := range []uint32{2, 4} {
+		now := time.Now().UTC()
+		snapshot := initial
+		snapshot.CaptureStart, snapshot.CaptureEnd = now, now
+		snapshot.Sources = append([]biz.TelemetrySource(nil), initial.Sources...)
+		for index := range snapshot.Sources {
+			snapshot.Sources[index].ObservedAt = now
+		}
+		current := oldAttempt
+		current.State, current.ObservedAt = currentState, now
+		snapshot.Containers = []biz.RuntimeAttempt{newAttempt, current}
+		writeReport(&snapshot, nil)
+		batch, err = adapter.CollectRelease(ctx, cluster, []biz.SupplyGroup{group}, scope)
+		if err != nil || len(batch.Releases) != 0 {
+			t.Fatalf("durable historical proof replaced current state %d: error=%v releases=%+v", currentState, err, batch.Releases)
 		}
 	}
 }
