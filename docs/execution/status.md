@@ -1,16 +1,60 @@
 # Accelerator 执行状态
 
-## Node Agent / 初始化 B/C（2026-10-21，执行中）
+## Node Agent / 初始化 B/C（2026-10-22，已交付可用部分，整体未完成）
 
-- 固定入口：`ANI-node-agent-initialization-GOAL-v1.2-20261021.md`；主方案 SHA256 `f6668bcbc264d2df6e22f0033ccf38e46d24e678e40d07dcb2353dfa78d0bfa7`。基线 ACC `9d45df6`、Gov `323eb749`、Resource `6bff99f`，任务工作树根 `/home/chabking/.codex/worktrees/node-agent-initialization-bc`，分支 `codex/node-agent-initialization-bc`。原工作区未覆盖。
-- 用户追加范围：本批不修改前端代码，前端由专人接入五个 BFF；不再把页面交付作为本批实现项。D 退役/解绑/换组、P2 容量 revision 新门禁、自动安装平台、新训练/真实 Inference 验收继续延期。
-- 软件 PASS：真实 Agent 进程经 mTLS、TokenReview 与实际对象绑定的外部 K8s 边界进入生产 ACC/PG；ACK 丢失、重启、原记录重放、journal 正向补证与旧退出阻断均已运行。外部 NVML/socket/K8s 测试边界与真实 GPU 验收分开。
-- 软件 PASS：两节点正常连续上报经生产 Collect/SaveObservation 消费；真实 Running/UNKNOWN 拒绝旧 revision，合法清理在五秒预算内完成 ObserveRelease。初始化真实 PG 核心验证幂等、部分成功/重启/Retry、版本链 OPEN 和人工干预冲突。真实 Gov JWT/缓存/PG 策略/Casbin → 五 HTTP → mTLS → ACC/PG/worker 联合链通过；最小八项权限身份完成 Create/重放 → BLOCKED → Retry → SUCCEEDED，匿名 401、租户 403。K8s 发现/标签仍为明确外部边界。
-- Fedora 唯一证据/恢复根：`/home/chabking/codex-runs/node-agent-initialization-bc`。`postgres/environment.sh` 对应本任务独占容器 `acc-node-agent-bc-20261021`；另有明确隔离的 C1/B3 库，不修改共享应用角色。原失败日志保留，运行结果以各 evidence 的退出码为准。
-- 门禁 PASS：Fedora `integrated` 的 `make verify` 退出 0，覆盖正式生成/SQLC、测试、race、构建、恢复 17 张关系、漏洞及敏感信息扫描；日志 `evidence/integrated-verify.log`。保留原失败：固定工具路径缺失退出 127、早期 provider race 释放断言一次失败，以及 Go 1.26.9 标准库 GO-2026-6809；已用正确工具路径、真实 telemetry fixture 和 Go 1.26.10 完成集成门禁。最后窄差异另按受影响行为核验，不重复全量。
-- 实际环境只读核实：`kubernetes-admin@ani-lab`，API `172.16.101.10:6443`，节点 ani-01/02/03 为 `.10/.11/.12`。单张 T4 位于 ani-03；ani-02/03 当前不可调度且存在既有运行实例，不自动解禁、清理或切插件模式。两批 GPU 节点/缺少模式的硬件验收目前 NOT_RUN。
-- 运行切换尚未执行：活动中心在 `ani-accelerator`，`ani-system` 同名部署为零副本；必须按保留历史、单一权威和恢复快照受控切换。预检中发生一次 ACC DSN 误输出，凭据按已暴露处理；切换前核验专用角色并实施窄轮换，不复述原值、不修改共享 `ani_app`。
-- 独立 Agent 工程已建立；用户建立 `git@github.com:zhangzhe-ctrl/ani-node-agent.git` 后 SSH 重试成功，原远端缺失已解除。当前准备提交/SSH 推送固定 API；Agent/Gov 候选联合验证已通过，正式固定模块无 replace 复验尚待发布。
+### 主链与当前边界
+
+- **真实共享主链 PASS**：Agent 事实 → 已有 ACTIVE Profile/OPEN Group → 显式启用规格 → 租户选择 → 单 T4 CUDA（3840MiB/25%，含超显存拒绝）→ Stop/Start → 原 DELETE → 正向物理释放 → 容量恢复 → Gov 原 CREATE 账本仅退一次。不是只验证 Pod Ready/HTTP 200，也未绕过认证、持久化、冻结执行或原退款 worker。
+- 原实例 `d816b7f8-e090-4fc5-ab94-4968dc945cee`；CREATE `d0458241-e29a-4e4c-ae6f-a36dd19767c5`；DELETE `f4e76478-231d-4271-a8ef-2fee71693865`。原 charge `a7cd3905-bdeb-4719-a5cd-c7f15b07aba9` 的 3840 已全额释放，release_event receipt_count=1，Resource v4 desired/observed=deleted、清理及退额均完成。相同 DELETE key 重放 PASS。证据：Fedora 根下 `c4-preflight/delete-quarter-a.after-coverage.log`（退出 0）、`live-driver-evidence/quarter-a/state.json`；不要把日志里的原 CREATE operation_id 当 DELETE ID。
+- Stop `c2b1e166-fd08-4139-a48f-d1a319d6fbfa`、Start `99f242c6-c2de-42b5-9457-47800dfdf019` 保持原冻结执行摘要 `8d2a75e5cc3268d55f7dff67df1b42487d0e3c04e3162d277dad1b10571b2366`、原 charge 与占用；沿用原流程补观测，没有另建实例或重复 Stop/Start。证据 `stop-start-resume-running.after-forward.log`（退出 0）。
+- 真实初始化只执行 **pool-only** operation `c2b31eec-c9e3-4980-bf2d-6add03d2f3be`，SUCCEEDED/v6；新 pool `59574e75-93a8-4a3b-a0d0-fbb66c0bbd9c` 保留。不能据此宣称真实两批节点接管、新组自动 OPEN 或全初始化均已硬件验收。
+- **当前五个 Gov BFF 不可用（404）**：其正式源码/联合链/历史线上五接口验收已通过；外部随后发布 main `323eb74`。用户明确要求保留外部发布，本任务未回滚。C3 前端代码由专人负责，本任务不修改、不冒充浏览器验收。
+- **NOT_RUN / 整体阻塞**：当前只有 ani-03 一张 T4，缺第二物理 GPU 节点/第二独立批次；本批当前整卡模式真实验收未运行。未用假节点、多份虚拟容量或旧批次整卡结果计本批 PASS，未自动切插件模式。所缺硬件/人工安装基线与后续集成发布就绪前，不能称整个 Goal 完成。
+
+### 固定来源与交付
+
+- 固定入口 `ANI-node-agent-initialization-GOAL-v1.2-20261021.md`；主方案 SHA256 `f6668bcbc264d2df6e22f0033ccf38e46d24e678e40d07dcb2353dfa78d0bfa7`。基线 ACC `9d45df6e88bea0d4ed4a0fd1619a0dc96960a762`、Gov `323eb749b8a3d607b26687797b372919052895c7`、Resource `6bff99f1747a495fe4b278844c20ee72b1ce2ffc`。任务树根 `/home/chabking/.codex/worktrees/node-agent-initialization-bc`，未覆盖用户原工作区。
+- ACC 代码 `e9dfd62ffef20c09059fe4b0fbf7018d5d462f79`，分支 `codex/node-agent-initialization-bc`，SSH push 退出 0，[PR #3](https://github.com/zhangzhe-ctrl/ani-accelerator-service/pull/3)。本索引随后为单独文档提交，不改变受测运行源。
+- Gov `cbfce6e6b8288c080fd285d434e38a4fb8aeb1a4`，同名分支、SSH 推送，[PR #33](https://github.com/zhangzhe-ctrl/ani-governance/pull/33)。独立 Agent 实现 `8f49e36fcf8de2b1546ac8f718ad2728daaf5dd7`，同名分支已 SSH 推送；经用户允许的空 main `d3c93b332d712d35e51cdbd39cd1c0cc493e9909` 建立 [PR #1](https://github.com/zhangzhe-ctrl/ani-node-agent/pull/1)，审查分支 `codex/node-agent-initialization-review` HEAD `c0cb3bb4e8bb37122fa0617f3523109a1a6e6329`，tree 与实现完全相同。三个 PR 均 open、未合并；无实现直推 main、force push 或 bypass。
+- Git SSH 远端均为 `git@github.com:zhangzhe-ctrl/<service>.git`，本任务复用已验证 SSH 443/HostKey，不更改全局安全配置。Agent/Gov 正式消费 ACC `v0.0.0-20261021055754-9969638c907a`，Origin.Hash `9969638c907a806e895751ac71740d52f8592954`，GOWORK=off、无 replace；Go 1.26.10。
+- P1 保留原 Collect/SaveObservation 事务、worker 与五秒释放预算。最终修复仅让完整、同 Pod/全已知尝试、严格三阶段正向 journal 的不可变采样时间覆盖已闭合历史 gap；普通相同 EXITED 只保留旧覆盖，不伪造刷新。覆盖参与 semantic revision；Running/UNKNOWN、身份/退出变化、开放或更新 gap 仍使旧证明失效。历史 UNKNOWN/gap 不删除，不提高 freshness/超时，不增加公共 Proto 或表。
+
+### T01–T12 与软件门禁
+
+| 验收索引 | 实际结果及边界 |
+|---|---|
+| T01 身份/轮换/fencing | 软件 PASS：真实 Agent 进程、mTLS、TokenReview 与实际对象绑定的 K8s 外部边界；真实单节点认证入库 PASS，多物理 GPU 节点 NOT_RUN。 |
+| T02 durable/replay/ACK | 软件 PASS；真实同 LogID 持久 ACK、重启续传 PASS，未清日志造成功。 |
+| T03 三源/尝试/UID/env | 软件 PASS；实际 NVML/PodResources/CRI 已新鲜，保留未知尝试，sandbox DELETED 不伪造 container attempt。 |
+| T04 断连/旧快照/Running | 软件 PASS：断连不假造采集 gap，旧快照不刷新事实，新 Running/UNKNOWN 胜过旧退出。 |
+| T05 原子/CAS/持续上报 | 修订后的双节点持续正常快照、真实变更拒绝旧 revision、合法清理五秒内完成软件 PASS；原真实 DELETE 最终由既有 worker 自动完成。 |
+| T06 用途完整性 | 软件 PASS：NVML/配置故障不额外否决已有充分物理释放证明；真实正向 journal 与物理释放 PASS。 |
+| T07 初始化持久/恢复 | 真实 PG + K8s 外部边界的软件 PASS：幂等、部分成功/重启/Retry、非法引用图；实际 pool-only SUCCEEDED。 |
+| T08 版本/人工意图/OPEN | 软件 PASS：新组版本链/ACTIVE Profile 自动 OPEN，已有 CLOSED 和外部干预不越过；实际新两批组 OPEN NOT_RUN。 |
+| T09 发现/UID/三标签 | 软件 PASS：稳定 discovery_revision 与 UID/resourceVersion 条件三键 patch；K8s 发现/标签为明确外部边界，不冒充真实新节点接管。 |
+| T10 五方法/DTO/权限 | 正式 handler/JWT/缓存/PG策略/Casbin→mTLS→ACC/PG/worker 联合 PASS（八项最小权限，匿名401/租户403），历史实际五 BFF PASS；当前五端点404，按用户选择保留外部发布。 |
+| T11 容器/原账/回收 | 本批真实共享主链 PASS；整卡与两物理 GPU 节点/独立两批硬件 NOT_RUN。 |
+| T12 Gov共享受理/Inference | Compute/Instance/Inference 接线及 CPU 无 GPU charges 相关软件回归 PASS；未新增真实 Inference/训练任务。 |
+
+- 所有生成、格式、构建、测试、DB、镜像及集群工作均经 `ssh fedora`；本地仅编辑/Git/传输。唯一证据根 `fedora:/home/chabking/codex-runs/node-agent-initialization-bc`，下述最终日志相对 `c4-preflight/`。最终七文件 SHA256 本地与 Fedora `final-verify` 一致。
+- 最终 `make verify` 实际 **退出2**，日志 `final-closed-gap-coverage.make-verify.log`/`.log.rc`：生成、SQLC、测试、vet、build、mod verify、design、race、租户 mutation 均通过；恢复 gate 的 `TestAll22RPCsMTLSAndRecovery` 在 `SetAdmission` 返回503/DEPENDENCY_UNAVAILABLE，原因未确认，不改写成整体 PASS。
+- 未改源后仅重跑失败 gate：`make test-recovery` **退出0**，`final-closed-gap-coverage.recovery-recheck.log`/`.log.rc`，17张关系恢复/回滚与完整 RPC contract PASS。随后 `make vuln secrets` 首次因官方漏洞源 EOF 失败，原日志保留；同组件复验 **退出0**，`final-closed-gap-coverage.remaining-gates-recheck.log`/`.log.rc`，0可达漏洞、git/dir敏感信息扫描无泄漏。所需组件均通过，不声称最后整条 make verify 重跑为0。
+- 最终7项 helper/环境 SKIP 不计 PASS：`TestPostgresInitializationJointHelper`、`TestJointFormalProviderSource`、`TestInstanceQuantityBoundaryRuntime`、`TestJointObservationFixture`、`TestJointCatalogSeed`、`TestJointPersistentRuntime`、`TestContractServerProcess`。正式联合/真实进程门禁另有独立已执行证据。
+- 聚焦红绿保留：`closed-gap-coverage-red.log` 退出1 → `closed-gap-coverage-green.log` 退出0；旧 Pod journal/持久复用修复及其原失败一并保留。此前 `ed88893`、`fdec2b3`、`3e5ae43` 对应完整 verify 退出0，不代替最终差异检查。早期工具127/race fixture/Go1.26.9漏洞、Gov candidate.sum误报、镜像执行位700、PF/503等失败记录未删除；未用放宽断言/忽略规则制造通过。
+- Gov/Agent 正式依赖与既有专属联合验证均退出0；Gov audit 原整体退出1后仅敏感扫描组件退出0，未冒充整脚本重跑 PASS。具体正式模块/最小权限联合证据在 `initialization-joint/evidence/*formal-minimal-role.*`、`evidence/gov/` 与 Agent `agent-event-classification*.green.log`。
+
+### 运行态、清理和恢复
+
+- 目标 `kubernetes-admin@ani-lab`，API `172.16.101.10:6443`；ani-01/02/03 分别 .10/.11/.12，Node UID 分别 `201e41ac-c50d-4c77-b118-72d1ed93e111`、`73564fa7-98ad-45d4-9576-be59f6d5d245`、`af992ed9-cbe1-4f64-8fac-7433808bfab2`。用户恢复后全节点 Ready/可调度，**不恢复旧 cordon**。只有 ani-03 T4 `GPU-a86cb9fe-53ca-e474-5375-b662a54e8878`/15360MiB；Volcano虚拟计数不当作物理卡。
+- ACC 现唯一中心位于 ani-system，non-root10001，无 hostPath/GPU env/runtimeClass/hostname 固定；旧 ani-accelerator 中心 replicas0/无Pod，旧 Service ExternalName 指向新中心并保留原长DNS SNI。显式0005/0006迁移到schema6，保留旧目录/Claim/Binding/冻结执行；无启动自动迁移。
+- ACC 当前镜像 `172.16.101.10:5000/ani/accelerator@sha256:52e9a52c56843f1444c9eb759de7b3aa7d0d53cbe38c48762826a5fd8d8044f8`，二进制SHA256 `b89606cda946946c9863f856eded221c18634456d5ddc06b36f7ef6730ea2bf7`；实际构建 version `3e5ae43-closed-gap-coverage`，内容等价代码提交 e9dfd62，非冒称新ldflags。`acc-closed-gap-coverage-source-equivalence.receipt.json` 确认 Fedora HEAD/index/工作区全树相等且clean，build/rollout回执已补正式commit。Agent 8f49e36f 镜像 `sha256:ad9f90c811d70ae7d9a9490b4bd3eaf2b30a7317904f87d457ac0f4e354bea4e` 保留原稳定 LogID/journal。最终新事实 current=consumed=2083，来源新鲜、队列清空。外部 registry 不可写/目标digest404；镜像经精确缓存导入三个节点，不宣称远端可拉。
+- 外部 Gov 当前 `20261021-gov-main-323eb74@sha256:0d39969893fb8402f704a2ec98f978007066b06da060dbb7880953496cf07ff6` 保留。共享组 `69e6d9cf-7855-4311-b3a4-3dbcdba0e3ed` OPEN/v12，整卡组 `38348ed3-dce9-4b2f-85a3-3ba2ae64793e` CLOSED/v4，未自动开放人工暂停组。
+- 最终只读回执 `final-runtime-readonly-20261021T172555Z/result.json`：容量完整、committed3840、剩余3份3840/25%；只保留原用户GPU实例 `59423463-191d-435e-92f7-8a27a035c22b` 原Pod/STS；原CPU predictor Pod/Deployment Ready且UID保持。旧通用 service_uid 与当前 InferenceService UID 不同，不能据此声称CPU Service/IS完整UID未变，也不能无证认定本任务改了它。
+- 原历史导入587条：201插入/386沿用；重放0插入/587已有、revision53→53。原文件SHA256 `09da57fa2ad261402f8883ff872dcda9f305cb5c5a2b1f110eae797734cb7a72`，原宿主文件、epoch/log/receipt及历史未知事实保留，临时只读挂载已移除。
+- 清理 PASS：合法管理员 **root/ID2** 经正常会话/CSRF将自身roles恢复[1]，任务role16删除，原role1/他人角色与产品API336–340、权限507–510保持；回执 `gov-task-role-cleanup-20261021T172741302498Z/report.json`。初次超时/旧会话失败零写入，原记录保留，无自造JWT或DB授权改写。
+- 精确清理 PASS/退出0：47个临时token/cookie/CSRF/DSN/key/client/Secret副本、PF105981、独占测试PG `acc-node-agent-bc-20261021` 和唯一匿名卷；逐项身份/hash/inode guard，无扩范围。回执 `task-temporaries-cleanup-20261021T173745950805Z.report.json`。测试PG已删除，重现需用当前 migrations 与官方 test-pg-grants 重建，旧DSN不可复用。生产PG/Secret/业务Pod、Agent持久日志、外部凭据源、公钥、kubeconfig和备份未删。
+- 恢复入口为受限 `c4-preflight/`（目录0700/私有文件0600）的变更前对象、迁移/单写切换/客户端patch及 `ani_accelerator.closed.before.dump`。先关闭相关新准入、确保唯一writer，再按schema6兼容关系恢复；**不得把旧dump覆盖现有账本/绑定，也不得以不兼容旧binary启动，不自动重开人工CLOSED**。早期专用 acc_runtime DSN误输出已窄轮换，真实PodIP SCRAM确认新可用/旧拒绝；未改共享ani_app、HBA/CA或全局认证，临时凭据副本现已清理。
+- 固定延期：D退役/解绑/换组、P2容量revision新门禁、自动安装维修/通用插件/远程执行平台、新训练/真实Inference验收、新配额模型。本批未夹带实现；现有主链/权限/租户隔离保护继续保留。
 
 ## 既往批次记录
 
