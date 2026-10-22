@@ -866,9 +866,9 @@ type ProviderBaseline struct {
 	DevicePluginImageDigest string `protobuf:"bytes,6,opt,name=device_plugin_image_digest,proto3" json:"device_plugin_image_digest,omitempty"`
 	// 镜像可追溯的HAMi-core版本/提交。
 	HamiCoreRevision string `protobuf:"bytes,7,opt,name=hami_core_revision,proto3" json:"hami_core_revision,omitempty"`
-	// 实际 gpu-memory-factor，唯一支持值为1。
+	// 实际 gpu-memory-factor，支持1或10；随不可变安装基线固定。
 	MemoryBlockMib uint32 `protobuf:"varint,8,opt,name=memory_block_mib,proto3" json:"memory_block_mib,omitempty"`
-	// 首期固定VOLCANO_BLOCKS_TO_MIB；只有验证过才开放。
+	// 平台归一单位固定MIB；provider块按memory_block_mib换算。
 	MemoryEncoding string `protobuf:"bytes,10,opt,name=memory_encoding,proto3" json:"memory_encoding,omitempty"`
 	// 整卡1，共享>=2；实际devicesplitcount；同组节点一致。
 	SplitCount uint32 `protobuf:"varint,11,opt,name=split_count,proto3" json:"split_count,omitempty"`

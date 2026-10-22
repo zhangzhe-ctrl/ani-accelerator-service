@@ -194,6 +194,10 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		nodeUID, podUID = biz.NewID(), biz.NewID()
 	}
 	groupID := biz.NewID()
+	workloadMiB, workloadBlocks, registeredBlocks, liveFactor := int64(6144), "6144", "24576", "1"
+	if configurationFault == "factor10" {
+		workloadMiB, workloadBlocks, registeredBlocks, liveFactor = 3840, "384", "2457", "10"
+	}
 	cmData := map[string]string{"config.yaml": "constructed-source-fixture: true", schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
 	cm := map[string]any{"data": cmData, "binaryData": nil}
 	configDigest, _ := biz.Hash(cm)
@@ -203,12 +207,15 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	}
 	b := &biz.ProviderBaseline{BaselineID: biz.NewID(), AdapterID: "volcano-hami-mib-v1", VolcanoVersion: "v1.12.0", VolcanoImageDigest: "sha256:" + strings.Repeat("a", 64), DevicePluginVersion: "v1.12.0", DevicePluginImageDigest: "sha256:" + strings.Repeat("b", 64), HamiCoreRevision: "controlled-replay", MemoryBlockMiB: 1, MemoryEncoding: "MIB", SplitCount: 4, MemoryScalePercent: 100, CoreScalePercent: 100, CoreBudgetAdditive: true, NodeConfigDigest: configDigest, SchedulerConfigDigest: schedulerDigest, RecipeVersion: "volcano-hami-mib-v1", RuntimeClassName: "nvidia"}
 	b.VolcanoVersion = schedulerVersion
+	if configurationFault == "factor10" {
+		b.MemoryBlockMiB = 10
+	}
 	b.BaselineDigest, _ = biz.BaselineDigest(b)
 	g := biz.SupplyGroup{GroupID: groupID, PoolID: pool.PoolID, ClusterID: cluster.ClusterID, DisplayName: "replay", Mode: biz.Shared, Nodes: []biz.NodeRef{{UID: nodeUID, Name: "replay-node"}}, ModelKey: "nvidia-test", Baseline: b, Admission: biz.Closed, QueueName: "gpu", Version: 1, AdoptedAt: time.Now().UTC().Format(time.RFC3339Nano)}
 	if configurationFault == "revision_continuity" {
 		g.Nodes = append(g.Nodes, biz.NodeRef{UID: nodeUID2, Name: "replay-node-2"})
 	}
-	spec := &biz.ProfileSpec{GroupID: groupID, Mode: biz.Shared, ModelKey: g.ModelKey, MemoryMiBPerDevice: 6144, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}
+	spec := &biz.ProfileSpec{GroupID: groupID, Mode: biz.Shared, ModelKey: g.ModelKey, MemoryMiBPerDevice: workloadMiB, CoreLimitPercent: 25, MaxDevicesPerReplica: 1, IsolationClass: "SOFTWARE_COOPERATIVE"}
 	sd, _ := biz.SpecDigest(spec, b.BaselineID)
 	profile := biz.Profile{ProfileID: biz.NewID(), ProfileVersion: 1, DisplayName: "replay", Spec: spec, BaselineID: b.BaselineID, SpecDigest: sd, State: biz.ProfileActive, Revision: 1}
 	ownerPub, ownerKey, err := ed25519.GenerateKey(rand.Reader)
@@ -224,7 +231,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	replacementPodRef.UID = replacementPodUID
 	replacementAssertion, _ := biz.Canonical(OwnerAssertion{replacementPodRef, *ref, executionDigest})
 	replacementSignature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v2\n"), replacementAssertion...)))
-	state := &replayState{memory: 6144}
+	state := &replayState{memory: workloadMiB}
 	if configurationFault == "restart_release" {
 		state.runtimeID = strings.Repeat("c", 64)
 	}
@@ -246,7 +253,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		if fault == "pending_owner" {
 			currentSignature = ""
 		}
-		assignmentValue := gpuUUID + ",NVIDIA,6144,25:"
+		assignmentValue := gpuUUID + ",NVIDIA," + workloadBlocks + ",25:"
 		if fault == "scheduler_memory" {
 			assignmentValue = gpuUUID + ",NVIDIA,7168,25:"
 		}
@@ -260,7 +267,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		var response any
 		switch {
 		case r.URL.Path == "/api/v1/nodes":
-			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4,24576,NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4,24576,NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
+			response = map[string]any{"items": []any{map[string]any{"metadata": map[string]any{"uid": nodeUID, "name": "replay-node", "resourceVersion": "1", "labels": map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: b.BaselineID}, "annotations": map[string]string{NodeRegister: gpuUUID + ",4," + registeredBlocks + ",NVIDIA-Test,true,hami-core:" + gpuUUID2 + ",4," + registeredBlocks + ",NVIDIA-Test,true,hami-core:", NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}}}}
 			if fault == "registration" {
 				response.(map[string]any)["items"].([]any)[0].(map[string]any)["metadata"].(map[string]any)["annotations"].(map[string]string)[NodeRegister] = "invalid-registration"
 			}
@@ -291,7 +298,14 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 			items := []any{}
 			items = append(items, map[string]any{"metadata": map[string]any{"uid": "pending-1", "name": "pending", "namespace": "replay"}, "spec": map[string]any{"nodeSelector": map[string]string{biz.GroupLabel: g.GroupID}, "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1"}}}}}, "status": map[string]string{"phase": "Pending"}})
 			if !deleted {
-				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": map[string]string{AssignedIDs: assignmentValue, AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/execution-digest": executionDigest, "accelerator.ani.io/owner-signature": currentSignature}}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "6144"}}}}}})
+				annotations := map[string]string{AssignedIDs: assignmentValue, AssignedTime: strconv.FormatInt(assignmentTime.Unix(), 10), "accelerator.ani.io/execution-digest": executionDigest, "accelerator.ani.io/owner-signature": currentSignature}
+				if configurationFault == "factor10" && fault != "missing_factor_annotation" {
+					annotations["accelerator.ani.io/memory-block-mib"] = liveFactor
+				}
+				if fault == "factor_annotation_drift" {
+					annotations["accelerator.ani.io/memory-block-mib"] = "1"
+				}
+				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": annotations}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": workloadBlocks}}}}}})
 			}
 			response = map[string]any{"items": items}
 			if fault == "replacement_pod" {
@@ -324,7 +338,7 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 			if r.URL.Query().Get("labelSelector") == "app=plugin" {
 				image = b.DevicePluginImageDigest
 				containerName = "plugin"
-				args = []string{"--gpu-memory-factor=1", "--device-split-count=4"}
+				args = []string{"--gpu-memory-factor=" + liveFactor, "--device-split-count=4"}
 				if fault == "factor" {
 					args = []string{"--gpu-memory-factor=256", "--device-split-count=4"}
 				}
@@ -416,6 +430,10 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		}
 	}
 	collect()
+	if configurationFault == "factor10" {
+		providerFactor10Contract(t, db, adapter, cluster, g, profile, podRef, state, telemetry)
+		return
+	}
 	if configurationFault == "restart_release" {
 		providerRestartReleaseContract(t, db, adapter, cluster, g, podRef, replacementPodUID, state, telemetry)
 		return

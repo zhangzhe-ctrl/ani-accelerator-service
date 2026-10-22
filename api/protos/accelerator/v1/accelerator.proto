@@ -142,12 +142,12 @@ message ProviderBaseline {
   string device_plugin_image_digest = 6 [json_name = "device_plugin_image_digest"];
   // 镜像可追溯的HAMi-core版本/提交。
   string hami_core_revision = 7 [json_name = "hami_core_revision"];
-  // 实际 gpu-memory-factor，唯一支持值为1。
+  // 实际 gpu-memory-factor，支持1或10；随不可变安装基线固定。
   uint32 memory_block_mib = 8 [json_name = "memory_block_mib"];
   // 实际进程参数/加载配置及运行换算核对依据。
   reserved 9;
   reserved "factor_evidence_ref";
-  // 首期固定VOLCANO_BLOCKS_TO_MIB；只有验证过才开放。
+  // 平台归一单位固定MIB；provider块按memory_block_mib换算。
   string memory_encoding = 10 [json_name = "memory_encoding"];
   // 整卡1，共享>=2；实际devicesplitcount；同组节点一致。
   uint32 split_count = 11 [json_name = "split_count"];

@@ -54,7 +54,7 @@ func New(config Config, ownerKey ed25519.PublicKey, repo biz.Repository, freshne
 	return p, nil
 }
 func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup) (biz.GroupInspection, error) {
-	if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 {
+	if g.Baseline == nil || !biz.SupportedMemoryFactor(g.Baseline.MemoryBlockMiB) {
 		return biz.GroupInspection{}, biz.Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	k := p.connections[c.ConnectionRef]
@@ -446,7 +446,7 @@ func (p *Provider) collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 // collectionUnitsMatch checks actual running binaries and plugin F/K. Configuration
 // identity never grants permission to decode a different memory unit.
 func collectionUnitsMatch(g biz.SupplyGroup, source NodeSource, registered []RegisteredDevice, plugins, schedulers []pod, config Connection) bool {
-	if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 || len(registered) == 0 {
+	if g.Baseline == nil || !biz.SupportedMemoryFactor(g.Baseline.MemoryBlockMiB) || len(registered) == 0 {
 		return false
 	}
 	for _, device := range registered {
@@ -595,10 +595,20 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 				return nil, biz.Invalid("PROVIDER_DEVICE_IDENTITY")
 			}
 			ref, execution := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
-			if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 {
+			if g.Baseline == nil || !biz.SupportedMemoryFactor(g.Baseline.MemoryBlockMiB) {
 				return nil, biz.Precondition("MEMORY_UNIT_MISMATCH")
 			}
-			m := a.MemoryBlocks
+			if encodedFactor, present := pod.Metadata.Annotations["accelerator.ani.io/memory-block-mib"]; present {
+				if encodedFactor != strconv.FormatUint(uint64(g.Baseline.MemoryBlockMiB), 10) {
+					return nil, biz.Precondition("MEMORY_UNIT_MISMATCH")
+				}
+			} else if ref != nil && g.Baseline.MemoryBlockMiB != 1 {
+				return nil, biz.Precondition("MEMORY_UNIT_MISMATCH")
+			}
+			m, err := biz.NormalizeMemory(a.MemoryBlocks, "BLOCKS", g.Baseline.MemoryBlockMiB)
+			if err != nil {
+				return nil, err
+			}
 			c := biz.Claim{Pod: podRef, DeviceID: PhysicalID(cluster, node.UID, a.UUID), NodeUID: node.UID, Source: "scheduler", ObservedAt: assigned, ReceivedAt: now, State: biz.Active, MemoryMiB: m, CoreLimitPercent: a.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, OwnerRef: ref, ExecutionDigest: execution}
 			// Owner signing follows Pod UID creation and may arrive after the
 			// scheduler fact was saved. Preserve that fact's original ownership;
@@ -606,6 +616,14 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 			for _, prior := range previous {
 				if prior.Source == "scheduler" && prior.Pod == podRef && prior.DeviceID == c.DeviceID && prior.NodeUID == c.NodeUID && prior.ObservedAt.Equal(assigned) {
 					c.OwnerRef, c.ExecutionDigest = prior.OwnerRef, prior.ExecutionDigest
+					blocks, err := biz.EncodeMemory(prior.MemoryMiB, prior.MemoryBlockMiB)
+					if err != nil {
+						return nil, err
+					}
+					if blocks == a.MemoryBlocks {
+						c.MemoryMiB, c.MemoryBlockMiB, c.BaselineDigest = prior.MemoryMiB, prior.MemoryBlockMiB, prior.BaselineDigest
+						m = prior.MemoryMiB
+					}
 					break
 				}
 			}
@@ -933,7 +951,7 @@ func (p *Provider) String() string {
 // The registration and NVML inventory are independent limits on each physical
 // card. F is observed from the running plugin before this calculation is used.
 func deviceMemoryBudget(blocks int64, observedF uint32, physicalBytes uint64) (int64, error) {
-	if observedF != 1 || blocks <= 0 || physicalBytes == 0 {
+	if !biz.SupportedMemoryFactor(observedF) || blocks <= 0 || physicalBytes == 0 {
 		return 0, biz.Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	registered, err := biz.Multiply(blocks, int64(observedF))
