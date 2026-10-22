@@ -79,9 +79,12 @@ func (p *Postgres) OpenNodeSession(ctx context.Context, identity biz.NodeIdentit
 		if state.Identity.LogID != identity.LogID {
 			return biz.Conflict("LOCAL_LOG_ID_MISMATCH")
 		}
-		if state.CurrentRevision == 0 || state.Revoked || !time.Now().Before(state.LeaseExpiresAt) || state.Identity.PodUID != identity.PodUID {
+		if state.CurrentRevision == 0 || state.Revoked || !time.Now().Before(state.LeaseExpiresAt) || state.Identity.PodUID != identity.PodUID || state.Snapshot != nil {
 			state.CurrentRevision++
 		}
+		// A capture belongs to one stream epoch. Keep durable receipts and
+		// runtime history, but require new source evidence in the new session.
+		state.Snapshot = nil
 		state.Identity, state.LeaseExpiresAt, state.Revoked = identity, lease, false
 		state.Epoch++
 		return nil

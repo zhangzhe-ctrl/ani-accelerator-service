@@ -623,6 +623,10 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		t.Fatal(v)
 	}
 	owner := biz.WithCaller(ctx, biz.Caller{Service: "ani-inference", Action: "ObserveRelease", TenantID: ref.TenantID})
+	if configurationFault == "session_cache" {
+		providerSessionCacheContract(t, db, adapter, cluster, g, u, owner, ref, podRef, state, telemetry, capacity)
+		return
+	}
 	if configurationFault != "" {
 		configurationObservation(t, configurationFault, adapter, telemetry, state, cluster, g, db, u, owner, ref, podRef, capacity)
 		return
