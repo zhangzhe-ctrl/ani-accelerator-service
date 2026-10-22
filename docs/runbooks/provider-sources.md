@@ -25,9 +25,9 @@
 
 `node_test.go` 通过 Unix gRPC 驱动生产 `readNode`，覆盖 containerd 2.1.5/2.3.4、runtime/API 不匹配、Version/List/Status 失败、状态 ID 不匹配，以及 GPU 身份和 env 缺失拒绝。这是协议边界回归，不能替代相应实际部署版本的 GPU 消费验收。
 
-本实现不提供通用节点 Agent 或跨主机明文 gRPC。NVML 只用于 Connection 的 `local_node_uid`，必须是当前进程真实所在 GPU 节点；每个 NodeSource 的 Unix socket 必须由部署者绑定到该确切 Node UID 的真实来源。非本地 NVML 节点会保留已知库存/绑定并报告不完整，不能假定拥有全群硬件遥测。完整多节点部署拓扑、签名者治理及真实驱动/HAMi lib 组合仍需 GPU-LIVE 的部署验证。
+本机 NVML、PodResources、CRI/events 与有限 journal 由独立 `ani-node-agent` DaemonSet 采集。中心的 Inspect/Collect 只读取认证后持久保存的逐节点事实；K8s、owner、预算、Claim/Binding 与释放判断仍由中心执行。节点服务使用 TLS 1.3、精确服务 SAN 和 Pod 绑定 SA token，唯一节点 RPC 是 `accelerator.node.v1.NodeTelemetryService/Connect`。未接管节点可被发现，但不产生可售容量。
 
-已验收组的准入还核对本节点 NVML UUID、型号和物理 bytes 与签署资格一致；当前来源不能认证远端物理 bytes，因此不为远端节点宣称该资格核对通过。受管 scheduler/plugin 的实际镜像、ConfigMap 摘要、F/K 与节点注册继续实时核对。宿主驱动版本及 HAMi 库文件原地更新目前没有自动指纹监控，必须由受管变更流程触发 baseline 更新和重新验收；不能把声明的 `hami_core_revision` 当成实时采集结果。
+新准入核对每个认证节点的 NVML UUID、型号和物理 bytes，并继续核对受管 scheduler/plugin 的实际镜像、ConfigMap 摘要、F/K 与节点注册。宿主驱动版本及 HAMi 库文件原地更新没有自动指纹监控，必须由受管变更流程触发 baseline 更新和重新验收；不能把声明的 `hami_core_revision` 当成实时采集结果。
 
 ## 受管连接配置
 
@@ -37,13 +37,6 @@
 
 ```json
 {
-  "runtime_events_directory": "/var/lib/accelerator/runtime-exits/node-a",
-  "runtime_journal": {
-    "directory": "/host/journal/ACTUAL-MACHINE-ID",
-    "machine_id": "ACTUAL-MACHINE-ID",
-    "node_uid": "ACTUAL-NODE-UID",
-    "journalctl_path": "/usr/bin/journalctl"
-  },
   "connections": [{
     "ref": "managed:cluster-a",
     "api_server": "https://api.cluster.example:6443",
@@ -60,20 +53,22 @@
     "scheduler_selector": "app=volcano-scheduler",
     "scheduler_container": "volcano-scheduler",
     "scheduler_config_map": "volcano-scheduler-configmap",
-    "local_node_uid": "ACTUAL-NODE-UID",
-    "nodes": [{
-      "uid": "ACTUAL-NODE-UID",
-      "name": "actual-node-name",
-      "podresources_socket": "/var/lib/kubelet/pod-resources/kubelet.sock",
-      "cri_socket": "/run/containerd/containerd.sock"
-    }]
+    "node_agent_identity": {
+      "namespace": "ani-node-system",
+      "service_account": "ani-node-agent",
+      "daemon_set": "ani-node-agent",
+      "audience": "ani-node-agent"
+    },
+    "installation_baselines": []
   }]
 }
 ```
 
-名称、selector 和路径必须按实际安装核对，不能把示例视为已探测值。RBAC 只需 get/list core Nodes/Pods、get 指定 ConfigMaps、get scheduling.volcano.sh Queues，以及 get kube-node-lease namespace 中受管节点同名的 coordination.k8s.io Leases；不需要 create/update/patch/delete。Unix socket 的访问有节点级读取权限，应由宿主部署权限控制，不能通过公共 RPC 提交 socket/URL/文件路径。HTTPS 禁止重定向、未验证证书和连接 ref 中的凭据地址。
+名称、selector 和路径必须按实际安装核对，不能把示例视为已探测值。中心保留原读取权限，并增加固定用途的 TokenReview、Agent Pod/SA/DaemonSet 读取和 Node patch；中心代码只允许写供给组/型号/基线三键，patch 包含 UID/resourceVersion test。Agent 不持有业务数据库或 owner 私钥。HTTPS 禁止重定向和未验证证书；token_file 每次请求重新读取。
 
-Adopt 检查既有安装并生成组 UUID，默认 CLOSED。部署者另行把返回 group/model/baseline 标签正确放入节点；本服务不 patch 节点。Publish 和 OPEN 再校验标签与有效消费证明。节点同名重建不能继承旧 Node UID 资格。
+`installation_baselines` 每项为 `mode` 与现有 `ProviderBaseline` 的 `baseline`；运维登记真实安装声明，摘要复用 BaselineDigest。空配置显示未知，不猜预算或版本。中心启动明确拒绝旧 `local_node_uid`、`nodes`、`runtime_events_directory` 和 `runtime_journal` 采集配置；socket、journal 与持久状态目录移至 Agent 部署参数。
+
+旧 Adopt RPC 仍同步验证并登记 CLOSED 组。新的初始化 operation 编排三键标签、ACTIVE Profile 和自身版本链 OPEN；已有 CLOSED 组与无 Profile 的新组不会自动开放。节点同名重建不能继承旧 UID。
 
 证明文件名为 SHA256(verification_ref UTF-8).json，只能从配置证明目录读取。内容结构见 `internal/data/provider/attestation.go`。v2 使用 `schema_version=2`、`kind=gpu-hardware-qualification-v2`，签名载荷为 `acc-hardware-qualification-v2` + LF + acc-c14n-v1 规范 JSON payload；保留真实 `verified_at`，不包含 `expires_at`，不因经过 24 小时或更长时间自动失效。节点/物理设备身份、显存或受管 GPU 镜像与配置不再匹配时，拒绝新解析并要求按变化后的 baseline 重新验收。
 
@@ -91,13 +86,13 @@ v1 仍使用 `acc-hardware-attestation-v1` 签名域及其原有效期，不会�
 
 调度分配按原始 assigned 时间记录历史事实。owner 签名晚于首次采集到达时，同 Pod/container/device/node/assigned 时间的已有 scheduler 记录保留原归属及版本；不把后来到达的归属回填为同一历史版本的新报文。当前 runtime/allocation 事实继续独立严格验签并关联 usage；两个有效归属相异仍产生 ownership conflict，同时间的真实分配字段变化仍拒绝为 source revision conflict。
 
-解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。release 查询不写数据库、不删除 workload、不结束 usage、不发配额释放。
+解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。ObserveRelease 必要时在三秒内部预算内刷新一次完整归并，并在与 ingest 相同的节点锁内验证 current/consumed/证明 revision；冲突或证据不足返回 UNKNOWN。它不删除 workload、不结束 usage、不发配额释放。
 
-轮询可能错过 kubelet 清理前的短暂 EXITED 状态。生产部署应启用 CRI `GetContainerEvents` 连续采集，并把 `runtime_events_directory` 挂载到该服务独占的受管持久目录，权限 0700；多个服务不要共写目录。同节点/Unix socket 的连接别名共用一个订阅。记录保存完整容器身份及 Created/Started/Exited 状态，不保存 OCI 环境变量；状态变化原子写入并同步落盘，重启后读回。任何已知 attempt 缺少正向退出记录，或当前仍有 Running/Unknown attempt，继续保留未知占用。
+Agent 连续读取 CRI `GetContainerEvents`，保存 CREATED/RUNNING/EXITED/UNKNOWN、独立原 event_type 与未解释尝试。记录先 append/fsync；每节点仅一条 Report 在途，中心事务提交后 ACK，Agent 持久 ACK 后发下一条。网络断线而日志连续不制造来源缺口；真实缺口不被重连、ACK 或空快照清除。普通同内容快照和心跳不推进领域 revision；新占用、UNKNOWN、缺口及有效性变化仍使旧判断失效。
 
-已经错过事件且 CRI 已清理的容器，可由 `runtime_journal` 只读查询该确切节点的原始 containerd journal。镜像须包含标准 `journalctl`，只读挂载实际 machine journal 目录，并配置真实 machine ID 和 Node UID。恢复严格核对 root/containerd.service 来源、同一 boot 下的 Pod UID/namespace/name → sandbox → container name/完整 ID → 明确退出时间的完整链；缺失、冲突、未识别格式或超时均不能释放。不导入仓外取证 JSON 冒充实时 CRI，不用 Remove/NotFound 推断退出，也不生成 ACTIVE runtime 分配。恢复事实仅补充释放证明，仍须当前节点在线、CRI/PodResources 健康且 GPU 分配已移除。历史只有 scheduler/allocation Claim 的未知绑定也适用相同正向条件。
+中心只向认证节点下发有界的已知 Pod/container RecoverExitRequest，并持久保存其范围以支持跨 epoch 重放。Agent 用固定本机 journal 配置验证 machine/boot/root/containerd 来源和 sandbox→create→exit 正向链，最多十六次尝试、四 MiB 输出。结果经中心校验和持久归并后补充历史退出；当前 Running/UNKNOWN 不会被旧退出覆盖，局部补证不清除全局 SourceGap。
 
-journal 恢复默认总预算 20 秒，可用 `runtime_journal.timeout_seconds` 显式设置，硬上限 25 秒，并继续服从采集请求的上游期限。首阶段按 Pod UID 查询完整历史；仅在可信记录属于同一 boot、原始 cursor 与时间元数据一致时，后续阶段使用最早记录的原始 cursor 定位。跨 boot 或 cursor 不可核对时保留完整扫描，不依赖墙钟时间推断退出。
+journal 路径与超时是手动安装参数，RPC 不接收任意命令或路径。中心等待继续服从整体采集/释放期限，超时保留 UNKNOWN。证据来源时间与传输 receipt 分离，重放不刷新采样时间。
 
 完整有效的 `RELEASE_CONFIRMED` 是已持久化的历史事实，绑定列表及其聚合不能因 120 秒采样窗口过去或当前来源失联而将其降为 UNKNOWN；返回原始 observed_at、received_at 和 release 引用，不刷新证明时间。ACTIVE 仍要求来源健康及实时新鲜度；不完整、未知或时间无效的历史记录仍保守返回不完整。该规则不改变新分配重新计占用的合并逻辑，也不替代 ObserveRelease 对当前解除条件的核验。
 

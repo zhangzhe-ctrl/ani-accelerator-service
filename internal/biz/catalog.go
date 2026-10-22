@@ -665,7 +665,8 @@ func (u *Usecase) PreviewProfile(ctx context.Context, a *AdminRead, id string, p
 			}
 		}
 	}
-	memory := usable / int64(parts)
+	factor := int64(g.Baseline.MemoryBlockMiB)
+	memory := usable / factor / int64(parts) * factor
 	cores := 100 / parts
 	if memory <= 0 || cores == 0 {
 		return nil, Invalid("SHAPE_UNSUPPORTED")

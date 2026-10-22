@@ -3,10 +3,8 @@ package provider
 import (
 	"context"
 	"net"
-	"sync"
 	"time"
 
-	"github.com/NVIDIA/go-nvml/pkg/nvml"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -21,40 +19,6 @@ type Inventory struct {
 type inventoryReader interface {
 	Read(context.Context) ([]Inventory, error)
 }
-type nvmlInventory struct{}
-
-var nvmlMu sync.Mutex
-
-func (nvmlInventory) Read(ctx context.Context) ([]Inventory, error) {
-	nvmlMu.Lock()
-	defer nvmlMu.Unlock()
-	if ctx.Err() != nil {
-		return nil, biz.Unavailable()
-	}
-	if nvml.Init() != nvml.SUCCESS {
-		return nil, biz.Precondition("NVML_UNAVAILABLE")
-	}
-	defer nvml.Shutdown()
-	count, rc := nvml.DeviceGetCount()
-	if rc != nvml.SUCCESS {
-		return nil, biz.Precondition("NVML_UNAVAILABLE")
-	}
-	result := []Inventory{}
-	for i := 0; i < count; i++ {
-		device, rc := nvml.DeviceGetHandleByIndex(i)
-		if rc != nvml.SUCCESS {
-			return nil, biz.Precondition("NVML_UNAVAILABLE")
-		}
-		id, r1 := device.GetUUID()
-		memory, r2 := device.GetMemoryInfo()
-		name, r3 := device.GetName()
-		if r1 != nvml.SUCCESS || r2 != nvml.SUCCESS || r3 != nvml.SUCCESS || !physicalUUID.MatchString(id) {
-			return nil, biz.Precondition("NVML_UNAVAILABLE")
-		}
-		result = append(result, Inventory{id, "NVIDIA-" + name, memory.Total})
-	}
-	return result, nil
-}
 
 // The upstream PodResources/CRI protocols use local Unix sockets, not TLS.
 // No TCP fallback is accepted; mounted sockets are explicit operator inputs.
@@ -65,6 +29,11 @@ func unixClient(path string) (*grpc.ClientConn, error) {
 }
 
 type nodeSnapshot struct {
+	FactObservedAt         map[string]time.Time
+	SourceObservedAt       map[string]time.Time
+	SourceReceivedAt       map[string]time.Time
+	SourceGaps             map[string]biz.TelemetryGap
+	NodeRevision           uint64
 	Resources              *pr.ListPodResourcesResponse
 	Containers             []*cri.Container
 	Statuses               map[string]*cri.ContainerStatusResponse

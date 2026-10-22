@@ -1,0 +1,219 @@
+syntax = "proto3";
+
+package accelerator.node.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/node/v1;nodev1";
+
+service NodeTelemetryService {
+  rpc Connect(stream AgentMessage) returns (stream CenterMessage);
+}
+
+enum Source {
+  SOURCE_UNSPECIFIED = 0;
+  SOURCE_NVML = 1;
+  SOURCE_POD_RESOURCES = 2;
+  SOURCE_CRI = 3;
+  SOURCE_CRI_EVENTS = 4;
+  SOURCE_JOURNAL = 5;
+}
+
+enum ContainerState {
+  CONTAINER_STATE_UNSPECIFIED = 0;
+  CONTAINER_STATE_CREATED = 1;
+  CONTAINER_STATE_RUNNING = 2;
+  CONTAINER_STATE_EXITED = 3;
+  CONTAINER_STATE_UNKNOWN = 4;
+}
+
+enum RuntimeEventType {
+  RUNTIME_EVENT_TYPE_UNSPECIFIED = 0;
+  RUNTIME_EVENT_TYPE_CREATED = 1;
+  RUNTIME_EVENT_TYPE_STARTED = 2;
+  RUNTIME_EVENT_TYPE_STOPPED = 3;
+  RUNTIME_EVENT_TYPE_DELETED = 4;
+}
+
+message AgentMessage {
+  oneof message {
+    AgentHello hello = 1;
+    AgentRenew renew = 2;
+    AgentHeartbeat heartbeat = 3;
+    AgentReport report = 4;
+  }
+}
+
+message CenterMessage {
+  oneof message {
+    Welcome welcome = 1;
+    Ack ack = 2;
+    RecoverExitRequest recover_exit = 3;
+  }
+}
+
+message AgentHello {
+  uint32 protocol_version = 1;
+  string connection_ref = 2;
+  string pod_namespace = 3;
+  string pod_name = 4;
+  string pod_uid = 5;
+  string instance_id = 6;
+  string log_id = 7;
+  string boot_id = 8;
+  string service_account_token = 9;
+  string node_name = 10;
+  string node_uid = 11;
+}
+
+message AgentRenew {
+  uint64 epoch = 1;
+  string service_account_token = 2;
+}
+
+message AgentHeartbeat {
+  uint64 epoch = 1;
+  bool degraded = 2;
+  repeated string issues = 3;
+}
+
+message AgentReport {
+  uint64 epoch = 1;
+  ImmutableRecord record = 2;
+}
+
+message Welcome {
+  string node_uid = 1;
+  string node_name = 2;
+  uint64 epoch = 3;
+  google.protobuf.Timestamp lease_expires_at = 4;
+  string active_log_id = 5;
+  uint64 last_committed_sequence = 6;
+  string last_payload_digest = 7;
+}
+
+message Ack {
+  string log_id = 1;
+  uint64 sequence = 2;
+  string payload_digest = 3;
+}
+
+message ImmutableRecord {
+  uint32 protocol_version = 1;
+  string log_id = 2;
+  uint64 sequence = 3;
+  string origin_pod_uid = 4;
+  string origin_instance_id = 5;
+  string origin_boot_id = 6;
+  string payload_digest = 7;
+  oneof payload {
+    NodeSnapshot snapshot = 8;
+    RuntimeFacts runtime_facts = 9;
+    JournalExitResult journal_exit = 10;
+    SourceGap source_gap = 11;
+  }
+}
+
+message SourceHealth {
+  Source source = 1;
+  google.protobuf.Timestamp observed_at = 2;
+  bool complete = 3;
+  repeated string issues = 4;
+}
+
+message GPUDevice {
+  string uuid = 1;
+  string model = 2;
+  uint64 physical_memory_bytes = 3;
+}
+
+message PodResourceAllocation {
+  string namespace = 1;
+  string pod_name = 2;
+  string container_name = 3;
+  string resource_name = 4;
+  repeated string device_ids = 5;
+}
+
+message GPUEnvironmentEntry {
+  string name = 1;
+  string value = 2;
+}
+
+message RuntimeFact {
+  string container_id = 1;
+  string sandbox_id = 2;
+  string pod_uid = 3;
+  string pod_namespace = 4;
+  string pod_name = 5;
+  string container_name = 6;
+  uint32 attempt = 7;
+  ContainerState state = 8;
+  google.protobuf.Timestamp observed_at = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp started_at = 11;
+  google.protobuf.Timestamp finished_at = 12;
+  repeated GPUEnvironmentEntry gpu_environment = 13;
+  repeated string issues = 14;
+  optional RuntimeEventType event_type = 15;
+}
+
+message NodeSnapshot {
+  uint64 capture_epoch = 1;
+  google.protobuf.Timestamp capture_start = 2;
+  google.protobuf.Timestamp capture_end = 3;
+  repeated SourceHealth sources = 4;
+  repeated GPUDevice devices = 5;
+  repeated PodResourceAllocation allocations = 6;
+  repeated RuntimeFact containers = 7;
+}
+
+message RuntimeFacts {
+  repeated RuntimeFact items = 1;
+}
+
+message JournalProvenance {
+  string machine_id = 1;
+  string boot_id = 2;
+  string unit = 3;
+  string comm = 4;
+  string uid = 5;
+  string exe = 6;
+  string transport = 7;
+  string sandbox_id = 8;
+  string cursor = 9;
+  google.protobuf.Timestamp created_at = 10;
+  google.protobuf.Timestamp exited_at = 11;
+  string sandbox_cursor = 12;
+  string create_cursor = 13;
+  uint64 sandbox_monotonic = 14;
+  uint64 create_monotonic = 15;
+  uint64 exit_monotonic = 16;
+}
+
+message JournalExitResult {
+  string request_id = 1;
+  bool found = 2;
+  repeated RuntimeFact attempts = 3;
+  repeated JournalProvenance provenance = 4;
+  repeated string issues = 5;
+}
+
+message SourceGap {
+  repeated Source sources = 1;
+  string reason = 2;
+  google.protobuf.Timestamp start = 3;
+  google.protobuf.Timestamp end = 4;
+  google.protobuf.Timestamp discovered_at = 5;
+  string last_cursor = 6;
+}
+
+message RecoverExitRequest {
+  string request_id = 1;
+  string node_uid = 2;
+  string pod_uid = 3;
+  string pod_namespace = 4;
+  string pod_name = 5;
+  string container_name = 6;
+  repeated string known_container_ids = 7;
+}

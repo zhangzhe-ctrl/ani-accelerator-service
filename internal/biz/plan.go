@@ -20,11 +20,17 @@ func Render(s *ProfileSpec, b *ProviderBaseline, queue string, devices uint32) (
 	if !Name(queue) {
 		return nil, Invalid("INVALID_QUEUE")
 	}
+	blocks, err := EncodeMemory(s.MemoryMiBPerDevice, b.MemoryBlockMiB)
+	if err != nil {
+		return nil, err
+	}
 	e := &GpuExecution{SchedulerName: "volcano", QueueName: queue, RuntimeClassName: b.RuntimeClassName,
 		NodeSelector:   map[string]string{BaselineLabel: b.BaselineID, ModelLabel: s.ModelKey, GroupLabel: s.GroupID},
 		PodAnnotations: map[string]string{"volcano.sh/vgpu-mode": "hami-core"},
-		Resources:      map[string]string{"volcano.sh/vgpu-number": strconv.FormatUint(uint64(devices), 10), "volcano.sh/vgpu-memory": strconv.FormatInt(s.MemoryMiBPerDevice, 10), "volcano.sh/vgpu-cores": strconv.FormatUint(uint64(s.CoreLimitPercent), 10)}}
-	var err error
+		Resources:      map[string]string{"volcano.sh/vgpu-number": strconv.FormatUint(uint64(devices), 10), "volcano.sh/vgpu-memory": strconv.FormatInt(blocks, 10), "volcano.sh/vgpu-cores": strconv.FormatUint(uint64(s.CoreLimitPercent), 10)}}
+	if b.MemoryBlockMiB != 1 {
+		e.PodAnnotations["accelerator.ani.io/memory-block-mib"] = strconv.FormatUint(uint64(b.MemoryBlockMiB), 10)
+	}
 	e.ExecutionDigest, err = ExecutionDigest(e)
 	return e, err
 }

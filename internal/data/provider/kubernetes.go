@@ -19,21 +19,23 @@ import (
 )
 
 type Connection struct {
-	Ref                string `json:"ref"`
-	APIServer          string `json:"api_server"`
-	ServerName         string `json:"server_name"`
-	CAFile             string `json:"ca_file"`
-	CertFile           string `json:"cert_file"`
-	KeyFile            string `json:"key_file"`
-	TokenFile          string `json:"token_file"`
-	PluginNamespace    string `json:"plugin_namespace"`
-	PluginSelector     string `json:"plugin_selector"`
-	PluginContainer    string `json:"plugin_container"`
-	PluginConfigMap    string `json:"plugin_config_map"`
-	SchedulerNamespace string `json:"scheduler_namespace"`
-	SchedulerSelector  string `json:"scheduler_selector"`
-	SchedulerContainer string `json:"scheduler_container"`
-	SchedulerConfigMap string `json:"scheduler_config_map"`
+	InstallationBaselines []InstallationBaseline   `json:"installation_baselines"`
+	NodeAgentIdentity     *NodeAgentIdentityConfig `json:"node_agent_identity"`
+	Ref                   string                   `json:"ref"`
+	APIServer             string                   `json:"api_server"`
+	ServerName            string                   `json:"server_name"`
+	CAFile                string                   `json:"ca_file"`
+	CertFile              string                   `json:"cert_file"`
+	KeyFile               string                   `json:"key_file"`
+	TokenFile             string                   `json:"token_file"`
+	PluginNamespace       string                   `json:"plugin_namespace"`
+	PluginSelector        string                   `json:"plugin_selector"`
+	PluginContainer       string                   `json:"plugin_container"`
+	PluginConfigMap       string                   `json:"plugin_config_map"`
+	SchedulerNamespace    string                   `json:"scheduler_namespace"`
+	SchedulerSelector     string                   `json:"scheduler_selector"`
+	SchedulerContainer    string                   `json:"scheduler_container"`
+	SchedulerConfigMap    string                   `json:"scheduler_config_map"`
 	// Exactly one node may use the process-local NVML library. Other nodes
 	// retain inventory/occupancy but cannot claim complete local telemetry.
 	LocalNodeUID string       `json:"local_node_uid"`
@@ -61,14 +63,27 @@ func LoadConfig(path string) (Config, error) {
 	if decodeStrict(f, &c) != nil {
 		return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
 	}
-	if c.RuntimeEventsDirectory != "" && !filepath.IsAbs(c.RuntimeEventsDirectory) {
-		return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
-	}
-	if j := c.RuntimeJournal; j != nil && (!filepath.IsAbs(j.Directory) || !filepath.IsAbs(j.JournalctlPath) || !biz.UUID(j.NodeUID) || !journalHex32.MatchString(j.MachineID)) {
-		return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
+	if c.RuntimeEventsDirectory != "" || c.RuntimeJournal != nil {
+		return c, biz.Invalid("PROVIDER_LOCAL_COLLECTION_REMOVED")
 	}
 	seen := map[string]bool{}
 	for _, x := range c.Connections {
+		if x.LocalNodeUID != "" || len(x.Nodes) > 0 {
+			return c, biz.Invalid("PROVIDER_LOCAL_COLLECTION_REMOVED")
+		}
+		baselineIDs := map[string]bool{}
+		for _, installed := range x.InstallationBaselines {
+			if err := biz.ValidateBaseline(installed.Baseline, installed.Mode); err != nil {
+				return c, err
+			}
+			if baselineIDs[installed.Baseline.BaselineID] {
+				return c, biz.Invalid("INSTALLATION_BASELINE_DUPLICATE")
+			}
+			baselineIDs[installed.Baseline.BaselineID] = true
+		}
+		if err := validateNodeAgentIdentityConfig(x.NodeAgentIdentity); err != nil {
+			return c, err
+		}
 		u, err := url.Parse(x.APIServer)
 		if err != nil || u.Scheme != "https" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Path != "" || !biz.Ref(x.Ref) || seen[x.Ref] || !filepath.IsAbs(x.CAFile) || x.ServerName == "" {
 			return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
@@ -76,16 +91,6 @@ func LoadConfig(path string) (Config, error) {
 		seen[x.Ref] = true
 		if !biz.Name(x.PluginNamespace) || !biz.Name(x.SchedulerNamespace) || !biz.Name(x.PluginContainer) || !biz.Name(x.SchedulerContainer) || !biz.Name(x.PluginConfigMap) || !biz.Name(x.SchedulerConfigMap) || x.PluginSelector == "" || x.SchedulerSelector == "" {
 			return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
-		}
-		nodes := map[string]bool{}
-		for _, n := range x.Nodes {
-			if !biz.Ref(n.UID) || !biz.Text(n.Name, 253) || nodes[n.UID] || !filepath.IsAbs(n.PodResourcesSocket) || !filepath.IsAbs(n.CRISocket) {
-				return c, biz.Invalid("PROVIDER_NODE_CONFIG_INVALID")
-			}
-			nodes[n.UID] = true
-		}
-		if x.LocalNodeUID != "" && !nodes[x.LocalNodeUID] {
-			return c, biz.Invalid("PROVIDER_NODE_CONFIG_INVALID")
 		}
 	}
 	return c, nil
@@ -116,24 +121,42 @@ func newKubeReader(c Connection) (*kubeReader, error) {
 	}
 	r := &kubeReader{config: c, client: &http.Client{Timeout: 5 * time.Second, Transport: &http.Transport{TLSClientConfig: tc, MaxIdleConns: 8}, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}}
 	if c.TokenFile != "" {
-		token, err := os.ReadFile(c.TokenFile)
+		token, err := r.currentToken()
 		if err != nil {
 			return nil, biz.Invalid("PROVIDER_TOKEN_UNAVAILABLE")
 		}
-		r.token = strings.TrimSpace(string(token))
+		if token == "" {
+			return nil, biz.Invalid("PROVIDER_AUTH_REQUIRED")
+		}
 	}
-	if len(tc.Certificates) == 0 && r.token == "" {
+	if len(tc.Certificates) == 0 && c.TokenFile == "" {
 		return nil, biz.Invalid("PROVIDER_AUTH_REQUIRED")
 	}
 	return r, nil
 }
+
+func (k *kubeReader) currentToken() (string, error) {
+	if k.config.TokenFile == "" {
+		return k.token, nil
+	}
+	token, err := os.ReadFile(k.config.TokenFile)
+	if err != nil || strings.TrimSpace(string(token)) == "" {
+		return "", biz.Precondition("PROVIDER_TOKEN_UNAVAILABLE")
+	}
+	return strings.TrimSpace(string(token)), nil
+}
+
 func (k *kubeReader) get(ctx context.Context, path string, out any) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, k.config.APIServer+path, nil)
 	if err != nil {
 		return biz.Unavailable()
 	}
-	if k.token != "" {
-		req.Header.Set("Authorization", "Bearer "+k.token)
+	token, err := k.currentToken()
+	if err != nil {
+		return err
+	}
+	if token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
 	}
 	resp, err := k.client.Do(req)
 	if err != nil {

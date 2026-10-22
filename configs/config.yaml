@@ -11,6 +11,7 @@ server:
 database:
   dsn_file: "${DATABASE_DSN_FILE:/run/secrets/accelerator/database-dsn}"
 security:
+  node_agent_dns_name: ani-node-agent
   ca_file: "${MTLS_CA_FILE:/run/secrets/accelerator/client-ca.pem}"
   cert_file: "${MTLS_CERT_FILE:/run/secrets/accelerator/server.pem}"
   key_file: "${MTLS_KEY_FILE:/run/secrets/accelerator/server.key}"

@@ -16,10 +16,17 @@ type Accelerator struct {
 	pb.UnimplementedAcceleratorAdminServiceServer
 	pb.UnimplementedAcceleratorCatalogServiceServer
 	pb.UnimplementedAcceleratorUsageServiceServer
-	u *biz.Usecase
+	u              *biz.Usecase
+	initialization *biz.InitializationUsecase
 }
 
-func NewAccelerator(u *biz.Usecase) *Accelerator { return &Accelerator{u: u} }
+func NewAccelerator(u *biz.Usecase, initialization ...*biz.InitializationUsecase) *Accelerator {
+	handler := &Accelerator{u: u}
+	if len(initialization) == 1 {
+		handler.initialization = initialization[0]
+	}
+	return handler
+}
 
 // The transport bridge uses the standard Go JSON representation (numeric
 // enums and integers), not protobuf JSON or canonical digest serialization.

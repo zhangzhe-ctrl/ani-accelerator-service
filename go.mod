@@ -1,9 +1,8 @@
 module github.com/zhangzhe-ctrl/ani-accelerator-service
 
-go 1.26.9
+go 1.26.10
 
 require (
-	github.com/NVIDIA/go-nvml v0.13.0-1
 	github.com/go-kratos/kratos/contrib/otel/v3 v3.0.0-20260515082355-1ddb58e407c5
 	github.com/go-kratos/kratos/v3 v3.0.0
 	github.com/jackc/pgx/v5 v5.9.2

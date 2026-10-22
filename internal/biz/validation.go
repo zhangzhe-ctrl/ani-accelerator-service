@@ -89,8 +89,11 @@ func ValidateActor(a *Actor) error {
 	}
 	return nil
 }
+func SupportedMemoryFactor(factor uint32) bool {
+	return factor == 1 || factor == 10
+}
 func ValidateBaseline(b *ProviderBaseline, mode SupplyMode) error {
-	if b == nil || b.MemoryBlockMiB != 1 {
+	if b == nil || !SupportedMemoryFactor(b.MemoryBlockMiB) {
 		return Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	if mode != Whole && mode != Shared {
@@ -151,7 +154,7 @@ func ValidateSpec(s *ProfileSpec, b *ProviderBaseline) error {
 	return nil
 }
 func EncodeMemory(m int64, f uint32) (int64, error) {
-	if f != 1 {
+	if !SupportedMemoryFactor(f) {
 		return 0, Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	if m <= 0 {
@@ -175,7 +178,7 @@ func NormalizeMemory(n int64, unit string, f uint32) (int64, error) {
 	}
 	switch unit {
 	case "BLOCKS":
-		if f != 1 || n > math.MaxInt32 {
+		if !SupportedMemoryFactor(f) || n > math.MaxInt32 {
 			return 0, Precondition("MEMORY_UNIT_MISMATCH")
 		}
 		return Multiply(n, int64(f))
@@ -191,7 +194,7 @@ func NormalizeMemory(n int64, unit string, f uint32) (int64, error) {
 	}
 }
 func QuantizedBlocks(bytes []uint64, f uint32) (int64, error) {
-	if f != 1 {
+	if !SupportedMemoryFactor(f) {
 		return 0, Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	var sum int64

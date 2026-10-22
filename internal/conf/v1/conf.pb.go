@@ -144,6 +144,7 @@ type Security struct {
 	GovernanceDnsName string                 `protobuf:"bytes,9,opt,name=governance_dns_name,json=governanceDnsName,proto3" json:"governance_dns_name,omitempty"`
 	InferenceDnsName  string                 `protobuf:"bytes,10,opt,name=inference_dns_name,json=inferenceDnsName,proto3" json:"inference_dns_name,omitempty"`
 	ResourceDnsName   string                 `protobuf:"bytes,11,opt,name=resource_dns_name,json=resourceDnsName,proto3" json:"resource_dns_name,omitempty"`
+	NodeAgentDnsName  string                 `protobuf:"bytes,12,opt,name=node_agent_dns_name,json=nodeAgentDnsName,proto3" json:"node_agent_dns_name,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -223,6 +224,13 @@ func (x *Security) GetInferenceDnsName() string {
 func (x *Security) GetResourceDnsName() string {
 	if x != nil {
 		return x.ResourceDnsName
+	}
+	return ""
+}
+
+func (x *Security) GetNodeAgentDnsName() string {
+	if x != nil {
+		return x.NodeAgentDnsName
 	}
 	return ""
 }
@@ -504,7 +512,7 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\bsecurity\x18\x03 \x01(\v2\x11.conf.v1.SecurityR\bsecurity\x126\n" +
 	"\vaccelerator\x18\x04 \x01(\v2\x14.conf.v1.AcceleratorR\vaccelerator\"%\n" +
 	"\bDatabase\x12\x19\n" +
-	"\bdsn_file\x18\x01 \x01(\tR\adsnFile\"\xda\x02\n" +
+	"\bdsn_file\x18\x01 \x01(\tR\adsnFile\"\x89\x03\n" +
 	"\bSecurity\x12\x17\n" +
 	"\aca_file\x18\x01 \x01(\tR\x06caFile\x12\x1b\n" +
 	"\tcert_file\x18\x02 \x01(\tR\bcertFile\x12\x19\n" +
@@ -513,7 +521,8 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\x13governance_dns_name\x18\t \x01(\tR\x11governanceDnsName\x12,\n" +
 	"\x12inference_dns_name\x18\n" +
 	" \x01(\tR\x10inferenceDnsName\x12*\n" +
-	"\x11resource_dns_name\x18\v \x01(\tR\x0fresourceDnsNameJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\b\x10\tR\x0egovernance_uriR\rinference_uriR\x06grantsR\fresource_uri\"\x93\x03\n" +
+	"\x11resource_dns_name\x18\v \x01(\tR\x0fresourceDnsName\x12-\n" +
+	"\x13node_agent_dns_name\x18\f \x01(\tR\x10nodeAgentDnsNameJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\b\x10\tR\x0egovernance_uriR\rinference_uriR\x06grantsR\fresource_uri\"\x93\x03\n" +
 	"\vAccelerator\x12!\n" +
 	"\fmax_replicas\x18\x01 \x01(\rR\vmaxReplicas\x127\n" +
 	"\tfreshness\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\tfreshness\x12D\n" +

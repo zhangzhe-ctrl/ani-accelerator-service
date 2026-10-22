@@ -32,6 +32,10 @@ func assignedPodClaims(t *testing.T, pod pod, now time.Time) ([]biz.Claim, error
 }
 
 func assignedPodClaimsUsing(t *testing.T, reader *Provider, pod pod, now time.Time) ([]biz.Claim, error) {
+	return assignedPodClaimsAtFactor(t, reader, pod, now, 1)
+}
+
+func assignedPodClaimsAtFactor(t *testing.T, reader *Provider, pod pod, now time.Time, factor uint32) ([]biz.Claim, error) {
 	t.Helper()
 	status := &cri.ContainerStatusResponse{
 		Status: &cri.ContainerStatus{Id: "live-container", Metadata: &cri.ContainerMetadata{Name: "inference"}, Labels: map[string]string{"io.kubernetes.pod.uid": pod.Metadata.UID}, State: cri.ContainerState_CONTAINER_RUNNING},
@@ -43,8 +47,36 @@ func assignedPodClaimsUsing(t *testing.T, reader *Provider, pod pod, now time.Ti
 		Statuses:   map[string]*cri.ContainerStatusResponse{"live-container": status},
 		Resources:  &pr.ListPodResourcesResponse{PodResources: []*pr.PodResources{{Namespace: "acc-live", Name: "acc-plan-iris", Containers: []*pr.ContainerResources{{Name: "inference", Devices: []*pr.ContainerDevices{{ResourceName: "volcano.sh/vgpu-number", DeviceIds: []string{"NVIDIA-0"}}}}}}}},
 	}
-	group := biz.SupplyGroup{Baseline: &biz.ProviderBaseline{MemoryBlockMiB: 1, BaselineDigest: strings.Repeat("a", 64)}}
+	group := biz.SupplyGroup{Baseline: &biz.ProviderBaseline{MemoryBlockMiB: factor, BaselineDigest: strings.Repeat("a", 64)}}
+	if factor == 10 {
+		group.Baseline.BaselineDigest = strings.Repeat("b", 64)
+	}
 	return reader.podClaims(context.Background(), "cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
+}
+
+func TestSchedulerClaimKeepsHistoricalFactorAcrossLiveFactorChange(t *testing.T) {
+	now := time.Unix(1792173213, 0).UTC()
+	pod := liveAssignedPod()
+	previous, err := assignedPodClaims(t, pod, now)
+	if err != nil {
+		t.Fatal(err)
+	}
+	reader := &Provider{repo: releaseRepository{reader: releaseReader{claims: previous[:1]}}}
+	current, err := assignedPodClaimsAtFactor(t, reader, pod, now.Add(time.Second), 10)
+	if err != nil || len(current) != 3 {
+		t.Fatalf("historical factor reuse failed: %+v error=%v", current, err)
+	}
+	if current[0].MemoryMiB != 4096 || current[0].MemoryBlockMiB != 1 || current[0].BaselineDigest != previous[0].BaselineDigest || current[0].Cursor != previous[0].Cursor {
+		t.Fatalf("historical allocation was reinterpreted with the new factor: %+v", current[0])
+	}
+	if current[1].MemoryMiB != 4096 || current[2].MemoryMiB != 4096 {
+		t.Fatalf("runtime MiB or historical allocation was multiplied again: %+v", current)
+	}
+	pod.Metadata.Annotations[AssignedIDs] = strings.Replace(pod.Metadata.Annotations[AssignedIDs], ",4096,10:", ",5120,10:", 1)
+	changed, err := assignedPodClaimsAtFactor(t, reader, pod, now.Add(2*time.Second), 10)
+	if err != nil || changed[0].MemoryMiB != 51200 || changed[0].Cursor == previous[0].Cursor {
+		t.Fatalf("changed raw assignment was hidden by historical reuse: %+v error=%v", changed, err)
+	}
 }
 
 func signAssignedOwner(t *testing.T, pod *pod, ref biz.UsageRef, key ed25519.PrivateKey, digest string) {

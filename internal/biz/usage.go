@@ -114,7 +114,37 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 	}
 	result := &ReleaseObservation{Ref: ref, Finding: AllocationReleased, Observation: &Observation{Complete: true}}
 	var evidence []string
-	err := u.repo.View(ctx, func(r Reader) error {
+	_, nodeFacts := u.provider.(NodeFactProvider)
+	var refreshErr error
+	if nodeFacts {
+		var cluster *Cluster
+		if err := u.repo.View(ctx, func(reader Reader) error {
+			if err := u.authorizeCluster(ctx, reader, clusterID); err != nil {
+				return err
+			}
+			var err error
+			cluster, err = reader.Cluster(ctx, clusterID)
+			return err
+		}); err != nil {
+			return nil, err
+		}
+		needsRefresh, err := u.releaseRefreshNeeded(ctx, *cluster, *ref, pods, fence)
+		if err != nil {
+			return nil, err
+		}
+		if needsRefresh {
+			refresh, cancel := context.WithTimeout(ctx, 3*time.Second)
+			refreshErr = u.collectCluster(refresh, *cluster, &ReleaseRecheckScope{Owner: *ref, Pods: pods})
+			cancel()
+		}
+	}
+	read := u.repo.View
+	if nodeFacts {
+		read = func(readContext context.Context, fn func(Reader) error) error {
+			return u.repo.Transact(readContext, func(transaction Transaction) error { return fn(transaction) })
+		}
+	}
+	err := read(ctx, func(r Reader) error {
 		if err := u.authorizeCluster(ctx, r, clusterID); err != nil {
 			return err
 		}
@@ -152,6 +182,34 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 				result.UncertainNodeUIDs = append(result.UncertainNodeUIDs, node)
 			}
 		}
+		var telemetry map[string]NodeTelemetryState
+		if nodeFacts {
+			if refreshErr != nil {
+				unknown("NODE_REFRESH_INCOMPLETE", "")
+			}
+			locker, ok := r.(ReleaseNodeLocker)
+			if !ok {
+				return Precondition("NODE_RELEASE_LOCK_REQUIRED")
+			}
+			cluster, err := r.Cluster(ctx, clusterID)
+			if err != nil {
+				return err
+			}
+			nodeUIDs := make([]string, 0, len(nodes))
+			for node := range nodes {
+				nodeUIDs = append(nodeUIDs, node)
+			}
+			telemetry, err = locker.LockReleaseNodes(ctx, cluster.ConnectionRef, nodeUIDs)
+			if err != nil {
+				return err
+			}
+			for node := range nodes {
+				state, found := telemetry[node]
+				if !found || state.Revoked || state.Degraded || !u.now().Before(state.LeaseExpiresAt) || state.CurrentRevision != state.ConsumedRevision {
+					unknown("NODE_REVISION_UNCONSUMED", node)
+				}
+			}
+		}
 		if len(nodes) == 0 {
 			unknown("SCOPE_UNOBSERVED", "")
 		}
@@ -166,6 +224,9 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 						continue
 					}
 					found = true
+					if nodeFacts && watermark.ConsumedNodeRevision != telemetry[node].CurrentRevision {
+						unknown("SOURCE_REVISION_STALE", node)
+					}
 					if !watermark.Complete || watermark.ObservedAt.Before(fence) {
 						unknown("SOURCE_BEFORE_SEAL", node)
 					}
@@ -250,7 +311,8 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 				if proof.OwnerRef != nil && *proof.OwnerRef != *ref {
 					return Denied()
 				}
-				if proof.OwnerRef != nil && *proof.OwnerRef == *ref && proof.RuntimeExited && proof.AllocationAbsent && proof.NodeOnline {
+				currentRevision := !nodeFacts || (proof.CheckedNodeRevision > 0 && proof.CheckedNodeRevision == telemetry[proof.NodeUID].CurrentRevision)
+				if currentRevision && proof.OwnerRef != nil && *proof.OwnerRef == *ref && proof.RuntimeExited && proof.AllocationAbsent && proof.NodeOnline {
 					proofs[proof.DeviceID] = proof
 				}
 			}

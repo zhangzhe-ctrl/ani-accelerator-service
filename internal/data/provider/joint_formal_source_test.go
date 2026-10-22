@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/pkg/schedulerconfig"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
 	"google.golang.org/grpc"
@@ -20,8 +22,6 @@ import (
 	pr "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
-// Supplies external Kubernetes and Unix runtime protocol shapes. Production
-// readers remain unchanged; the ordinary executable receives a separate NVML ABI fixture.
 func TestJointFormalProviderSource(t *testing.T) {
 	root := os.Getenv("ACC_FORMAL_SOURCE_DIR")
 	if root == "" {
@@ -90,22 +90,34 @@ func TestJointFormalProviderSource(t *testing.T) {
 	runtimeSocket := unixServer(t, "formal-cri", func(s *grpc.Server) {
 		cri.RegisterRuntimeServiceServer(s, &replayRuntime{state: state, podUID: "formal-absent-pod"})
 	})
-	connection := Connection{LocalNodeUID: node.UID, Nodes: []NodeSource{{UID: node.UID, Name: node.Name, PodResourcesSocket: podResources, CRISocket: runtimeSocket}}, Ref: "formal-source:" + biz.NewID(), APIServer: api.URL, ServerName: "accelerator.test", CAFile: pki.CAFile, CertFile: clientCert, KeyFile: clientKey, PluginNamespace: "system", PluginSelector: "app=plugin", PluginContainer: "plugin", PluginConfigMap: "plugin", SchedulerNamespace: "system", SchedulerSelector: "app=scheduler", SchedulerContainer: "scheduler", SchedulerConfigMap: "scheduler"}
+	connection := Connection{Ref: "formal-source:" + biz.NewID(), APIServer: api.URL, ServerName: "accelerator.test", CAFile: pki.CAFile, CertFile: clientCert, KeyFile: clientKey, PluginNamespace: "system", PluginSelector: "app=plugin", PluginContainer: "plugin", PluginConfigMap: "plugin", SchedulerNamespace: "system", SchedulerSelector: "app=scheduler", SchedulerContainer: "scheduler", SchedulerConfigMap: "scheduler"}
+	database, e := data.OpenPostgres(context.Background(), os.Getenv("ACC_FORMAL_DSN_FILE"))
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer database.Close()
+	telemetry := newNodeTelemetryFixture(t, database, connection.Ref, NodeSource{UID: node.UID, Name: node.Name, PodResourcesSocket: podResources, CRISocket: runtimeSocket}, fixedTelemetryInventory{{UUID: gpuUUID, Model: "NVIDIA-Test", Bytes: 24576 << 20}})
+	telemetry.refresh(t)
 	configPath := filepath.Join(root, "provider.json")
 	payload, e := json.Marshal(Config{Connections: []Connection{connection}})
 	if e != nil {
 		t.Fatal(e)
 	}
 	testkit.Write(t, configPath, payload)
-	payload, e = json.MarshalIndent(map[string]any{"provider_config_file": configPath, "connection_ref": connection.Ref, "baseline": baseline, "node": node, "model_key": "nvidia-test", "queue_name": "gpu", "group_id_file": groupFile, "scope": "constructed Kubernetes and Unix runtime source; no actual GPU"}, "", "  ")
+	payload, e = json.MarshalIndent(map[string]any{"provider_config_file": configPath, "connection_ref": connection.Ref, "baseline": baseline, "node": node, "model_key": "nvidia-test", "queue_name": "gpu", "group_id_file": groupFile, "scope": "constructed external Kubernetes/Unix/NVML source persisted through production node telemetry store; no actual GPU or authenticated Agent"}, "", "  ")
 	if e != nil {
 		t.Fatal(e)
 	}
 	testkit.Write(t, filepath.Join(root, "source.json"), payload)
-	t.Log("constructed external Kubernetes and Unix runtime source ready; actual GPU NOT_RUN")
+	t.Log("constructed external source and production node telemetry persistence ready; actual GPU/authenticated Agent NOT_RUN")
+	nextSnapshot := time.Now().Add(5 * time.Second)
 	for {
 		if _, e = os.Stat(filepath.Join(root, "stop")); e == nil {
 			break
+		}
+		if !time.Now().Before(nextSnapshot) {
+			telemetry.refresh(t)
+			nextSnapshot = time.Now().Add(5 * time.Second)
 		}
 		time.Sleep(250 * time.Millisecond)
 	}

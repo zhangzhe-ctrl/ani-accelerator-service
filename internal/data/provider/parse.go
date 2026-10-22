@@ -161,17 +161,30 @@ func ParseContainerdInfo(raw string) (RuntimeAllocation, error) {
 	if json.Unmarshal([]byte(raw), &info) != nil {
 		return RuntimeAllocation{}, biz.Invalid("RUNTIME_INFO_INVALID")
 	}
-	env := map[string]string{}
+	entries := make([]biz.GPUEnvironmentEntry, 0, len(info.RuntimeSpec.Process.Env))
 	for _, entry := range info.RuntimeSpec.Process.Env {
 		k, v, ok := strings.Cut(entry, "=")
 		if !ok {
 			continue
 		}
 		if k == "NVIDIA_VISIBLE_DEVICES" || strings.HasPrefix(k, "CUDA_DEVICE_MEMORY_LIMIT_") || k == "CUDA_DEVICE_SM_LIMIT" {
+			entries = append(entries, biz.GPUEnvironmentEntry{Name: k, Value: v})
+		}
+	}
+	return ParseGPUEnvironment(entries)
+}
+
+func ParseGPUEnvironment(entries []biz.GPUEnvironmentEntry) (RuntimeAllocation, error) {
+	env := map[string]string{}
+	for _, entry := range entries {
+		k, v := entry.Name, entry.Value
+		if k == "NVIDIA_VISIBLE_DEVICES" || strings.HasPrefix(k, "CUDA_DEVICE_MEMORY_LIMIT_") || k == "CUDA_DEVICE_SM_LIMIT" {
 			if _, exists := env[k]; exists {
 				return RuntimeAllocation{}, biz.Invalid("RUNTIME_DUPLICATE_FIELD")
 			}
 			env[k] = v
+		} else {
+			return RuntimeAllocation{}, biz.Invalid("GPU_ENVIRONMENT_INVALID")
 		}
 	}
 	id := env["NVIDIA_VISIBLE_DEVICES"]

@@ -36,7 +36,7 @@ docker exec "$container" createdb -U "$owner" "$restore"
 trap 'docker exec "$container" dropdb -U "$owner" "$restore"' EXIT
 docker exec -i "$container" pg_restore -U "$owner" -d "$restore" --exit-on-error <"$snapshot"
 docker exec -i "$container" psql -X -v ON_ERROR_STOP=1 -U "$owner" -d "$restore" <scripts/test-pg-grants.sql
-for table in clusters pools supply_groups group_nodes profiles admin_idempotency usages usage_revisions devices claims release_proofs bindings source_watermarks; do
+for table in clusters pools supply_groups group_nodes profiles admin_idempotency usages usage_revisions devices claims release_proofs bindings source_watermarks node_telemetry_state node_runtime_attempts initialization_operations initialization_steps; do
   query="COPY (SELECT row_to_json(t)::text FROM accelerator.$table t ORDER BY row_to_json(t)::text) TO STDOUT"
   psql_source -c "$query" >"$ACC_TEST_EVIDENCE_DIR/source-$table.rows"
   docker exec "$container" psql -X -v ON_ERROR_STOP=1 -U "$owner" -d "$restore" -c "$query" >"$ACC_TEST_EVIDENCE_DIR/restore-$table.rows"
@@ -51,4 +51,4 @@ if [[ -n ${ACC_TEST_DSN_FILE:-} ]]; then
   sed "s/dbname=$database /dbname=$restore /" "$ACC_TEST_DSN_FILE" >"$restored_dsn"
   ACC_TEST_DSN_FILE=$restored_dsn go test -count=1 ./internal/data ./tests/contract
 fi
-printf 'DB-06 PASS: populated dump restored; all 13 data relations byte-identical; failed transactional migration rolled back (exit=%s).\n' "$failure"
+printf 'DB-06 PASS: populated dump restored; all 17 data relations byte-identical; failed transactional migration rolled back (exit=%s).\n' "$failure"

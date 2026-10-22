@@ -3,7 +3,9 @@ package provider
 import (
 	"context"
 	"crypto/ed25519"
+	"encoding/json"
 	"fmt"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -15,8 +17,9 @@ import (
 )
 
 type Provider struct {
+	telemetry        biz.NodeTelemetryStore
+	exitRecovery     NodeExitRecovery
 	connections      map[string]*kubeReader
-	inventory        inventoryReader
 	ownerKey         ed25519.PublicKey
 	resourceOwnerKey ed25519.PublicKey
 	repo             biz.Repository
@@ -36,11 +39,8 @@ func (p *Provider) ConfigureResourceOwnerKey(key ed25519.PublicKey) error {
 }
 
 func New(config Config, ownerKey ed25519.PublicKey, repo biz.Repository, freshness time.Duration) (*Provider, error) {
-	p := &Provider{connections: map[string]*kubeReader{}, inventory: nvmlInventory{}, ownerKey: ownerKey, repo: repo, freshness: freshness}
-	if config.RuntimeEventsDirectory != "" {
-		p.runtimeEvents = newRuntimeEvents(config.RuntimeEventsDirectory)
-	}
-	p.runtimeJournal = config.RuntimeJournal
+	p := &Provider{connections: map[string]*kubeReader{}, ownerKey: ownerKey, repo: repo, freshness: freshness}
+	p.telemetry, _ = repo.(biz.NodeTelemetryStore)
 	for _, c := range config.Connections {
 		k, err := newKubeReader(c)
 		if err != nil {
@@ -54,7 +54,7 @@ func New(config Config, ownerKey ed25519.PublicKey, repo biz.Repository, freshne
 	return p, nil
 }
 func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup) (biz.GroupInspection, error) {
-	if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 {
+	if g.Baseline == nil || !biz.SupportedMemoryFactor(g.Baseline.MemoryBlockMiB) {
 		return biz.GroupInspection{}, biz.Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	k := p.connections[c.ConnectionRef]
@@ -103,11 +103,15 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 		return biz.GroupInspection{}, biz.Precondition("QUEUE_UNAVAILABLE")
 	}
 	inspection := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
-	physicalInventory, err := p.inventory.Read(ctx)
+	views, err := p.loadTelemetry(ctx, c.ConnectionRef)
 	if err != nil {
 		return inspection, err
 	}
 	for _, want := range g.Nodes {
+		physicalInventory, inventoryErr := telemetryInventory(views[want.UID], time.Now().UTC(), p.freshness)
+		if inventoryErr != nil {
+			return inspection, inventoryErr
+		}
 		var found *node
 		for i := range ns {
 			if ns[i].Metadata.UID == want.UID && ns[i].Metadata.Name == want.Name {
@@ -144,9 +148,6 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 			if modelKey(d.Model) != g.ModelKey || d.SplitCount != g.Baseline.SplitCount {
 				return inspection, biz.Precondition("CONFIG_DRIFT")
 			}
-		}
-		if want.UID != k.config.LocalNodeUID {
-			return inspection, biz.Precondition("NVML_UNAVAILABLE")
 		}
 		budgets := make([]int64, 0, len(ds))
 		seen := map[string]bool{}
@@ -233,12 +234,24 @@ func modelKey(model string) string {
 	return v
 }
 func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.SupplyGroup) (biz.ObservationBatch, error) {
-	batch := biz.ObservationBatch{ClusterID: c.ClusterID}
+	return p.collect(ctx, c, groups, nil)
+}
+
+func (p *Provider) CollectRelease(ctx context.Context, c biz.Cluster, groups []biz.SupplyGroup, scope *biz.ReleaseRecheckScope) (biz.ObservationBatch, error) {
+	return p.collect(ctx, c, groups, scope)
+}
+
+func (p *Provider) collect(ctx context.Context, c biz.Cluster, groups []biz.SupplyGroup, scope *biz.ReleaseRecheckScope) (biz.ObservationBatch, error) {
+	batch := biz.ObservationBatch{ClusterID: c.ClusterID, ConnectionRef: c.ConnectionRef, NodeRevisions: map[string]uint64{}}
 	k := p.connections[c.ConnectionRef]
 	if k == nil {
 		return batch, biz.Precondition("CONNECTION_UNAVAILABLE")
 	}
 	now := time.Now().UTC()
+	views, telemetryErr := p.loadTelemetry(ctx, c.ConnectionRef)
+	if telemetryErr != nil {
+		return batch, telemetryErr
+	}
 	nodes, ne := k.nodes(ctx)
 	pods, pe := k.pods(ctx)
 	inspected := map[string]bool{}
@@ -273,12 +286,22 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 	// scheduler block units; runtime memory is read directly in MiB otherwise.
 	plugins, pluginErr := k.selectedPods(ctx, k.config.PluginNamespace, k.config.PluginSelector)
 	schedulers, schedulerErr := k.selectedPods(ctx, k.config.SchedulerNamespace, k.config.SchedulerSelector)
-	var inventory []Inventory
-	var inventoryErr error
-	if k.config.LocalNodeUID != "" {
-		inventory, inventoryErr = p.inventory.Read(ctx)
+	nodeRefs := map[string]biz.NodeRef{}
+	for _, group := range groups {
+		for _, member := range group.Nodes {
+			nodeRefs[member.UID] = member
+		}
 	}
-	for sourceIndex, source := range k.config.Nodes {
+	nodeUIDs := make([]string, 0, len(nodeRefs))
+	for uid := range nodeRefs {
+		nodeUIDs = append(nodeUIDs, uid)
+	}
+	sort.Strings(nodeUIDs)
+	for sourceIndex, uid := range nodeUIDs {
+		source := NodeSource{UID: uid, Name: nodeRefs[uid].Name}
+		view := views[uid]
+		batch.NodeRevisions[uid] = view.State.CurrentRevision
+		inventory, inventoryErr := telemetryInventory(view, now, p.freshness)
 		var n *node
 		for i := range nodes {
 			if nodes[i].Metadata.UID == source.UID && nodes[i].Metadata.Name == source.Name {
@@ -287,12 +310,8 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			}
 		}
 		nodeOK := ne == nil && pe == nil && n != nil && k.nodeOnline(ctx, *n, now, p.freshness)
-		snapshot := readNode(ctx, source)
+		snapshot := telemetryNodeSnapshot(view, now, p.freshness)
 		releaseSnapshot := snapshot
-		if p.runtimeEvents != nil {
-			p.runtimeEvents.observeSnapshot(source, snapshot)
-			releaseSnapshot = p.runtimeEvents.releaseSnapshot(source, snapshot)
-		}
 		for _, health := range []struct {
 			name string
 			ok   bool
@@ -301,7 +320,11 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			if !health.ok {
 				issue = "SOURCE_UNKNOWN"
 			}
-			batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: c.ClusterID, NodeUID: source.UID, Source: health.name, Cursor: now.Format(time.RFC3339Nano), ObservedAt: snapshot.ObservedAt, ReceivedAt: time.Now().UTC(), Complete: health.ok, Issue: issue})
+			observed, received := now, now
+			if health.name != "kubernetes" {
+				observed, received = snapshot.SourceObservedAt[health.name], snapshot.SourceReceivedAt[health.name]
+			}
+			batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: c.ClusterID, NodeUID: source.UID, Source: health.name, Cursor: observed.Format(time.RFC3339Nano), ObservedAt: observed, ReceivedAt: received, Complete: health.ok, Issue: issue, ConsumedNodeRevision: view.State.CurrentRevision})
 			if health.name == "kubernetes" && sourceIndex == 0 {
 				batch.Watermarks[len(batch.Watermarks)-1].PendingByGroup = pending
 			}
@@ -309,7 +332,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		// Positive release evidence needs current Node UID + healthy CRI and
 		// PodResources only. Registration, F/K, and configuration identity do not
 		// participate in determining that an old allocation has disappeared.
-		proofs, err := p.releaseProofs(ctx, c.ClusterID, source, releaseSnapshot, nodeOK, now)
+		proofs, err := p.releaseProofsScoped(ctx, c.ConnectionRef, c.ClusterID, source, releaseSnapshot, nodeOK, now, scope, pods)
 		if err != nil {
 			return batch, err
 		}
@@ -356,7 +379,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		}
 		for _, rd := range registered {
 			var physical *Inventory
-			if source.UID == k.config.LocalNodeUID && inventoryErr == nil {
+			if inventoryErr == nil {
 				for i := range inventory {
 					if inventory[i].UUID == rd.UUID && modelKey(inventory[i].Model) == modelKey(rd.Model) {
 						physical = &inventory[i]
@@ -423,7 +446,7 @@ func (p *Provider) Collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 // collectionUnitsMatch checks actual running binaries and plugin F/K. Configuration
 // identity never grants permission to decode a different memory unit.
 func collectionUnitsMatch(g biz.SupplyGroup, source NodeSource, registered []RegisteredDevice, plugins, schedulers []pod, config Connection) bool {
-	if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 || len(registered) == 0 {
+	if g.Baseline == nil || !biz.SupportedMemoryFactor(g.Baseline.MemoryBlockMiB) || len(registered) == 0 {
 		return false
 	}
 	for _, device := range registered {
@@ -521,7 +544,7 @@ func (p *Provider) runtimeClaims(cluster string, g biz.SupplyGroup, pod pod, nod
 				continue // Never create a claim for an unobserved physical device.
 			}
 			ref, execution := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
-			claims = append(claims, biz.Claim{Pod: podRef, DeviceID: id, NodeUID: node.UID, Source: "runtime", ObservedAt: snapshot.ObservedAt, ReceivedAt: now, State: biz.AllocationUnknown, MemoryMiB: allocation.MemoryMiB, CoreLimitPercent: allocation.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, Cursor: status.Status.Id, EvidenceRef: "cri:" + status.Status.Id, OwnerRef: ref, ExecutionDigest: execution})
+			claims = append(claims, biz.Claim{Pod: podRef, DeviceID: id, NodeUID: node.UID, Source: "runtime", ObservedAt: runtimeObservation(snapshot, status), ReceivedAt: now, State: biz.AllocationUnknown, MemoryMiB: allocation.MemoryMiB, CoreLimitPercent: allocation.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, Cursor: status.Status.Id, EvidenceRef: "cri:" + status.Status.Id, OwnerRef: ref, ExecutionDigest: execution})
 		}
 	}
 	return claims, nil
@@ -572,10 +595,20 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 				return nil, biz.Invalid("PROVIDER_DEVICE_IDENTITY")
 			}
 			ref, execution := p.verifyOwner(podRef, pod.Metadata.Labels, pod.Metadata.Annotations)
-			if g.Baseline == nil || g.Baseline.MemoryBlockMiB != 1 {
+			if g.Baseline == nil || !biz.SupportedMemoryFactor(g.Baseline.MemoryBlockMiB) {
 				return nil, biz.Precondition("MEMORY_UNIT_MISMATCH")
 			}
-			m := a.MemoryBlocks
+			if encodedFactor, present := pod.Metadata.Annotations["accelerator.ani.io/memory-block-mib"]; present {
+				if encodedFactor != strconv.FormatUint(uint64(g.Baseline.MemoryBlockMiB), 10) {
+					return nil, biz.Precondition("MEMORY_UNIT_MISMATCH")
+				}
+			} else if ref != nil && g.Baseline.MemoryBlockMiB != 1 {
+				return nil, biz.Precondition("MEMORY_UNIT_MISMATCH")
+			}
+			m, err := biz.NormalizeMemory(a.MemoryBlocks, "BLOCKS", g.Baseline.MemoryBlockMiB)
+			if err != nil {
+				return nil, err
+			}
 			c := biz.Claim{Pod: podRef, DeviceID: PhysicalID(cluster, node.UID, a.UUID), NodeUID: node.UID, Source: "scheduler", ObservedAt: assigned, ReceivedAt: now, State: biz.Active, MemoryMiB: m, CoreLimitPercent: a.CorePercent, BaselineDigest: g.Baseline.BaselineDigest, MemoryBlockMiB: g.Baseline.MemoryBlockMiB, OwnerRef: ref, ExecutionDigest: execution}
 			// Owner signing follows Pod UID creation and may arrive after the
 			// scheduler fact was saved. Preserve that fact's original ownership;
@@ -583,6 +616,14 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 			for _, prior := range previous {
 				if prior.Source == "scheduler" && prior.Pod == podRef && prior.DeviceID == c.DeviceID && prior.NodeUID == c.NodeUID && prior.ObservedAt.Equal(assigned) {
 					c.OwnerRef, c.ExecutionDigest = prior.OwnerRef, prior.ExecutionDigest
+					blocks, err := biz.EncodeMemory(prior.MemoryMiB, prior.MemoryBlockMiB)
+					if err != nil {
+						return nil, err
+					}
+					if blocks == a.MemoryBlocks {
+						c.MemoryMiB, c.MemoryBlockMiB, c.BaselineDigest = prior.MemoryMiB, prior.MemoryBlockMiB, prior.BaselineDigest
+						m = prior.MemoryMiB
+					}
 					break
 				}
 			}
@@ -611,7 +652,7 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 				}
 				c.OwnerRef, c.ExecutionDigest = ref, execution
 				c.Source = "runtime"
-				c.ObservedAt = snapshot.ObservedAt
+				c.ObservedAt = runtimeObservation(snapshot, status)
 				c.Cursor = status.Status.Id
 				c.MemoryMiB = alloc.MemoryMiB
 				c.CoreLimitPercent = alloc.CorePercent
@@ -638,6 +679,10 @@ func (p *Provider) verifyOwner(pod biz.PodRef, labels, annotations map[string]st
 	return VerifyOwnerAssertion(pod, labels, annotations, key)
 }
 func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeSource, snapshot nodeSnapshot, nodeOnline bool, now time.Time) ([]biz.ReleaseProof, error) {
+	return p.releaseProofsScoped(ctx, "", cluster, node, snapshot, nodeOnline, now, nil, nil)
+}
+
+func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster string, node NodeSource, snapshot nodeSnapshot, nodeOnline bool, now time.Time, scope *biz.ReleaseRecheckScope, currentPods []pod) ([]biz.ReleaseProof, error) {
 	if !nodeOnline || !snapshot.ResourcesOK || !snapshot.RuntimeOK {
 		return nil, nil
 	}
@@ -650,10 +695,10 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 				return err
 			}
 			for _, binding := range bindings {
-				if binding.Pod == nil || binding.State == biz.ReleaseConfirmed {
+				if binding.Pod == nil || (binding.State == biz.ReleaseConfirmed && scope == nil) {
 					continue
 				}
-				claims, _, err := r.PodEvidence(ctx, *binding.Pod)
+				claims, previousProofs, err := r.PodEvidence(ctx, *binding.Pod)
 				if err != nil {
 					return err
 				}
@@ -671,21 +716,54 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 				if claim == nil {
 					continue
 				}
+				if binding.State == biz.ReleaseConfirmed {
+					if scope == nil || claim.OwnerRef == nil || *claim.OwnerRef != scope.Owner {
+						continue
+					}
+					current := false
+					for _, proof := range previousProofs {
+						if proof.DeviceID == binding.PhysicalDeviceID && proof.CheckedNodeRevision == snapshot.NodeRevision {
+							current = true
+						}
+					}
+					if current {
+						continue
+					}
+				}
 				resources, ok := resourcesFor(snapshot, binding.Pod.Namespace, binding.Pod.Name, binding.Pod.ContainerName)
-				if !ok || hasGPUResources(resources) {
+				if !ok {
+					continue
+				}
+				allocationPresent := hasGPUResources(resources)
+				if allocationPresent && !replacementAllocationObserved(snapshot, *binding.Pod, node, currentPods) {
 					continue
 				}
 				statuses, ok := runtimeFor(snapshot, binding.Pod.UID, binding.Pod.ContainerName)
 				if !ok {
 					continue
 				}
-				unmapped := snapshot.UnknownPodContainers[binding.Pod.UID]
-				if config := p.runtimeJournal; config != nil && config.NodeUID == node.UID && (needsJournalExit(statuses) || len(unmapped) > 0) {
-					recovered, complete, err := recoverJournalExit(ctx, *config, *binding.Pod)
+				unmapped := unexplainedJournalSandboxes(snapshot, statuses, *binding.Pod)
+				gap, hasEventGap := snapshot.SourceGaps["cri_events"]
+				eventGap := hasEventGap && !closedJournalGapCovered(statuses, *binding.Pod, gap)
+				if p.exitRecovery != nil && (needsJournalExit(statuses) || len(unmapped) > 0 || eventGap) {
+					knownIDs := []string{}
+					for _, state := range statuses {
+						knownIDs = append(knownIDs, state.Status.Id)
+					}
+					recoveredAttempts, complete, err := p.exitRecovery.RecoverNodeExit(ctx, connection, node.UID, *binding.Pod, knownIDs)
 					if err != nil {
 						continue
 					}
 					if complete {
+						recovered := make([]*cri.ContainerStatusResponse, 0, len(recoveredAttempts))
+						explainedSandboxes := map[string]bool{}
+						for _, attempt := range recoveredAttempts {
+							labels := map[string]string{"io.kubernetes.pod.uid": attempt.PodUID, "io.kubernetes.pod.namespace": attempt.PodNamespace, "io.kubernetes.pod.name": attempt.PodName}
+							recovered = append(recovered, &cri.ContainerStatusResponse{Status: &cri.ContainerStatus{Id: attempt.ContainerID, Metadata: &cri.ContainerMetadata{Name: attempt.ContainerName, Attempt: attempt.Attempt}, Labels: labels, State: cri.ContainerState(attempt.State - 1), FinishedAt: telemetryNanos(attempt.FinishedAt)}, Info: runtimeAttemptInfo(attempt)})
+							if sandbox := positiveJournalSandbox(attempt, *binding.Pod); sandbox != "" {
+								explainedSandboxes[sandbox] = true
+							}
+						}
 						statuses = mergeJournalExits(statuses, recovered, snapshot.HistoricalStatuses, *binding.Pod)
 						covered := map[string]bool{}
 						for _, status := range statuses {
@@ -695,20 +773,24 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 						}
 						remaining := []string{}
 						for _, id := range unmapped {
-							if !covered[id] {
+							if !covered[id] && !explainedSandboxes[id] {
 								remaining = append(remaining, id)
 							}
 						}
 						unmapped = remaining
+						eventGap = hasEventGap && !closedJournalGapCovered(statuses, *binding.Pod, gap)
 					}
 				}
-				if len(statuses) == 0 || len(unmapped) > 0 {
+				if len(statuses) == 0 || len(unmapped) > 0 || eventGap {
 					continue
 				}
 				exited := true
 				var ids []string
 				for _, status := range statuses {
 					if status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
+						exited = false
+					}
+					if allocationPresent && snapshot.SourceObservedAt["podresources"].Before(time.Unix(0, status.Status.FinishedAt)) {
 						exited = false
 					}
 					ids = append(ids, status.Status.Id+":"+strconv.FormatInt(status.Status.FinishedAt, 10)+":"+status.Info["journal_evidence"])
@@ -718,7 +800,7 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 				}
 				sort.Strings(ids)
 				digest, _ := biz.Hash(ids)
-				result = append(result, biz.ReleaseProof{Pod: *binding.Pod, DeviceID: binding.PhysicalDeviceID, NodeUID: node.UID, ObservedAt: snapshot.ObservedAt, ReceivedAt: now, EvidenceRef: "release:" + digest, RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: claim.OwnerRef, ExecutionDigest: claim.ExecutionDigest})
+				result = append(result, biz.ReleaseProof{Pod: *binding.Pod, DeviceID: binding.PhysicalDeviceID, NodeUID: node.UID, ObservedAt: snapshot.ObservedAt, ReceivedAt: now, EvidenceRef: "release:" + digest, RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: claim.OwnerRef, ExecutionDigest: claim.ExecutionDigest, CheckedNodeRevision: snapshot.NodeRevision})
 			}
 			if len(bindings) < 201 {
 				return nil
@@ -727,6 +809,107 @@ func (p *Provider) releaseProofs(ctx context.Context, cluster string, node NodeS
 		}
 	})
 	return result, err
+}
+
+func replacementAllocationObserved(snapshot nodeSnapshot, previous biz.PodRef, node NodeSource, currentPods []pod) bool {
+	replacementUID := ""
+	for _, current := range currentPods {
+		if current.Metadata.Namespace != previous.Namespace || current.Metadata.Name != previous.Name {
+			continue
+		}
+		if replacementUID != "" || !biz.UUID(current.Metadata.UID) || current.Metadata.UID == previous.UID || current.Metadata.DeletionTimestamp != "" || current.Spec.NodeName != node.Name {
+			return false
+		}
+		replacementUID = current.Metadata.UID
+	}
+	if replacementUID == "" {
+		return false
+	}
+	statuses, complete := runtimeFor(snapshot, replacementUID, previous.ContainerName)
+	if !complete {
+		return false
+	}
+	running := 0
+	for _, status := range statuses {
+		if snapshot.HistoricalStatuses[status.Status.Id] {
+			continue
+		}
+		if status.Status.Labels["io.kubernetes.pod.namespace"] != previous.Namespace || status.Status.Labels["io.kubernetes.pod.name"] != previous.Name {
+			return false
+		}
+		if status.Status.State == cri.ContainerState_CONTAINER_RUNNING {
+			if _, err := ParseContainerdInfo(status.Info["info"]); err != nil {
+				return false
+			}
+			running++
+		} else if status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
+			return false
+		}
+	}
+	return running == 1
+}
+
+func positiveJournalSandbox(attempt biz.RuntimeAttempt, pod biz.PodRef) string {
+	if attempt.PodUID != pod.UID || attempt.PodNamespace != pod.Namespace || attempt.PodName != pod.Name || attempt.ContainerName != pod.ContainerName || attempt.State != 3 || attempt.FinishedAt.IsZero() || len(attempt.JournalProvenance) == 0 {
+		return ""
+	}
+	var provenance struct {
+		MachineID        string `json:"machine_id"`
+		BootID           string `json:"boot_id"`
+		Unit             string `json:"unit"`
+		Comm             string `json:"comm"`
+		UID              string `json:"uid"`
+		Exe              string `json:"exe"`
+		Transport        string `json:"transport"`
+		SandboxID        string `json:"sandbox_id"`
+		SandboxCursor    string `json:"sandbox_cursor"`
+		CreateCursor     string `json:"create_cursor"`
+		Cursor           string `json:"cursor"`
+		SandboxMonotonic uint64 `json:"sandbox_monotonic"`
+		CreateMonotonic  uint64 `json:"create_monotonic"`
+		ExitMonotonic    uint64 `json:"exit_monotonic"`
+	}
+	if json.Unmarshal(attempt.JournalProvenance, &provenance) != nil || provenance.SandboxID != attempt.SandboxID || len(provenance.SandboxID) != 64 || strings.Trim(provenance.SandboxID, "0123456789abcdef") != "" || len(provenance.MachineID) != 32 || strings.Trim(provenance.MachineID, "0123456789abcdef") != "" || len(provenance.BootID) != 32 || strings.Trim(provenance.BootID, "0123456789abcdef") != "" || provenance.Unit != "containerd.service" || provenance.Comm != "containerd" || provenance.UID != "0" || provenance.Transport != "stdout" || !filepath.IsAbs(provenance.Exe) || filepath.Clean(provenance.Exe) != provenance.Exe || filepath.Base(provenance.Exe) != "containerd" || provenance.SandboxCursor == "" || provenance.CreateCursor == "" || provenance.Cursor == "" || provenance.SandboxCursor == provenance.CreateCursor || provenance.SandboxCursor == provenance.Cursor || provenance.CreateCursor == provenance.Cursor || provenance.SandboxMonotonic == 0 || provenance.CreateMonotonic < provenance.SandboxMonotonic || provenance.ExitMonotonic < provenance.CreateMonotonic {
+		return ""
+	}
+	return provenance.SandboxID
+}
+
+func unexplainedJournalSandboxes(snapshot nodeSnapshot, statuses []*cri.ContainerStatusResponse, pod biz.PodRef) []string {
+	explained := map[string]bool{}
+	for _, status := range statuses {
+		if sandbox := positiveJournalSandbox(journalStatusAttempt(status), pod); sandbox != "" {
+			explained[sandbox] = true
+		}
+	}
+	remaining := []string{}
+	for _, id := range snapshot.UnknownPodContainers[pod.UID] {
+		if !explained[id] {
+			remaining = append(remaining, id)
+		}
+	}
+	return remaining
+}
+
+func journalStatusAttempt(status *cri.ContainerStatusResponse) biz.RuntimeAttempt {
+	if status == nil || status.Status == nil || status.Status.Metadata == nil || status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
+		return biz.RuntimeAttempt{}
+	}
+	observedAt, _ := time.Parse(time.RFC3339Nano, status.Info["journal_observed_at"])
+	return biz.RuntimeAttempt{ContainerID: status.Status.Id, SandboxID: status.Info["journal_sandbox_id"], PodUID: status.Status.Labels["io.kubernetes.pod.uid"], PodNamespace: status.Status.Labels["io.kubernetes.pod.namespace"], PodName: status.Status.Labels["io.kubernetes.pod.name"], ContainerName: status.Status.Metadata.Name, State: 3, FinishedAt: time.Unix(0, status.Status.FinishedAt), JournalProvenance: json.RawMessage(status.Info["journal_evidence"]), JournalObservedAt: observedAt}
+}
+
+func closedJournalGapCovered(statuses []*cri.ContainerStatusResponse, pod biz.PodRef, gap biz.TelemetryGap) bool {
+	if len(statuses) == 0 || gap.End.IsZero() || gap.End.Before(gap.Start) {
+		return false
+	}
+	for _, status := range statuses {
+		attempt := journalStatusAttempt(status)
+		if positiveJournalSandbox(attempt, pod) == "" || !attempt.JournalObservedAt.After(gap.End) {
+			return false
+		}
+	}
+	return true
 }
 
 func needsJournalExit(statuses []*cri.ContainerStatusResponse) bool {
@@ -768,7 +951,7 @@ func (p *Provider) String() string {
 // The registration and NVML inventory are independent limits on each physical
 // card. F is observed from the running plugin before this calculation is used.
 func deviceMemoryBudget(blocks int64, observedF uint32, physicalBytes uint64) (int64, error) {
-	if observedF != 1 || blocks <= 0 || physicalBytes == 0 {
+	if !biz.SupportedMemoryFactor(observedF) || blocks <= 0 || physicalBytes == 0 {
 		return 0, biz.Precondition("MEMORY_UNIT_MISMATCH")
 	}
 	registered, err := biz.Multiply(blocks, int64(observedF))
