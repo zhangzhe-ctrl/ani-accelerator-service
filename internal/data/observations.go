@@ -6,6 +6,7 @@ import (
 	"errors"
 	"github.com/jackc/pgx/v5"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
+	"reflect"
 	"sort"
 	"time"
 )
@@ -201,6 +202,9 @@ func (s *pgStore) reconcileBinding(ctx context.Context, p biz.PodRef, device str
 	binding, err := biz.MergeBinding(id, claims, proof, usage)
 	if err != nil {
 		return err
+	}
+	if prior != nil && reflect.DeepEqual(prior, binding) {
+		return nil
 	}
 	b, err := jsonBytes(binding)
 	if err != nil {
