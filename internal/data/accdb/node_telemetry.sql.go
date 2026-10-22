@@ -49,6 +49,32 @@ func (q *Queries) ListNodeRuntimeAttempts(ctx context.Context, connectionRef str
 	return items, nil
 }
 
+const listNodeRuntimeAttemptsByContainerIDs = `-- name: ListNodeRuntimeAttemptsByContainerIDs :many
+SELECT payload FROM accelerator.node_runtime_attempts
+WHERE connection_ref=$1 AND node_uid=$2 AND container_id=ANY($3::text[])
+ORDER BY container_id
+`
+
+func (q *Queries) ListNodeRuntimeAttemptsByContainerIDs(ctx context.Context, connectionRef string, nodeUid string, containerIds []string) ([][]byte, error) {
+	rows, err := q.db.Query(ctx, listNodeRuntimeAttemptsByContainerIDs, connectionRef, nodeUid, containerIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := [][]byte{}
+	for rows.Next() {
+		var payload []byte
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+		items = append(items, payload)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listNodeTelemetryStates = `-- name: ListNodeTelemetryStates :many
 SELECT payload FROM accelerator.node_telemetry_state WHERE connection_ref=$1 ORDER BY node_uid
 `
