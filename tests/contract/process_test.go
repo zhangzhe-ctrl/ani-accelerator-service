@@ -39,7 +39,7 @@ import (
 type controlledProvider struct{}
 
 func (controlledProvider) Inspect(_ context.Context, _ biz.Cluster, g biz.SupplyGroup) (biz.GroupInspection, error) {
-	i := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now()}
+	i := biz.GroupInspection{RuntimeClass: biz.RuntimeClassInspection{Name: g.Baseline.RuntimeClassName, UID: "10000000-0000-4000-8000-000000000099", ResourceVersion: "1"}, BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now()}
 	for _, n := range g.Nodes {
 		i.Nodes = append(i.Nodes, biz.InspectedNode{Node: n, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, ConfigDigest: g.Baseline.NodeConfigDigest, Labels: map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: g.Baseline.BaselineID}, DeviceBudgetsMiB: []int64{24576}})
 	}
@@ -608,6 +608,66 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if observation.Finding != pb.ReleaseFinding_ALLOCATION_RELEASED {
 		t.Fatal(observation)
 	}
+	// GR07 uses the actual mTLS receiver and PostgreSQL, without an async Usage
+	// prerequisite. The owner creates one stable close UUID for this sealed scope.
+	modeldevCert, modeldevKey := r.PKI.Issue(t, "modeldev", "ani-modeldev-service", false)
+	modeldev := conn(t, r, modeldevCert, modeldevKey)
+	modelRef := &biz.UsageRef{TenantID: tenant, OwnerService: "ani-modeldev-service", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
+	modelPod := biz.PodRef{ClusterID: cluster.ClusterId, Namespace: "training", Name: "trainjob-node-0", UID: "trainer-" + biz.NewID(), ContainerName: "node"}
+	modelNow := time.Now().UTC()
+	modelBatch := biz.ObservationBatch{ClusterID: cluster.ClusterId}
+	for _, source := range []string{"scheduler", "allocation", "runtime"} {
+		modelBatch.Claims = append(modelBatch.Claims, biz.Claim{Pod: modelPod, DeviceID: device, NodeUID: group.Nodes[0].Uid, Source: source, Cursor: "modeldev-1", ObservedAt: modelNow, ReceivedAt: modelNow, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: b.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "controlled:trainer-" + source, OwnerRef: modelRef, ExecutionDigest: plan.Execution.ExecutionDigest})
+	}
+	store(modelBatch)
+	modelRelease := &pb.ObserveReleaseRequest{RequestId: "modeldev-gr07", Ref: copyAs[pb.GpuUsageRef](t, modelRef), DeleteOperationId: modelRef.CreateOperationID, ClusterId: cluster.ClusterId, SealedAt: modelNow.Add(-time.Second).Format(time.RFC3339Nano), Pods: []*pb.PodRef{copyAs[pb.PodRef](t, modelPod)}}
+	modelCall := func(request *pb.ObserveReleaseRequest) (*pb.ReleaseObservation, error) {
+		ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(context.Background(), metadata.Pairs("x-ani-action", "ObserveRelease", "x-ani-tenant-id", tenant)), 5*time.Second)
+		defer cancel()
+		result := new(pb.ReleaseObservation)
+		err := modeldev.Invoke(ctx, pb.AcceleratorUsageService_ObserveRelease_FullMethodName, request, result)
+		return result, err
+	}
+	if _, err := modelCall(modelRelease); status.Code(err) != codes.InvalidArgument || !strings.Contains(err.Error(), "INVALID_RELEASE_SCOPE") {
+		t.Fatal("create UUID reused as close UUID reached receiver", err)
+	}
+	modelRelease.DeleteOperationId = biz.NewID()
+	stableRequest := proto.Clone(modelRelease)
+	for range 2 {
+		result, err := modelCall(modelRelease)
+		if err != nil || result.Finding != pb.ReleaseFinding_ALLOCATION_STILL_PRESENT || len(result.ActivePodUids) != 1 || result.ActivePodUids[0] != modelPod.UID {
+			t.Fatal("stable close scope lost live Trainer Pod", result, err)
+		}
+		if !proto.Equal(modelRelease, stableRequest) {
+			t.Fatal("close retry mutated accepted scope")
+		}
+	}
+	// Request omission cannot erase the durable actual Trainer Pod.
+	omitted := proto.Clone(modelRelease).(*pb.ObserveReleaseRequest)
+	omitted.Pods = nil
+	if result, err := modelCall(omitted); err != nil || result.Finding != pb.ReleaseFinding_ALLOCATION_STILL_PRESENT {
+		t.Fatal("omitted Trainer Pod released", result, err)
+	}
+	foreignRef := proto.Clone(modelRelease).(*pb.ObserveReleaseRequest)
+	foreignRef.Ref.OwnerService = "ani-inference"
+	if _, err := modelCall(foreignRef); status.Code(err) != codes.PermissionDenied {
+		t.Fatal("ModelDev certificate accepted foreign owner", err)
+	}
+	store(biz.ObservationBatch{ClusterID: cluster.ClusterId, Releases: []biz.ReleaseProof{{Pod: modelPod, DeviceID: device, NodeUID: group.Nodes[0].Uid, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), EvidenceRef: "controlled:trainer-exited-and-unallocated", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: modelRef, ExecutionDigest: plan.Execution.ExecutionDigest}}})
+	if result, err := modelCall(modelRelease); err != nil || result.Finding != pb.ReleaseFinding_RELEASE_UNKNOWN || !strings.Contains(strings.Join(result.Observation.Issues, ","), "SOURCE_BEFORE_SEAL") {
+		t.Fatal("pre-seal sources incorrectly completed a newly sealed scope", result, err)
+	}
+	modelSources := biz.ObservationBatch{ClusterID: cluster.ClusterId}
+	for _, source := range []string{"kubernetes", "podresources", "cri"} {
+		modelSources.Watermarks = append(modelSources.Watermarks, biz.SourceWatermark{ClusterID: cluster.ClusterId, NodeUID: group.Nodes[0].Uid, Source: source, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), Complete: true})
+	}
+	store(modelSources)
+	for range 2 {
+		if result, err := modelCall(modelRelease); err != nil || result.Finding != pb.ReleaseFinding_ALLOCATION_RELEASED || !result.Observation.Complete {
+			t.Fatal("stable distinct close scope failed after positive physical release", result, err)
+		}
+	}
+	t.Log("GR07: actual ModelDev mTLS receiver rejected create==close; stable distinct close retries retained sealed_at and actual Trainer UID, complete positive release facts required")
 	// Kill after ACK, then read/replay the same committed facts from a new process.
 	process.kill(t)
 	process = startChild(t, r, connection, marker)

@@ -9,6 +9,7 @@ import (
 	"fmt"
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"math"
+	"regexp"
 	"strconv"
 )
 
@@ -27,13 +28,20 @@ func GpuExecutionDigest(e *pb.GpuExecution) (string, error) {
 	return hex.EncodeToString(h[:]), nil
 }
 func ValidateGpuExecution(e *pb.GpuExecution) error {
-	if e == nil || len(e.ProtoReflect().GetUnknown()) != 0 || e.SchedulerName != "volcano" || e.QueueName == "" || e.RuntimeClassName == "" || len(e.Resources) != 3 || len(e.NodeSelector) != 3 {
+	if e == nil || len(e.ProtoReflect().GetUnknown()) != 0 || e.SchedulerName != "volcano" || e.QueueName == "" || e.RuntimeClassName == "" || len(e.Resources) != 3 || (len(e.NodeSelector) != 3 && len(e.NodeSelector) != 4) {
 		return fmt.Errorf("invalid GPU execution")
 	}
 	for _, k := range []string{"accelerator.ani.io/supply-group", "accelerator.ani.io/model-key", "accelerator.ani.io/baseline-id"} {
 		if e.NodeSelector[k] == "" {
 			return fmt.Errorf("invalid GPU selector")
 		}
+	}
+	if hostname, exists := e.NodeSelector["kubernetes.io/hostname"]; exists {
+		if len(hostname) == 0 || len(hostname) > 63 || !runtimeClassHostnamePattern.MatchString(hostname) {
+			return fmt.Errorf("invalid RuntimeClass hostname selector")
+		}
+	} else if len(e.NodeSelector) != 3 {
+		return fmt.Errorf("unknown GPU selector")
 	}
 	if e.PodAnnotations["volcano.sh/vgpu-mode"] != "hami-core" {
 		return fmt.Errorf("invalid GPU annotations")
@@ -86,3 +94,5 @@ func GpuMemoryMiBPerDevice(execution *pb.GpuExecution) (int64, error) {
 	}
 	return blocks * factor, nil
 }
+
+var runtimeClassHostnamePattern = regexp.MustCompile(`^[a-zA-Z0-9]([-_.a-zA-Z0-9]*[a-zA-Z0-9])?$`)

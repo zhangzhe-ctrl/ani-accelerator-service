@@ -240,7 +240,7 @@ func (b *instanceQuantityBoundary) build(request *biz.GpuRequest) (*biz.Resolved
 	for _, profile := range b.profiles {
 		if profile.ProfileID == request.ProfileID {
 			group := b.groups[profile.Spec.GroupID]
-			plan, err := biz.BuildResolution(request, profile, group, 16)
+			plan, err := biz.BuildResolution(request, profile, group, 16, nil)
 			if err != nil {
 				return nil, status.Error(codes.InvalidArgument, err.Error())
 			}
@@ -338,7 +338,7 @@ func TestInstanceQuantityBoundaryRuntime(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceDnsName: c.GovernanceDNSName, InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service"}
+	security := &conf.Security{CaFile: c.CAFile, CertFile: c.CertFile, KeyFile: c.KeyFile, GovernanceDnsName: c.GovernanceDNSName, InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service"}
 	tlsConfig, err := server.LoadServerTLS(security)
 	if err != nil {
 		t.Fatal(err)

@@ -10,15 +10,18 @@ func TestFactor10ResolutionKeepsMiBQuotaAndFreezesBlockEncoding(t *testing.T) {
 	group.Baseline = baselineForTest(10, Shared)
 	profile.Spec.MemoryMiBPerDevice = 3840
 	profile.SpecDigest, _ = SpecDigest(profile.Spec, profile.BaselineID)
-	resolved, err := BuildResolution(quantityRequest(1, 1), profile, group, 16)
+	resolved, err := BuildResolution(quantityRequest(1, 1), profile, group, 16, map[string]string{"kubernetes.io/hostname": "node3"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if resolved.Execution.Resources["volcano.sh/vgpu-memory"] != "384" || resolved.Execution.PodAnnotations["accelerator.ani.io/memory-block-mib"] != "10" || resolved.QuotaItems[0].Units != 3840 {
 		t.Fatalf("wrong units: %+v %+v", resolved.Execution, resolved.QuotaItems)
 	}
+	if resolved.Execution.NodeSelector["kubernetes.io/hostname"] != "node3" {
+		t.Fatalf("factor10 execution lost RuntimeClass placement: %+v", resolved.Execution)
+	}
 	profile.Spec.MemoryMiBPerDevice = 6144
-	_, err = Render(profile.Spec, group.Baseline, "gpu", 1)
+	_, err = Render(profile.Spec, group.Baseline, "gpu", 1, nil)
 	requireReason(t, err, "MEMORY_GRANULARITY_MISMATCH")
 }
 
@@ -49,7 +52,7 @@ func TestFactor10WholeExecutionRetainsPhysicalCardBilling(t *testing.T) {
 	group.Baseline = baselineForTest(10, Whole)
 	profile.Spec.MaxDevicesPerReplica = 2
 	profile.SpecDigest, _ = SpecDigest(profile.Spec, profile.BaselineID)
-	resolved, err := BuildResolution(quantityRequest(2, 1), profile, group, 16)
+	resolved, err := BuildResolution(quantityRequest(2, 1), profile, group, 16, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

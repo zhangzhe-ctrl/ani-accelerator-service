@@ -289,6 +289,12 @@ func (u *Usecase) inspect(ctx context.Context, c Cluster, g SupplyGroup, labels 
 	return i, u.checkInspection(g, labels, i)
 }
 func (u *Usecase) checkInspection(g SupplyGroup, labels bool, i GroupInspection) error {
+	if i.RuntimeClass.Name != g.Baseline.RuntimeClassName || !UUID(i.RuntimeClass.UID) || !Ref(i.RuntimeClass.ResourceVersion) {
+		return Precondition("RUNTIME_CLASS_UNAVAILABLE")
+	}
+	if err := ValidateRuntimeClassNodeSelector(i.RuntimeClass.NodeSelector); err != nil {
+		return err
+	}
 	if i.ObservedAt.IsZero() || u.now().Sub(i.ObservedAt) > u.freshness || i.ObservedAt.After(u.now().Add(5*time.Second)) {
 		return Precondition("SOURCE_STALE")
 	}
@@ -303,6 +309,11 @@ func (u *Usecase) checkInspection(g SupplyGroup, labels bool, i GroupInspection)
 		ref, ok := want[n.Node.UID]
 		if !ok || ref != n.Node || n.ModelKey != g.ModelKey || n.Factor != g.Baseline.MemoryBlockMiB || n.SplitCount != g.Baseline.SplitCount || n.ConfigDigest != g.Baseline.NodeConfigDigest {
 			return Precondition("CONFIG_DRIFT")
+		}
+		for key, value := range i.RuntimeClass.NodeSelector {
+			if n.Labels[key] != value {
+				return Precondition("RUNTIME_CLASS_NODE_MISMATCH")
+			}
 		}
 		delete(want, n.Node.UID)
 		if labels && (n.Labels[GroupLabel] != g.GroupID || n.Labels[ModelLabel] != g.ModelKey || n.Labels[BaselineLabel] != g.Baseline.BaselineID) {
@@ -547,7 +558,7 @@ func (u *Usecase) resolve(ctx context.Context, gpu *GpuRequest) (*ResolvedGpuReq
 				}
 			}
 		}
-		plan, err = BuildResolution(gpu, p, g, u.maxReplicas)
+		plan, err = BuildResolution(gpu, p, g, u.maxReplicas, inspection.RuntimeClass.NodeSelector)
 		return err
 	})
 	return plan, err

@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
@@ -22,6 +23,7 @@ type Provider struct {
 	connections      map[string]*kubeReader
 	ownerKey         ed25519.PublicKey
 	resourceOwnerKey ed25519.PublicKey
+	modeldevOwnerKey ed25519.PublicKey
 	repo             biz.Repository
 	freshness        time.Duration
 	runtimeEvents    *runtimeEvents
@@ -35,6 +37,16 @@ func (p *Provider) ConfigureResourceOwnerKey(key ed25519.PublicKey) error {
 		return biz.Invalid("RESOURCE_OWNER_KEY_INVALID")
 	}
 	p.resourceOwnerKey = append(ed25519.PublicKey(nil), key...)
+	return nil
+}
+
+// ConfigureModeldevOwnerKey installs the independent training-owner verifier.
+// Without this key, ModelDev allocations remain counted and unassociated.
+func (p *Provider) ConfigureModeldevOwnerKey(key ed25519.PublicKey) error {
+	if len(key) != ed25519.PublicKeySize || bytes.Equal(key, p.ownerKey) || bytes.Equal(key, p.resourceOwnerKey) {
+		return biz.Invalid("MODELDEV_OWNER_KEY_INVALID")
+	}
+	p.modeldevOwnerKey = append(ed25519.PublicKey(nil), key...)
 	return nil
 }
 
@@ -102,7 +114,11 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 	if err = k.get(ctx, "/apis/scheduling.volcano.sh/v1beta1/queues/"+g.QueueName, &queue); err != nil || queue.Metadata.Name != g.QueueName || queue.Status.State != "Open" {
 		return biz.GroupInspection{}, biz.Precondition("QUEUE_UNAVAILABLE")
 	}
-	inspection := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
+	runtimeClass, err := k.runtimeClass(ctx, g.Baseline.RuntimeClassName)
+	if err != nil {
+		return biz.GroupInspection{}, err
+	}
+	inspection := biz.GroupInspection{RuntimeClass: runtimeClass, BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
 	views, err := p.loadTelemetry(ctx, c.ConnectionRef)
 	if err != nil {
 		return inspection, err
@@ -117,6 +133,13 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 			if ns[i].Metadata.UID == want.UID && ns[i].Metadata.Name == want.Name {
 				found = &ns[i]
 				break
+			}
+		}
+		if found != nil {
+			for key, value := range runtimeClass.NodeSelector {
+				if found.Metadata.Labels[key] != value {
+					return inspection, biz.Precondition("RUNTIME_CLASS_NODE_MISMATCH")
+				}
 			}
 		}
 		if found == nil || !k.nodeOnline(ctx, *found, time.Now(), p.freshness) {
@@ -675,6 +698,9 @@ func (p *Provider) verifyOwner(pod biz.PodRef, labels, annotations map[string]st
 	key := p.ownerKey
 	if labels["accelerator.ani.io/owner-service"] == "ani-resource-service" {
 		key = p.resourceOwnerKey
+	}
+	if labels["accelerator.ani.io/owner-service"] == "ani-modeldev-service" {
+		key = p.modeldevOwnerKey
 	}
 	return VerifyOwnerAssertion(pod, labels, annotations, key)
 }

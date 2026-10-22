@@ -41,9 +41,11 @@ Stop new admission and provider polling, back up the populated database, then
 explicitly run `scripts/migrate 0002` as the migration owner. It validates existing
 rows transactionally and aborts on inconsistent legacy JSON. Repair invalid facts
 from authoritative records; do not coerce, delete or invent tenant identity.
-Fresh databases require 0001 then 0002. Runtime startup never migrates or seeds.
+Fresh databases require the ordered 0001 through 0007 chain. Runtime startup never migrates or seeds.
 
-The new runtime requires schema version 2. Do not roll the old binary back over
+The ModelDev-owner runtime requires schema version 7. Migration 0007 extends only
+the finite owner set and retains the original new-write identity checks and schema-5/6 NodeAgent telemetry/initialization relations.
+Do not roll the old binary back over
 new writes: stop writers and restore the retained pre-upgrade backup into an
 isolated database, verify it, then choose a compatible binary. There is no
 automatic destructive DOWN migration.
