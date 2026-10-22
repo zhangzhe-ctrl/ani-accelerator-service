@@ -74,7 +74,7 @@ func GpuMemoryMiBPerDevice(execution *pb.GpuExecution) (int64, error) {
 	}
 	factor := int64(1)
 	if value, present := execution.PodAnnotations["accelerator.ani.io/memory-block-mib"]; present {
-		if value != "1" && value != "10" {
+		if value != "10" {
 			return 0, fmt.Errorf("unsupported GPU memory factor")
 		}
 		factor, _ = strconv.ParseInt(value, 10, 32)

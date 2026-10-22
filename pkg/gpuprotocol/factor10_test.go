@@ -17,7 +17,7 @@ func TestFactor10WireExecutionAcceptsFrozenUnitAndRejectsDrift(t *testing.T) {
 	if gpuprotocol.ValidateGpuExecution(execution) == nil {
 		t.Fatal("changed frozen factor accepted under old digest")
 	}
-	for _, factor := range []string{"0", "2", "010", "256", ""} {
+	for _, factor := range []string{"0", "1", "2", "010", "256", ""} {
 		execution.PodAnnotations["accelerator.ani.io/memory-block-mib"] = factor
 		execution.ExecutionDigest, _ = gpuprotocol.GpuExecutionDigest(execution)
 		if gpuprotocol.ValidateGpuExecution(execution) == nil {
