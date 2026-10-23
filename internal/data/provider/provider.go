@@ -54,6 +54,9 @@ func New(config Config, ownerKey ed25519.PublicKey, repo biz.Repository, freshne
 	p := &Provider{connections: map[string]*kubeReader{}, ownerKey: ownerKey, repo: repo, freshness: freshness}
 	p.telemetry, _ = repo.(biz.NodeTelemetryStore)
 	for _, c := range config.Connections {
+		if err := validateNodePluginConfigMaps(c.NodePluginConfigMaps); err != nil {
+			return nil, err
+		}
 		k, err := newKubeReader(c)
 		if err != nil {
 			return nil, err
@@ -77,15 +80,14 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 	if err != nil {
 		return biz.GroupInspection{}, err
 	}
-	nodeDigest, err := k.configDigest(ctx, k.config.PluginNamespace, k.config.PluginConfigMap)
-	if err != nil {
+	if err := k.validatePluginConfigNodes(ns); err != nil {
 		return biz.GroupInspection{}, err
 	}
 	schedulerDigest, err := k.schedulerConfigDigest(ctx, k.config.SchedulerNamespace, k.config.SchedulerConfigMap, g.Baseline.VolcanoVersion)
 	if err != nil {
 		return biz.GroupInspection{}, err
 	}
-	if nodeDigest != g.Baseline.NodeConfigDigest || schedulerDigest != g.Baseline.SchedulerConfigDigest {
+	if schedulerDigest != g.Baseline.SchedulerConfigDigest {
 		return biz.GroupInspection{}, biz.Precondition("CONFIG_DRIFT")
 	}
 	plugins, err := k.selectedPods(ctx, k.config.PluginNamespace, k.config.PluginSelector)
@@ -144,6 +146,14 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 		}
 		if found == nil || !k.nodeOnline(ctx, *found, time.Now(), p.freshness) {
 			return inspection, biz.Precondition("NODE_UNKNOWN")
+		}
+		configMap, overridden := k.config.pluginConfigMap(found.Metadata.UID, found.Metadata.Name)
+		nodeDigest, err := k.pluginConfigDigest(ctx, configMap, overridden)
+		if err != nil {
+			return inspection, err
+		}
+		if nodeDigest != g.Baseline.NodeConfigDigest {
+			return inspection, biz.Precondition("CONFIG_DRIFT")
 		}
 		if g.Baseline.VolcanoVersion == "v1.15.2" || g.Baseline.VolcanoVersion == "v1.16.0" {
 			// These schedulers ignore the register annotation unless all three
@@ -204,6 +214,9 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 			}
 			for _, container := range plugin.Spec.Containers {
 				if container.Name != k.config.PluginContainer {
+					continue
+				}
+				if overridden && !pluginConfigMounted(plugin, configMap, container) {
 					continue
 				}
 				factor, ok1 := argument(container.Args, "gpu-memory-factor")
@@ -486,12 +499,16 @@ func collectionUnitsMatch(g biz.SupplyGroup, source NodeSource, registered []Reg
 	if !schedulerOK {
 		return false
 	}
+	configMap, overridden := config.pluginConfigMap(source.UID, source.Name)
 	for _, plugin := range plugins {
 		if plugin.Spec.NodeName != source.Name || !imageRunning(plugin, config.PluginContainer, g.Baseline.DevicePluginImageDigest) {
 			continue
 		}
 		for _, container := range plugin.Spec.Containers {
 			if container.Name != config.PluginContainer {
+				continue
+			}
+			if overridden && !pluginConfigMounted(plugin, configMap, container) {
 				continue
 			}
 			factor, hasFactor := argument(container.Args, "gpu-memory-factor")
