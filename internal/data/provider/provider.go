@@ -359,6 +359,9 @@ func (p *Provider) collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 			observed, received := now, now
 			if health.name != "kubernetes" {
 				observed, received = snapshot.SourceObservedAt[health.name], snapshot.SourceReceivedAt[health.name]
+				if !health.ok && received.IsZero() {
+					received = now
+				}
 			}
 			batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: c.ClusterID, NodeUID: source.UID, Source: health.name, Cursor: observed.Format(time.RFC3339Nano), ObservedAt: observed, ReceivedAt: received, Complete: health.ok, Issue: issue, ConsumedNodeRevision: view.State.CurrentRevision})
 			if health.name == "kubernetes" && sourceIndex == 0 {

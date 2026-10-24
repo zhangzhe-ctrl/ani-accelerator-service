@@ -15,6 +15,11 @@ current_node_revision=$7,consumed_node_revision=$8,payload=$9 WHERE connection_r
 -- name: ListNodeRuntimeAttempts :many
 SELECT payload FROM accelerator.node_runtime_attempts WHERE connection_ref=$1 AND node_uid=$2 ORDER BY container_id;
 
+-- name: ListNodeRuntimeAttemptsByContainerIDs :many
+SELECT payload FROM accelerator.node_runtime_attempts
+WHERE connection_ref=$1 AND node_uid=$2 AND container_id=ANY(sqlc.arg(container_ids)::text[])
+ORDER BY container_id;
+
 -- name: SaveNodeRuntimeAttempt :exec
 INSERT INTO accelerator.node_runtime_attempts(connection_ref,node_uid,container_id,payload) VALUES($1,$2,$3,$4)
 ON CONFLICT(connection_ref,node_uid,container_id) DO UPDATE SET payload=EXCLUDED.payload;

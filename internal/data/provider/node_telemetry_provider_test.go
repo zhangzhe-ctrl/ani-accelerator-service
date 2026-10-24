@@ -147,6 +147,97 @@ func TestProviderContinuousNodeTelemetryPreservesReleaseRevision(t *testing.T) {
 	providerControlledSources(t, "v1.16.0", "revision_continuity")
 }
 
+func TestProviderNewSessionWithoutFreshSnapshotCannotFreeOrReleaseGPU(t *testing.T) {
+	providerControlledSources(t, "v1.16.0", "session_cache")
+}
+
+func providerSessionCacheContract(t *testing.T, database *data.Postgres, adapter *Provider, cluster biz.Cluster, group biz.SupplyGroup, usecase *biz.Usecase, owner context.Context, ref *biz.UsageRef, pod biz.PodRef, runtime *replayState, fixture *nodeTelemetryFixture, capacity func() *biz.CapacityView) {
+	t.Helper()
+	ctx := context.Background()
+	bindings := func() string {
+		t.Helper()
+		var digest string
+		if err := database.View(ctx, func(reader biz.Reader) error {
+			rows, err := reader.Bindings(ctx, biz.BindingFilter{ClusterID: cluster.ClusterID, Pod: &pod}, "", 201)
+			if err != nil {
+				return err
+			}
+			digest, err = biz.Hash(rows)
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		return digest
+	}
+	before := bindings()
+	previousSources := map[string]biz.SourceWatermark{}
+	if err := database.View(ctx, func(reader biz.Reader) error {
+		rows, err := reader.SourceHealth(ctx, cluster.ClusterID)
+		for _, source := range rows {
+			previousSources[source.Source] = source
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	var err error
+	fixture.state, err = database.OpenNodeSession(ctx, fixture.identity, time.Now().Add(30*time.Second))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err = adapter.Inspect(ctx, cluster, group); err == nil || err.Error() != "NVML_UNAVAILABLE" {
+		t.Fatalf("new session reused old snapshot as live inventory: %v", err)
+	}
+	if bindings() != before {
+		t.Fatal("opening a new telemetry session changed business bindings")
+	}
+	runtime.mu.Lock()
+	runtime.exited, runtime.absent, runtime.apiDeleted = true, true, true
+	runtime.mu.Unlock()
+	batch, err := adapter.Collect(ctx, cluster, []biz.SupplyGroup{group})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(batch.Releases) != 0 {
+		t.Fatal("empty snapshot cache became positive release evidence")
+	}
+	for _, source := range batch.Watermarks {
+		if source.Source != "kubernetes" && (source.Complete || !source.ObservedAt.IsZero() || source.ReceivedAt.IsZero() || source.Issue != "SOURCE_UNKNOWN") {
+			t.Fatal("missing current-epoch snapshot became a fresh node observation")
+		}
+	}
+	if err = database.Transact(ctx, func(tx biz.Transaction) error { return tx.SaveObservation(ctx, batch) }); err != nil {
+		t.Fatal(err)
+	}
+	if err = database.View(ctx, func(reader biz.Reader) error {
+		rows, err := reader.SourceHealth(ctx, cluster.ClusterID)
+		for _, source := range rows {
+			if source.Source != "kubernetes" && (source.Complete || !source.ObservedAt.Equal(previousSources[source.Source].ObservedAt) || source.Issue != "SOURCE_UNKNOWN") {
+				t.Fatal("failure reception repackaged the previous complete source as fresh")
+			}
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	view := capacity()
+	if view.Observation.Complete || view.KnownFreeUnits != 0 || view.KnownCommittedUnits != 1 {
+		t.Fatal("cache absence exposed free capacity or forgot committed occupancy")
+	}
+	observed, err := usecase.ObserveRelease(owner, "new-session-release", ref, biz.NewID(), cluster.ClusterID, time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), []biz.PodRef{pod})
+	if err != nil || observed.Finding != biz.ReleaseUnknown || observed.Observation.Complete {
+		t.Fatalf("empty cache released owner occupancy: result=%+v error=%v", observed, err)
+	}
+	fixture.refresh(t)
+	if _, err = adapter.Inspect(ctx, cluster, group); err != nil {
+		t.Fatalf("current epoch complete snapshot did not recover inventory: %v", err)
+	}
+	batch, err = adapter.Collect(ctx, cluster, []biz.SupplyGroup{group})
+	if err != nil || len(batch.Releases) != 1 {
+		t.Fatalf("fresh actual exit and allocation absence did not recover release proof: releases=%d error=%v", len(batch.Releases), err)
+	}
+}
+
 func providerRevisionContinuity(t *testing.T, database *data.Postgres, adapter *Provider, cluster biz.Cluster, group biz.SupplyGroup, owner *biz.UsageRef, pod biz.PodRef, state *replayState, fixtures []*nodeTelemetryFixture) {
 	t.Helper()
 	ctx := context.Background()

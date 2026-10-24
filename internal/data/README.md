@@ -34,6 +34,12 @@ inline production/test SQL, and emits input/output hashes. The pinned checksum i
   superusers, BYPASSRLS, DDL/TEMP privileges and any residual RLS/policy.
 - Reconciliation scans are explicitly cluster-scoped inventory processing, not
   tenant request APIs. No global tenant-list business query exists.
+- A new NodeAgent stream epoch discards the previous epoch's snapshot cache and
+  invalidates its fact revision. Log acknowledgements, runtime-attempt history,
+  gaps and recovery requests remain durable. Previous-epoch FIFO records still
+  advance their original sequence, but cannot restore current inventory. Until
+  a complete current-epoch capture arrives, missing cache remains unknown for
+  capacity and release; it does not prove allocation absence.
 
 ## Upgrade and recovery
 

@@ -79,9 +79,12 @@ func (p *Postgres) OpenNodeSession(ctx context.Context, identity biz.NodeIdentit
 		if state.Identity.LogID != identity.LogID {
 			return biz.Conflict("LOCAL_LOG_ID_MISMATCH")
 		}
-		if state.CurrentRevision == 0 || state.Revoked || !time.Now().Before(state.LeaseExpiresAt) || state.Identity.PodUID != identity.PodUID {
+		if state.CurrentRevision == 0 || state.Revoked || !time.Now().Before(state.LeaseExpiresAt) || state.Identity.PodUID != identity.PodUID || state.Snapshot != nil {
 			state.CurrentRevision++
 		}
+		// A capture belongs to one stream epoch. Keep durable receipts and
+		// runtime history, but require new source evidence in the new session.
+		state.Snapshot = nil
 		state.Identity, state.LeaseExpiresAt, state.Revoked = identity, lease, false
 		state.Epoch++
 		return nil
@@ -133,7 +136,10 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 				slog.InfoContext(ctx, "node_telemetry_attempt_duration", "list_ms", listDuration.Milliseconds(), "decode_ms", decodeDuration.Milliseconds(), "merge_ms", mergeDuration.Milliseconds(), "encode_ms", encodeDuration.Milliseconds(), "write_ms", writeDuration.Milliseconds(), "existing_count", existingCount, "changed_count", changedCount, "total_ms", time.Since(started).Milliseconds())
 			}
 		}()
-		rows, err := queries.ListNodeRuntimeAttempts(ctx, connection, node)
+		// MergeNodeReport merges each ContainerID independently. Unmentioned
+		// history is unchanged on both sides of its semantic revision comparison;
+		// leave those rows in place instead of loading all historical attempts.
+		rows, err := queries.ListNodeRuntimeAttemptsByContainerIDs(ctx, connection, node, nodeReportContainerIDs(report))
 		listDuration = time.Since(started)
 		phaseStarted := time.Now()
 		attempts, err := decodeMany[biz.RuntimeAttempt](rows, err)
@@ -195,6 +201,24 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 		writeDuration = time.Since(phaseStarted)
 		return cleanError(err)
 	})
+}
+
+func nodeReportContainerIDs(report biz.NodeReport) []string {
+	unique := make(map[string]struct{}, len(report.Attempts))
+	for _, attempt := range report.Attempts {
+		unique[attempt.ContainerID] = struct{}{}
+	}
+	if report.Snapshot != nil {
+		for _, attempt := range report.Snapshot.Containers {
+			unique[attempt.ContainerID] = struct{}{}
+		}
+	}
+	ids := make([]string, 0, len(unique))
+	for id := range unique {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 func (p *Postgres) RegisterNodeRecovery(ctx context.Context, connection, node string, epoch uint64, requestID string, pod biz.PodRef, knownIDs []string) error {
