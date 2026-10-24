@@ -7,6 +7,7 @@
 | 来源 | 固定合同/读取字段 | 身份、单位及信任 |
 |---|---|---|
 | Kubernetes core/v1、coordination.k8s.io/v1 Lease | HTTPS GET Nodes、Pods、指定 ConfigMaps；Ready lastHeartbeatTime、Node UID、annotations、容器与资源、imageID；旧 Node status 再 GET 同名 kube-node-lease Lease | Ready 必须 True。status 心跳新鲜则直接采用；过旧时核对 Lease name/namespace、ownerReference 的 Node UID/name、holderIdentity 和 renewTime，时限取 freshness 与 leaseDurationSeconds 的较小值。受管 CA/server_name、client cert 或 token 文件；只读 RBAC，无写入；缺权限/失联/过期不当在线；分页截断拒绝 |
+| Kubernetes `node.k8s.io/v1` RuntimeClass | HTTPS GET the managed baseline's exact `runtimeclasses/{name}`; metadata name/UID/resourceVersion, handler, scheduling and overhead | Read-only `get` permission is required. Only optional `kubernetes.io/hostname` scheduling is supported; it must match each original group Node UID's actual label. Nonempty overhead/tolerations, missing facts and unknown/conflicting selectors fail closed. No global RuntimeClass writes or owner fallback. |
 | Volcano v1.12.0 | `volcano.sh/node-vgpu-register` 的 UUID/count/memory/model/health/mode；`volcano.sh/node-vgpu-handshake` | memory 是 BLOCKS，绑定受控 F；heartbeat 为实际上游时间，非本服务接收时间 |
 | Volcano device plugin v1.12.0 | 实际 Ready 插件 imageID；显式 `--gpu-memory-factor`、`--device-split-count`；ConfigMap摘要 | 按镜像 SHA256、F、K、组 Node UID 核对。未显式暴露有效参数拒绝，不能仅信请求 baseline |
 | Volcano scheduler v1.12.0 | scheduler imageID/config 摘要、Queue Open；`volcano.sh/vgpu-ids-new`、`volcano.sh/vgpu-time` | 分配字符串为 UUID/NVIDIA/blocks/cores，按 GPU 容器顺序；时间 Unix 秒。调度分配是历史事实，不续写为新 runtime 观测 |
@@ -49,6 +50,11 @@
     "plugin_selector": "app=volcano-device-plugin",
     "plugin_container": "device-plugin",
     "plugin_config_map": "device-plugin-config",
+    "node_plugin_config_maps": [{
+      "node_uid": "10000000-0000-4000-8000-000000000003",
+      "node_name": "gpu-node-3",
+      "config_map": "device-plugin-shared-config"
+    }],
     "scheduler_namespace": "volcano-system",
     "scheduler_selector": "app=volcano-scheduler",
     "scheduler_container": "volcano-scheduler",
@@ -65,6 +71,8 @@
 ```
 
 名称、selector 和路径必须按实际安装核对，不能把示例视为已探测值。中心保留原读取权限，并增加固定用途的 TokenReview、Agent Pod/SA/DaemonSet 读取和 Node patch；中心代码只允许写供给组/型号/基线三键，patch 包含 UID/resourceVersion test。Agent 不持有业务数据库或 owner 私钥。HTTPS 禁止重定向和未验证证书；token_file 每次请求重新读取。
+
+`node_plugin_config_maps` 可省略；未映射节点仍使用连接的 `plugin_config_map`。每项只允许真实 `node_uid`、`node_name` 和同一插件 namespace 的 `config_map`，UID 与名称分别唯一；未知或不相符的节点身份拒绝。覆盖引用只有在实际 Ready 插件 Pod 的指定容器将该 ConfigMap 的非空 `config.json` 挂载至 `/config/config.json` 时才有效：支持整个卷挂载 `/config`，或固定 `config.json` subPath 挂载该文件。同一运行容器的镜像、F/K 和挂载须一起匹配，不能拼接不同 Pod 的证据。Inspect 与初始化发现按节点读取真实摘要；组内每个节点仍须等于该组已冻结的 `node_config_digest`，不会更新或重算既有 baseline。该映射不提供 inventory、epoch、lease、socket 或本地采集能力。
 
 `installation_baselines` 每项为 `mode` 与现有 `ProviderBaseline` 的 `baseline`；运维登记真实安装声明，摘要复用 BaselineDigest。空配置显示未知，不猜预算或版本。中心启动明确拒绝旧 `local_node_uid`、`nodes`、`runtime_events_directory` 和 `runtime_journal` 采集配置；socket、journal 与持久状态目录移至 Agent 部署参数。
 

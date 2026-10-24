@@ -42,6 +42,9 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 	if err != nil {
 		return result, err
 	}
+	if err := reader.validatePluginConfigNodes(nodes); err != nil {
+		return result, err
+	}
 	views, err := p.loadTelemetry(ctx, result.Environment.ConnectionRef)
 	if err != nil {
 		return result, err
@@ -77,7 +80,6 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 		}
 		result.Checks = append(result.Checks, biz.InitializationCheck{Key: check.key, Source: "AUTOMATIC_OBSERVATION", State: state, Reason: reason})
 	}
-	nodeDigest, nodeConfigError := reader.configDigest(ctx, reader.config.PluginNamespace, reader.config.PluginConfigMap)
 	schedulerDigests := map[string]string{}
 	for _, baseline := range result.Environment.Baselines {
 		if _, found := schedulerDigests[baseline.Baseline.VolcanoVersion]; !found {
@@ -103,6 +105,8 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 		return nodes[left].Metadata.Name < nodes[right].Metadata.Name
 	})
 	for _, actual := range nodes {
+		configMap, overridden := reader.config.pluginConfigMap(actual.Metadata.UID, actual.Metadata.Name)
+		nodeDigest, nodeConfigError := reader.pluginConfigDigest(ctx, configMap, overridden)
 		view, found := views[actual.Metadata.UID]
 		item := biz.DiscoveredNode{Node: biz.NodeRef{UID: actual.Metadata.UID, Name: actual.Metadata.Name}, GroupID: groups[actual.Metadata.UID]}
 		block := func(reason string) {

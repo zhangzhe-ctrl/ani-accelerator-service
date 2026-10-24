@@ -18,7 +18,7 @@ import (
 type testProvider struct{}
 
 func (testProvider) Inspect(_ context.Context, _ biz.Cluster, g biz.SupplyGroup) (biz.GroupInspection, error) {
-	i := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now()}
+	i := biz.GroupInspection{RuntimeClass: biz.RuntimeClassInspection{Name: g.Baseline.RuntimeClassName, UID: "10000000-0000-4000-8000-000000000099", ResourceVersion: "1"}, BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now()}
 	for _, n := range g.Nodes {
 		i.Nodes = append(i.Nodes, biz.InspectedNode{Node: n, ModelKey: g.ModelKey, Factor: g.Baseline.MemoryBlockMiB, SplitCount: g.Baseline.SplitCount, ConfigDigest: g.Baseline.NodeConfigDigest, Labels: map[string]string{biz.GroupLabel: g.GroupID, biz.ModelLabel: g.ModelKey, biz.BaselineLabel: g.Baseline.BaselineID}, DeviceBudgetsMiB: []int64{24576}})
 	}
@@ -99,7 +99,7 @@ func pgSetup(t *testing.T) *pgFixture {
 		t.Fatal(err)
 	}
 	r := &biz.GpuRequest{ClusterID: c.ClusterID, PoolID: p.PoolID, ProfileID: profile.ProfileID, ProfileVersion: 1, Replicas: 2, DevicesPerReplica: 1, ContainerName: "inference"}
-	resolved, err := biz.BuildResolution(r, profile, g, 16)
+	resolved, err := biz.BuildResolution(r, profile, g, 16, nil)
 	if err != nil {
 		t.Fatal(err)
 	}

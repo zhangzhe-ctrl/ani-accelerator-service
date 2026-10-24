@@ -22,7 +22,7 @@ func TestWholeQuantityUsesOneResourcesAuthority(t *testing.T) {
 	p, g := quantityProfile(t, Whole, 4)
 	for _, replicas := range []uint32{1, 3} {
 		for _, devices := range []uint32{1, 2, 4} {
-			v, err := BuildResolution(quantityRequest(devices, replicas), p, g, 16)
+			v, err := BuildResolution(quantityRequest(devices, replicas), p, g, 16, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -32,11 +32,11 @@ func TestWholeQuantityUsesOneResourcesAuthority(t *testing.T) {
 		}
 	}
 	for _, devices := range []uint32{0, 5} {
-		_, err := BuildResolution(quantityRequest(devices, 1), p, g, 16)
+		_, err := BuildResolution(quantityRequest(devices, 1), p, g, 16, nil)
 		requireReason(t, err, "SHAPE_UNSUPPORTED")
 	}
 	p, g = quantityProfile(t, Shared, 1)
-	_, err := BuildResolution(quantityRequest(2, 1), p, g, 16)
+	_, err := BuildResolution(quantityRequest(2, 1), p, g, 16, nil)
 	requireReason(t, err, "SHAPE_UNSUPPORTED")
 }
 

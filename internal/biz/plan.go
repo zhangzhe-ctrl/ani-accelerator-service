@@ -10,7 +10,7 @@ const (
 	BaselineLabel = "accelerator.ani.io/baseline-id"
 )
 
-func Render(s *ProfileSpec, b *ProviderBaseline, queue string, devices uint32) (*GpuExecution, error) {
+func Render(s *ProfileSpec, b *ProviderBaseline, queue string, devices uint32, runtimeClassNodeSelector map[string]string) (*GpuExecution, error) {
 	if err := ValidateSpec(s, b); err != nil {
 		return nil, err
 	}
@@ -31,10 +31,16 @@ func Render(s *ProfileSpec, b *ProviderBaseline, queue string, devices uint32) (
 	if b.MemoryBlockMiB != 1 {
 		e.PodAnnotations["accelerator.ani.io/memory-block-mib"] = strconv.FormatUint(uint64(b.MemoryBlockMiB), 10)
 	}
+	if err := ValidateRuntimeClassNodeSelector(runtimeClassNodeSelector); err != nil {
+		return nil, err
+	}
+	for key, value := range runtimeClassNodeSelector {
+		e.NodeSelector[key] = value
+	}
 	e.ExecutionDigest, err = ExecutionDigest(e)
 	return e, err
 }
-func BuildResolution(request *GpuRequest, profile *Profile, group *SupplyGroup, maxReplicas uint32) (*ResolvedGpuRequest, error) {
+func BuildResolution(request *GpuRequest, profile *Profile, group *SupplyGroup, maxReplicas uint32, runtimeClassNodeSelector map[string]string) (*ResolvedGpuRequest, error) {
 	if err := ValidateRequest(request, maxReplicas); err != nil {
 		return nil, err
 	}
@@ -47,7 +53,7 @@ func BuildResolution(request *GpuRequest, profile *Profile, group *SupplyGroup, 
 	if d, err := SpecDigest(profile.Spec, profile.BaselineID); err != nil || d != profile.SpecDigest {
 		return nil, Invalid("SPEC_DIGEST_MISMATCH")
 	}
-	execution, err := Render(profile.Spec, group.Baseline, group.QueueName, request.DevicesPerReplica)
+	execution, err := Render(profile.Spec, group.Baseline, group.QueueName, request.DevicesPerReplica, runtimeClassNodeSelector)
 	if err != nil {
 		return nil, err
 	}
@@ -95,6 +101,20 @@ func ValidateProjection(p *UsageProjection) error {
 	}
 	if d != p.PayloadDigest {
 		return Invalid("PAYLOAD_DIGEST_MISMATCH")
+	}
+	return nil
+}
+
+// Only the observed RuntimeClass hostname placement is currently supported.
+// Identity selectors cannot be overridden by infrastructure scheduling data.
+func ValidateRuntimeClassNodeSelector(selector map[string]string) error {
+	if len(selector) > 1 {
+		return Precondition("RUNTIME_CLASS_UNSUPPORTED")
+	}
+	for key, value := range selector {
+		if key != "kubernetes.io/hostname" || !Label(value) {
+			return Precondition("RUNTIME_CLASS_UNSUPPORTED")
+		}
 	}
 	return nil
 }

@@ -145,6 +145,7 @@ type Security struct {
 	InferenceDnsName  string                 `protobuf:"bytes,10,opt,name=inference_dns_name,json=inferenceDnsName,proto3" json:"inference_dns_name,omitempty"`
 	ResourceDnsName   string                 `protobuf:"bytes,11,opt,name=resource_dns_name,json=resourceDnsName,proto3" json:"resource_dns_name,omitempty"`
 	NodeAgentDnsName  string                 `protobuf:"bytes,12,opt,name=node_agent_dns_name,json=nodeAgentDnsName,proto3" json:"node_agent_dns_name,omitempty"`
+	ModeldevDnsName   string                 `protobuf:"bytes,13,opt,name=modeldev_dns_name,json=modeldevDnsName,proto3" json:"modeldev_dns_name,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -235,6 +236,13 @@ func (x *Security) GetNodeAgentDnsName() string {
 	return ""
 }
 
+func (x *Security) GetModeldevDnsName() string {
+	if x != nil {
+		return x.ModeldevDnsName
+	}
+	return ""
+}
+
 type Accelerator struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	MaxReplicas     uint32                 `protobuf:"varint,1,opt,name=max_replicas,json=maxReplicas,proto3" json:"max_replicas,omitempty"`
@@ -245,6 +253,8 @@ type Accelerator struct {
 	OwnerPublicKeyFile string `protobuf:"bytes,7,opt,name=owner_public_key_file,json=ownerPublicKeyFile,proto3" json:"owner_public_key_file,omitempty"`
 	// Optional Resource instance signing key; never reuses the Inference key.
 	ResourceOwnerPublicKeyFile string `protobuf:"bytes,8,opt,name=resource_owner_public_key_file,json=resourceOwnerPublicKeyFile,proto3" json:"resource_owner_public_key_file,omitempty"`
+	// Optional ModelDev training signing key; never reuses another owner's key.
+	ModeldevOwnerPublicKeyFile string `protobuf:"bytes,9,opt,name=modeldev_owner_public_key_file,json=modeldevOwnerPublicKeyFile,proto3" json:"modeldev_owner_public_key_file,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -317,6 +327,13 @@ func (x *Accelerator) GetOwnerPublicKeyFile() string {
 func (x *Accelerator) GetResourceOwnerPublicKeyFile() string {
 	if x != nil {
 		return x.ResourceOwnerPublicKeyFile
+	}
+	return ""
+}
+
+func (x *Accelerator) GetModeldevOwnerPublicKeyFile() string {
+	if x != nil {
+		return x.ModeldevOwnerPublicKeyFile
 	}
 	return ""
 }
@@ -512,7 +529,7 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\bsecurity\x18\x03 \x01(\v2\x11.conf.v1.SecurityR\bsecurity\x126\n" +
 	"\vaccelerator\x18\x04 \x01(\v2\x14.conf.v1.AcceleratorR\vaccelerator\"%\n" +
 	"\bDatabase\x12\x19\n" +
-	"\bdsn_file\x18\x01 \x01(\tR\adsnFile\"\x89\x03\n" +
+	"\bdsn_file\x18\x01 \x01(\tR\adsnFile\"\xb5\x03\n" +
 	"\bSecurity\x12\x17\n" +
 	"\aca_file\x18\x01 \x01(\tR\x06caFile\x12\x1b\n" +
 	"\tcert_file\x18\x02 \x01(\tR\bcertFile\x12\x19\n" +
@@ -522,14 +539,16 @@ const file_conf_v1_conf_proto_rawDesc = "" +
 	"\x12inference_dns_name\x18\n" +
 	" \x01(\tR\x10inferenceDnsName\x12*\n" +
 	"\x11resource_dns_name\x18\v \x01(\tR\x0fresourceDnsName\x12-\n" +
-	"\x13node_agent_dns_name\x18\f \x01(\tR\x10nodeAgentDnsNameJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\b\x10\tR\x0egovernance_uriR\rinference_uriR\x06grantsR\fresource_uri\"\x93\x03\n" +
+	"\x13node_agent_dns_name\x18\f \x01(\tR\x10nodeAgentDnsName\x12*\n" +
+	"\x11modeldev_dns_name\x18\r \x01(\tR\x0fmodeldevDnsNameJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06J\x04\b\a\x10\bJ\x04\b\b\x10\tR\x0egovernance_uriR\rinference_uriR\x06grantsR\fresource_uri\"\xd7\x03\n" +
 	"\vAccelerator\x12!\n" +
 	"\fmax_replicas\x18\x01 \x01(\rR\vmaxReplicas\x127\n" +
 	"\tfreshness\x18\x02 \x01(\v2\x19.google.protobuf.DurationR\tfreshness\x12D\n" +
 	"\x10collect_interval\x18\x03 \x01(\v2\x19.google.protobuf.DurationR\x0fcollectInterval\x120\n" +
 	"\x14provider_config_file\x18\x04 \x01(\tR\x12providerConfigFile\x121\n" +
 	"\x15owner_public_key_file\x18\a \x01(\tR\x12ownerPublicKeyFile\x12B\n" +
-	"\x1eresource_owner_public_key_file\x18\b \x01(\tR\x1aresourceOwnerPublicKeyFileJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x10attestations_dirR\x1battestation_public_key_file\"\xfc\x02\n" +
+	"\x1eresource_owner_public_key_file\x18\b \x01(\tR\x1aresourceOwnerPublicKeyFile\x12B\n" +
+	"\x1emodeldev_owner_public_key_file\x18\t \x01(\tR\x1amodeldevOwnerPublicKeyFileJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x10attestations_dirR\x1battestation_public_key_file\"\xfc\x02\n" +
 	"\x06Server\x12(\n" +
 	"\x04grpc\x18\x01 \x01(\v2\x14.conf.v1.Server.GRPCR\x04grpc\x12+\n" +
 	"\x05admin\x18\x02 \x01(\v2\x15.conf.v1.Server.AdminR\x05admin\x12D\n" +

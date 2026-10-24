@@ -1,6 +1,7 @@
 package provider
 
 import (
+	"bytes"
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
@@ -22,6 +23,7 @@ type Provider struct {
 	connections      map[string]*kubeReader
 	ownerKey         ed25519.PublicKey
 	resourceOwnerKey ed25519.PublicKey
+	modeldevOwnerKey ed25519.PublicKey
 	repo             biz.Repository
 	freshness        time.Duration
 	runtimeEvents    *runtimeEvents
@@ -38,10 +40,23 @@ func (p *Provider) ConfigureResourceOwnerKey(key ed25519.PublicKey) error {
 	return nil
 }
 
+// ConfigureModeldevOwnerKey installs the independent training-owner verifier.
+// Without this key, ModelDev allocations remain counted and unassociated.
+func (p *Provider) ConfigureModeldevOwnerKey(key ed25519.PublicKey) error {
+	if len(key) != ed25519.PublicKeySize || bytes.Equal(key, p.ownerKey) || bytes.Equal(key, p.resourceOwnerKey) {
+		return biz.Invalid("MODELDEV_OWNER_KEY_INVALID")
+	}
+	p.modeldevOwnerKey = append(ed25519.PublicKey(nil), key...)
+	return nil
+}
+
 func New(config Config, ownerKey ed25519.PublicKey, repo biz.Repository, freshness time.Duration) (*Provider, error) {
 	p := &Provider{connections: map[string]*kubeReader{}, ownerKey: ownerKey, repo: repo, freshness: freshness}
 	p.telemetry, _ = repo.(biz.NodeTelemetryStore)
 	for _, c := range config.Connections {
+		if err := validateNodePluginConfigMaps(c.NodePluginConfigMaps); err != nil {
+			return nil, err
+		}
 		k, err := newKubeReader(c)
 		if err != nil {
 			return nil, err
@@ -65,15 +80,14 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 	if err != nil {
 		return biz.GroupInspection{}, err
 	}
-	nodeDigest, err := k.configDigest(ctx, k.config.PluginNamespace, k.config.PluginConfigMap)
-	if err != nil {
+	if err := k.validatePluginConfigNodes(ns); err != nil {
 		return biz.GroupInspection{}, err
 	}
 	schedulerDigest, err := k.schedulerConfigDigest(ctx, k.config.SchedulerNamespace, k.config.SchedulerConfigMap, g.Baseline.VolcanoVersion)
 	if err != nil {
 		return biz.GroupInspection{}, err
 	}
-	if nodeDigest != g.Baseline.NodeConfigDigest || schedulerDigest != g.Baseline.SchedulerConfigDigest {
+	if schedulerDigest != g.Baseline.SchedulerConfigDigest {
 		return biz.GroupInspection{}, biz.Precondition("CONFIG_DRIFT")
 	}
 	plugins, err := k.selectedPods(ctx, k.config.PluginNamespace, k.config.PluginSelector)
@@ -102,7 +116,11 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 	if err = k.get(ctx, "/apis/scheduling.volcano.sh/v1beta1/queues/"+g.QueueName, &queue); err != nil || queue.Metadata.Name != g.QueueName || queue.Status.State != "Open" {
 		return biz.GroupInspection{}, biz.Precondition("QUEUE_UNAVAILABLE")
 	}
-	inspection := biz.GroupInspection{BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
+	runtimeClass, err := k.runtimeClass(ctx, g.Baseline.RuntimeClassName)
+	if err != nil {
+		return biz.GroupInspection{}, err
+	}
+	inspection := biz.GroupInspection{RuntimeClass: runtimeClass, BaselineDigest: g.Baseline.BaselineDigest, QueueName: g.QueueName, ObservedAt: time.Now().UTC()}
 	views, err := p.loadTelemetry(ctx, c.ConnectionRef)
 	if err != nil {
 		return inspection, err
@@ -119,8 +137,23 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 				break
 			}
 		}
+		if found != nil {
+			for key, value := range runtimeClass.NodeSelector {
+				if found.Metadata.Labels[key] != value {
+					return inspection, biz.Precondition("RUNTIME_CLASS_NODE_MISMATCH")
+				}
+			}
+		}
 		if found == nil || !k.nodeOnline(ctx, *found, time.Now(), p.freshness) {
 			return inspection, biz.Precondition("NODE_UNKNOWN")
+		}
+		configMap, overridden := k.config.pluginConfigMap(found.Metadata.UID, found.Metadata.Name)
+		nodeDigest, err := k.pluginConfigDigest(ctx, configMap, overridden)
+		if err != nil {
+			return inspection, err
+		}
+		if nodeDigest != g.Baseline.NodeConfigDigest {
+			return inspection, biz.Precondition("CONFIG_DRIFT")
 		}
 		if g.Baseline.VolcanoVersion == "v1.15.2" || g.Baseline.VolcanoVersion == "v1.16.0" {
 			// These schedulers ignore the register annotation unless all three
@@ -181,6 +214,9 @@ func (p *Provider) Inspect(ctx context.Context, c biz.Cluster, g biz.SupplyGroup
 			}
 			for _, container := range plugin.Spec.Containers {
 				if container.Name != k.config.PluginContainer {
+					continue
+				}
+				if overridden && !pluginConfigMounted(plugin, configMap, container) {
 					continue
 				}
 				factor, ok1 := argument(container.Args, "gpu-memory-factor")
@@ -463,12 +499,16 @@ func collectionUnitsMatch(g biz.SupplyGroup, source NodeSource, registered []Reg
 	if !schedulerOK {
 		return false
 	}
+	configMap, overridden := config.pluginConfigMap(source.UID, source.Name)
 	for _, plugin := range plugins {
 		if plugin.Spec.NodeName != source.Name || !imageRunning(plugin, config.PluginContainer, g.Baseline.DevicePluginImageDigest) {
 			continue
 		}
 		for _, container := range plugin.Spec.Containers {
 			if container.Name != config.PluginContainer {
+				continue
+			}
+			if overridden && !pluginConfigMounted(plugin, configMap, container) {
 				continue
 			}
 			factor, hasFactor := argument(container.Args, "gpu-memory-factor")
@@ -675,6 +715,9 @@ func (p *Provider) verifyOwner(pod biz.PodRef, labels, annotations map[string]st
 	key := p.ownerKey
 	if labels["accelerator.ani.io/owner-service"] == "ani-resource-service" {
 		key = p.resourceOwnerKey
+	}
+	if labels["accelerator.ani.io/owner-service"] == "ani-modeldev-service" {
+		key = p.modeldevOwnerKey
 	}
 	return VerifyOwnerAssertion(pod, labels, annotations, key)
 }

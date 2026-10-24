@@ -13,6 +13,11 @@ func TestFactor10WireExecutionAcceptsFrozenUnitAndRejectsDrift(t *testing.T) {
 	if err := gpuprotocol.ValidateGpuExecution(execution); err != nil {
 		t.Fatal(err)
 	}
+	execution.NodeSelector["kubernetes.io/hostname"] = "node3"
+	execution.ExecutionDigest, _ = gpuprotocol.GpuExecutionDigest(execution)
+	if err := gpuprotocol.ValidateGpuExecution(execution); err != nil {
+		t.Fatalf("factor10 execution with RuntimeClass placement rejected: %v", err)
+	}
 	execution.PodAnnotations["accelerator.ani.io/memory-block-mib"] = "1"
 	if gpuprotocol.ValidateGpuExecution(execution) == nil {
 		t.Fatal("changed frozen factor accepted under old digest")

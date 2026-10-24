@@ -72,10 +72,14 @@ func ValidateRef(r *UsageRef) error {
 	if r == nil || !UUID(r.TenantID) || !UUID(r.ResourceID) || !UUID(r.CreateOperationID) {
 		return Invalid("INVALID_USAGE_REF")
 	}
-	if r.OwnerService != "ani-inference" && r.OwnerService != "ani-resource-service" {
+	if !validOwnerService(r.OwnerService) {
 		return Invalid("OWNER_UNSUPPORTED")
 	}
 	return nil
+}
+
+func validOwnerService(owner string) bool {
+	return owner == "ani-inference" || owner == "ani-resource-service" || owner == "ani-modeldev-service"
 }
 func ValidatePod(p PodRef) error {
 	if !UUID(p.ClusterID) || !Name(p.Namespace) || !Text(p.Name, 253) || !Ref(p.UID) || !Name(p.ContainerName) {

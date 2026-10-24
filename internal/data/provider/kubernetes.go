@@ -32,6 +32,7 @@ type Connection struct {
 	PluginSelector        string                   `json:"plugin_selector"`
 	PluginContainer       string                   `json:"plugin_container"`
 	PluginConfigMap       string                   `json:"plugin_config_map"`
+	NodePluginConfigMaps  []NodePluginConfigMap    `json:"node_plugin_config_maps,omitempty"`
 	SchedulerNamespace    string                   `json:"scheduler_namespace"`
 	SchedulerSelector     string                   `json:"scheduler_selector"`
 	SchedulerContainer    string                   `json:"scheduler_container"`
@@ -70,6 +71,9 @@ func LoadConfig(path string) (Config, error) {
 	for _, x := range c.Connections {
 		if x.LocalNodeUID != "" || len(x.Nodes) > 0 {
 			return c, biz.Invalid("PROVIDER_LOCAL_COLLECTION_REMOVED")
+		}
+		if err := validateNodePluginConfigMaps(x.NodePluginConfigMaps); err != nil {
+			return c, err
 		}
 		baselineIDs := map[string]bool{}
 		for _, installed := range x.InstallationBaselines {
@@ -193,10 +197,16 @@ type node struct {
 	} `json:"status"`
 }
 type container struct {
-	Name      string   `json:"name"`
-	Image     string   `json:"image"`
-	Command   []string `json:"command"`
-	Args      []string `json:"args"`
+	Name         string   `json:"name"`
+	Image        string   `json:"image"`
+	Command      []string `json:"command"`
+	Args         []string `json:"args"`
+	VolumeMounts []struct {
+		Name        string `json:"name"`
+		MountPath   string `json:"mountPath"`
+		SubPath     string `json:"subPath"`
+		SubPathExpr string `json:"subPathExpr"`
+	} `json:"volumeMounts"`
 	Resources struct {
 		Limits map[string]string `json:"limits"`
 	} `json:"resources"`
@@ -208,6 +218,16 @@ type pod struct {
 		NodeSelector   map[string]string `json:"nodeSelector"`
 		Containers     []container       `json:"containers"`
 		InitContainers []container       `json:"initContainers"`
+		Volumes        []struct {
+			Name      string `json:"name"`
+			ConfigMap *struct {
+				Name  string `json:"name"`
+				Items []struct {
+					Key  string `json:"key"`
+					Path string `json:"path"`
+				} `json:"items"`
+			} `json:"configMap"`
+		} `json:"volumes"`
 	} `json:"spec"`
 	Status struct {
 		Phase             string `json:"phase"`
