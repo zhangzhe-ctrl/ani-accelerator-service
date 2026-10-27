@@ -1,5 +1,7 @@
 # GOV-ACC-V12-01 isolated software helpers
 
+The former `ObserveRelease` RPC is retired; see the [contract change](../releases/2026-10-27-observe-release-retirement.md). Historical helper receipts apply only to their recorded binaries. Current helpers exercise internal observation persistence and the remaining Gov-facing API; they do not restore an owner release endpoint.
+
 These entry points compile only into Go test binaries. They are absent from the
 production registry, OpenAPI and production image. Run them only on the authorized
 Fedora host with task-local caches, `GOWORK=off`, `GOMAXPROCS=2`, `GOFLAGS=-p=2`.
@@ -47,7 +49,7 @@ connection domain. Additional Gov-authorized actors and tenants need no ACC
 configuration change or restart. `seed.json` contains catalog objects, a valid request and
 `requests[RPC]`, the original five management requests including idempotency keys.
 BFF tests can replay the original requests with the same trusted actor.
-`SyncGpuUsage` and `ObserveRelease` use their direct certificate identities.
+`SyncGpuUsage` uses the direct Gov certificate identity. `ResolveGpuRequest` remains Gov-only. An owner certificate confers no central business RPC permission after retirement; invoking the old `ObserveRelease` method must return gRPC `Unimplemented`.
 
 Once Gov has durably accepted and synchronized a real test operation, write a
 fixture request containing the **Gov-generated original ref**:
@@ -62,9 +64,10 @@ persisted usage and frozen plan, writes inventory/three source claims through
 actual `SaveObservation`, then proves a nonempty sensitive binding is queryable
 for the original tenant/ref. `request.json.result.json` retains its exact Pod and
 device scope. Feed that result back with `state=RELEASED` to persist a controlled
-positive release observation. Owner then calls the real `ObserveRelease` over
-mTLS using the complete returned Pod scope and its explicit DELETE operation.
-The helper does not issue quota refunds or replace owner cleanup responsibility.
+positive release observation and check the resulting persisted binding/capacity
+facts through the remaining Gov-authorized reads. The old owner `ObserveRelease`
+step is removed; a legacy-path probe can assert `Unimplemented` only. The helper
+does not issue quota refunds, implement owner cleanup or prove consumer migration.
 
 Gov BFF redaction must be asserted against the resulting **nonempty** binding.
 Neither an empty response nor helper completion proves BFF redaction. The source

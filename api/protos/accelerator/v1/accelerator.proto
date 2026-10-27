@@ -52,13 +52,6 @@ enum FitStatus {
   REQUEST_UNSUPPORTED = 4; // 不支持的静态形态，应拒绝
 }
 
-enum ReleaseFinding {
-  RELEASE_FINDING_UNSPECIFIED = 0; // 缺少检查
-  ALLOCATION_RELEASED = 1; // 已核对指定范围的设备解除，不证明owner已封闭
-  ALLOCATION_STILL_PRESENT = 2; // 有残留分配
-  RELEASE_UNKNOWN = 3; // 缺少完整可靠证据
-}
-
 // 用户主体不等于直接调用服务身份；不透传Bearer。
 message Actor {
   // 必填；来自现有Principal.Actor的主体类型。
@@ -67,7 +60,7 @@ message Actor {
   string id = 2 [json_name = "id"];
 }
 
-// 租户读取/解析由Gov委托；释放观察也须验证直接owner身份。
+// 租户读取/解析由Gov委托。
 message TenantContext {
   // 必填；日志关联，非幂等键。
   string request_id = 1 [json_name = "request_id"];
@@ -837,41 +830,6 @@ message ListBindingsResponse {
   Observation observation = 3 [json_name = "observation"];
 }
 
-// 无需已存在使用关联；范围完整性和无未知在途写由owner证明。
-message ObserveReleaseRequest {
-  // 必填。
-  string request_id = 1 [json_name = "request_id"];
-  // 必填；直接mTLS调用方必须是该owner。
-  GpuUsageRef ref = 2 [json_name = "ref"];
-  // 必填UUID，明确关闭操作。
-  string delete_operation_id = 3 [json_name = "delete_operation_id"];
-  // owner持久掌握的完整历史Pod范围；从未观察到Pod时可空。
-  repeated PodRef pods = 4 [json_name = "pods"];
-  // 必填；ACC还会从已知owner claims补全范围，拒绝跨集群冲突。
-  string cluster_id = 6 [json_name = "cluster_id"];
-  // 必填RFC3339Nano。owner已封闭创建且清理API对象后持久化的时间。
-  // 所有受管GPU节点的来源水位必须完整、新鲜且不早于此时间。
-  string sealed_at = 7 [json_name = "sealed_at"];
-}
-
-// ALLOCATION_RELEASED只证明检查范围解除，不决定退款或证明owner未来不会创建。
-message ReleaseObservation {
-  // 结果证据UUID。
-  string evidence_id = 1 [json_name = "evidence_id"];
-  // 对应资源引用。
-  GpuUsageRef ref = 2 [json_name = "ref"];
-  // 正常解除、仍存在或未知。
-  ReleaseFinding finding = 3 [json_name = "finding"];
-  // 已确认残留设备分配的Pod，不只查当前GPU进程。
-  repeated string active_pod_uids = 4 [json_name = "active_pod_uids"];
-  // 缺少可信证据的节点。
-  repeated string uncertain_node_uids = 5 [json_name = "uncertain_node_uids"];
-  // 必填。
-  Observation observation = 6 [json_name = "observation"];
-  // 稳定证据摘要，绑定检查范围。
-  string evidence_digest = 7 [json_name = "evidence_digest"];
-}
-
 // 全部方法只接受Gov可信管理员委托；初始化也可由同校验CLI完成。
 service AcceleratorAdminService {
   rpc GetInitialization(GetInitializationRequest) returns (Initialization);
@@ -932,8 +890,6 @@ service AcceleratorUsageService {
   rpc ListGpuUsages(ListGpuUsagesRequest) returns (ListGpuUsagesResponse);
   // 读取可信绑定，不增加使用权。
   rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
-  // 仅实际owner调用；只读物理证据，不依赖Sync先成功。
-  rpc ObserveRelease(ObserveReleaseRequest) returns (ReleaseObservation);
 }
 message InitializationCheck {
   string key = 1;

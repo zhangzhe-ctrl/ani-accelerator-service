@@ -161,8 +161,7 @@ func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 		}
 		policy, delegated := governanceRPCs[info.FullMethod]
 		sync := info.FullMethod == pb.AcceleratorUsageService_SyncGpuUsage_FullMethodName
-		release := info.FullMethod == pb.AcceleratorUsageService_ObserveRelease_FullMethodName
-		if !(service == "ani-governance" && (delegated || sync)) && !((service == "ani-inference" || service == "ani-resource-service" || service == "ani-modeldev-service") && release) {
+		if !(service == "ani-governance" && (delegated || sync)) {
 			return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
 		if message, ok := request.(proto.Message); !ok || hasUnknown(message.ProtoReflect()) {
@@ -186,13 +185,6 @@ func Authorize(config *conf.Security) grpc.UnaryServerInterceptor {
 				}
 			}
 			if len(md.Get("x-ani-action")) != 0 && read("x-ani-action") != caller.Action {
-				return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
-			}
-			return next(biz.WithCaller(ctx, caller), request)
-		}
-		if release {
-			caller.Action = "ObserveRelease"
-			if !biz.UUID(caller.TenantID) || read("x-ani-action") != caller.Action {
 				return nil, status.Error(codes.PermissionDenied, "ACTION_DENIED")
 			}
 			return next(biz.WithCaller(ctx, caller), request)

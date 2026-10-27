@@ -10,6 +10,7 @@ import (
 	"os"
 	"testing"
 
+	nodepb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/node/v1"
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
@@ -25,7 +26,7 @@ import (
 )
 
 func serviceSecurity() *conf.Security {
-	return &conf.Security{GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service"}
+	return &conf.Security{GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service", NodeAgentDnsName: "ani-node-agent"}
 }
 func verifiedContext(t *testing.T, pki *testkit.PKI, certFile string) context.Context {
 	t.Helper()
@@ -88,7 +89,7 @@ func TestServiceIdentityRequiresUniqueExactDNSSAN(t *testing.T) {
 }
 func TestGeneratedRPCAllowlistAndTrustedDelegation(t *testing.T) {
 	pki := testkit.NewPKI(t)
-	for _, identity := range []string{"ani-governance", "ani-resource-service", "ani-inference-service", "ani-modeldev-service"} {
+	for _, identity := range []string{"ani-governance", "ani-resource-service", "ani-inference-service", "ani-modeldev-service", "ani-node-agent"} {
 		cert, _ := pki.Issue(t, identity, identity, false)
 		ctx := verifiedContext(t, pki, cert)
 		services := pb.File_accelerator_v1_accelerator_proto.Services()
@@ -99,7 +100,7 @@ func TestGeneratedRPCAllowlistAndTrustedDelegation(t *testing.T) {
 				t.Run(identity+"/"+string(method.Name()), func(t *testing.T) {
 					full := "/" + string(service.FullName()) + "/" + string(method.Name())
 					policy, delegated := governanceRPCs[full]
-					want := identity == "ani-governance" && (delegated || method.Name() == "SyncGpuUsage") || identity != "ani-governance" && method.Name() == "ObserveRelease"
+					want := identity == "ani-governance" && (delegated || method.Name() == "SyncGpuUsage")
 					pairs := []string{"x-ani-action", string(method.Name())}
 					if method.Name() != "SyncGpuUsage" {
 						if !policy.admin {
@@ -125,7 +126,7 @@ func TestGeneratedRPCAllowlistAndTrustedDelegation(t *testing.T) {
 				})
 			}
 		}
-		for _, full := range []string{"/accelerator.v1.FakeService/ListProfiles", "/accelerator.v1.AcceleratorUsageService/ListProfiles", "/accelerator.v1.AcceleratorCatalogService/Unknown", "/unknown.Service/SyncGpuUsage"} {
+		for _, full := range []string{"/accelerator.v1.AcceleratorUsageService/ObserveRelease", "/accelerator.v1.FakeService/ListProfiles", "/accelerator.v1.AcceleratorUsageService/ListProfiles", "/accelerator.v1.AcceleratorCatalogService/Unknown", "/unknown.Service/SyncGpuUsage"} {
 			_, err := Authorize(serviceSecurity())(ctx, &pb.ListProfilesRequest{}, &grpc.UnaryServerInfo{FullMethod: full}, func(context.Context, any) (any, error) { t.Fatal("unknown method reached handler"); return nil, nil })
 			if status.Code(err) != codes.PermissionDenied {
 				t.Fatalf("unknown full method accepted: %v", err)
@@ -174,13 +175,13 @@ type authenticationStream struct {
 func (s authenticationStream) Context() context.Context { return s.ctx }
 func TestStreamingRPCsUseTheSameServicePolicy(t *testing.T) {
 	pki := testkit.NewPKI(t)
-	for _, identity := range []string{"ani-governance", "ani-resource-service", "ani-inference-service"} {
+	for _, identity := range []string{"ani-governance", "ani-resource-service", "ani-inference-service", "ani-modeldev-service", "ani-node-agent"} {
 		cert, _ := pki.Issue(t, identity, identity, false)
 		stream := authenticationStream{ctx: verifiedContext(t, pki, cert)}
-		for _, method := range []string{healthpb.Health_Watch_FullMethodName, "/grpc.health.v1.Fake/Watch", pb.AcceleratorCatalogService_ListProfiles_FullMethodName} {
+		for _, method := range []string{healthpb.Health_Watch_FullMethodName, "/grpc.health.v1.Fake/Watch", pb.AcceleratorCatalogService_ListProfiles_FullMethodName, nodepb.NodeTelemetryService_Connect_FullMethodName, nodepb.NodeTelemetryService_Connect_FullMethodName + "Extra"} {
 			called := false
 			err := AuthorizeStream(serviceSecurity())(nil, stream, &grpc.StreamServerInfo{FullMethod: method}, func(any, grpc.ServerStream) error { called = true; return nil })
-			if identity == "ani-governance" && method == healthpb.Health_Watch_FullMethodName {
+			if identity == "ani-governance" && method == healthpb.Health_Watch_FullMethodName || identity == "ani-node-agent" && method == nodepb.NodeTelemetryService_Connect_FullMethodName {
 				if err != nil || !called {
 					t.Fatal(err)
 				}

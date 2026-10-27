@@ -1,5 +1,7 @@
 # GOV-ACC-INF-V12-WIRING-01 完整 Goal 提示词
 
+> 合同更新（2026-10-27）：本文中对外 `ObserveRelease` 的要求已由[接口下线说明](../releases/2026-10-27-observe-release-retirement.md)取代（superseded）；其余历史计划与结果保留，不代表本次消费方或环境验收。
+
 以下代码块可整体复制启动后续实施。本文件落盘没有启动 Goal 或业务修改。提示词包含为正式跨仓模块消费所需的任务分支提交、推送；不包含合并 main、生产部署或真实 GPU 验收。
 
 ```text

@@ -227,20 +227,6 @@ func (s *Accelerator) ListBindings(ctx context.Context, q *pb.ListBindingsReques
 		return s.u.ListBindings(ctx, a.Context, a.Ref, a.Page)
 	})
 }
-func (s *Accelerator) ObserveRelease(ctx context.Context, q *pb.ObserveReleaseRequest) (*pb.ReleaseObservation, error) {
-	type input struct {
-		RequestID         string        `json:"request_id"`
-		Ref               *biz.UsageRef `json:"ref"`
-		DeleteOperationID string        `json:"delete_operation_id"`
-		Pods              []biz.PodRef  `json:"pods"`
-		ClusterID         string        `json:"cluster_id"`
-		SealedAt          string        `json:"sealed_at"`
-	}
-	return invoke[pb.ReleaseObservation](q, func(a *input) (*biz.ReleaseObservation, error) {
-		return s.u.ObserveRelease(ctx, a.RequestID, a.Ref, a.DeleteOperationID, a.ClusterID, a.SealedAt, a.Pods)
-	})
-}
-
 func (s *Accelerator) PreviewProfile(ctx context.Context, q *pb.PreviewProfileRequest) (*pb.ProfilePreview, error) {
 	type input struct {
 		Context *biz.AdminRead `json:"context"`

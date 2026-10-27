@@ -1141,11 +1141,10 @@ var AcceleratorCatalogService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	AcceleratorUsageService_SyncGpuUsage_FullMethodName   = "/accelerator.v1.AcceleratorUsageService/SyncGpuUsage"
-	AcceleratorUsageService_GetGpuUsage_FullMethodName    = "/accelerator.v1.AcceleratorUsageService/GetGpuUsage"
-	AcceleratorUsageService_ListGpuUsages_FullMethodName  = "/accelerator.v1.AcceleratorUsageService/ListGpuUsages"
-	AcceleratorUsageService_ListBindings_FullMethodName   = "/accelerator.v1.AcceleratorUsageService/ListBindings"
-	AcceleratorUsageService_ObserveRelease_FullMethodName = "/accelerator.v1.AcceleratorUsageService/ObserveRelease"
+	AcceleratorUsageService_SyncGpuUsage_FullMethodName  = "/accelerator.v1.AcceleratorUsageService/SyncGpuUsage"
+	AcceleratorUsageService_GetGpuUsage_FullMethodName   = "/accelerator.v1.AcceleratorUsageService/GetGpuUsage"
+	AcceleratorUsageService_ListGpuUsages_FullMethodName = "/accelerator.v1.AcceleratorUsageService/ListGpuUsages"
+	AcceleratorUsageService_ListBindings_FullMethodName  = "/accelerator.v1.AcceleratorUsageService/ListBindings"
 )
 
 // AcceleratorUsageServiceClient is the client API for AcceleratorUsageService service.
@@ -1162,8 +1161,6 @@ type AcceleratorUsageServiceClient interface {
 	ListGpuUsages(ctx context.Context, in *ListGpuUsagesRequest, opts ...grpc.CallOption) (*ListGpuUsagesResponse, error)
 	// 读取可信绑定，不增加使用权。
 	ListBindings(ctx context.Context, in *ListBindingsRequest, opts ...grpc.CallOption) (*ListBindingsResponse, error)
-	// 仅实际owner调用；只读物理证据，不依赖Sync先成功。
-	ObserveRelease(ctx context.Context, in *ObserveReleaseRequest, opts ...grpc.CallOption) (*ReleaseObservation, error)
 }
 
 type acceleratorUsageServiceClient struct {
@@ -1214,16 +1211,6 @@ func (c *acceleratorUsageServiceClient) ListBindings(ctx context.Context, in *Li
 	return out, nil
 }
 
-func (c *acceleratorUsageServiceClient) ObserveRelease(ctx context.Context, in *ObserveReleaseRequest, opts ...grpc.CallOption) (*ReleaseObservation, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ReleaseObservation)
-	err := c.cc.Invoke(ctx, AcceleratorUsageService_ObserveRelease_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // AcceleratorUsageServiceServer is the server API for AcceleratorUsageService service.
 // All implementations must embed UnimplementedAcceleratorUsageServiceServer
 // for forward compatibility.
@@ -1238,8 +1225,6 @@ type AcceleratorUsageServiceServer interface {
 	ListGpuUsages(context.Context, *ListGpuUsagesRequest) (*ListGpuUsagesResponse, error)
 	// 读取可信绑定，不增加使用权。
 	ListBindings(context.Context, *ListBindingsRequest) (*ListBindingsResponse, error)
-	// 仅实际owner调用；只读物理证据，不依赖Sync先成功。
-	ObserveRelease(context.Context, *ObserveReleaseRequest) (*ReleaseObservation, error)
 	mustEmbedUnimplementedAcceleratorUsageServiceServer()
 }
 
@@ -1261,9 +1246,6 @@ func (UnimplementedAcceleratorUsageServiceServer) ListGpuUsages(context.Context,
 }
 func (UnimplementedAcceleratorUsageServiceServer) ListBindings(context.Context, *ListBindingsRequest) (*ListBindingsResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ListBindings not implemented")
-}
-func (UnimplementedAcceleratorUsageServiceServer) ObserveRelease(context.Context, *ObserveReleaseRequest) (*ReleaseObservation, error) {
-	return nil, status.Error(codes.Unimplemented, "method ObserveRelease not implemented")
 }
 func (UnimplementedAcceleratorUsageServiceServer) mustEmbedUnimplementedAcceleratorUsageServiceServer() {
 }
@@ -1359,24 +1341,6 @@ func _AcceleratorUsageService_ListBindings_Handler(srv interface{}, ctx context.
 	return interceptor(ctx, in, info, handler)
 }
 
-func _AcceleratorUsageService_ObserveRelease_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ObserveReleaseRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(AcceleratorUsageServiceServer).ObserveRelease(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: AcceleratorUsageService_ObserveRelease_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(AcceleratorUsageServiceServer).ObserveRelease(ctx, req.(*ObserveReleaseRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // AcceleratorUsageService_ServiceDesc is the grpc.ServiceDesc for AcceleratorUsageService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1399,10 +1363,6 @@ var AcceleratorUsageService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListBindings",
 			Handler:    _AcceleratorUsageService_ListBindings_Handler,
-		},
-		{
-			MethodName: "ObserveRelease",
-			Handler:    _AcceleratorUsageService_ObserveRelease_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

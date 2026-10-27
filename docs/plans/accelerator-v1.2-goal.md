@@ -1,5 +1,7 @@
 # ACC-V12-01 完整 Goal 提示词
 
+> 合同更新（2026-10-27）：本文中对外 `ObserveRelease` 的要求已由[接口下线说明](../releases/2026-10-27-observe-release-retirement.md)取代（superseded）；其余历史计划与结果保留，不代表本次消费方或环境验收。
+
 下面代码块可整体复制。它用于启动后续实施；本文件落盘本身没有启动 Goal。目标限定为完整服务实现及 Fedora 无 GPU 软件验收，真实 GPU 与外部集成不会被伪装为完成。
 
 ```text

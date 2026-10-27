@@ -1,5 +1,7 @@
 # GOV-ACC-V12-01 无 GPU 软件验收矩阵
 
+> 合同更新（2026-10-27）：本文中对外 `ObserveRelease` 的要求已由[接口下线说明](../releases/2026-10-27-observe-release-retirement.md)取代（superseded）；其余历史计划与结果保留，不代表本次消费方或环境验收。
+
 状态：**获准执行，尚无本批通过结论**。配套：[实施计划](governance-accelerator-v1.2-plan.md)。下面“必须证明”是验收要求，不是结果声明。原 84 项保留，追加第 9 节数据层门禁。每个 ID 单独登记 `pass/fail/not_verified`、实际命令、退出码、两仓版本、证据路径及来源层 A/B/C。
 
 所有生成、格式化、依赖、构建、测试、审计、PG、进程及证书操作仅在 Fedora；本地不运行这些检查。没有真实 GPU、没有真实 Inference/其他 owner。本批必验 BASE～DOC 不因该环境限制跳过；SHIP 按发布授权和可用条件记录；LIVE/OWNER固定not_verified。
