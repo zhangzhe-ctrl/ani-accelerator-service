@@ -1,5 +1,7 @@
 # Governance GPU 适配及无 GPU 软件验收计划
 
+> 合同更新（2026-10-27）：本文中对外 `ObserveRelease` 的要求已由[接口下线说明](../releases/2026-10-27-observe-release-retirement.md)取代（superseded）；其余历史计划与结果保留，不代表本次消费方或环境验收。
+
 批次：`GOV-ACC-V12-01`。编制日期：2026-09-23。状态：**获准执行，R0 进行中；尚无本批软件验收通过结论**。
 
 本轮按用户 GOV-ACC-V12-01 Goal 连续执行 R0～R5，允许修改 Governance 与 Accelerator、在 Fedora 隔离资源显式迁移并运行验收、提交及向指定任务分支非强制推送。先完成数据层整改、业务适配及无 GPU 软件验收，再依据最终实现交付通用 GPU owner 接入与释放文档。Inference 实现不在本批范围，也不是本批完成的前置。

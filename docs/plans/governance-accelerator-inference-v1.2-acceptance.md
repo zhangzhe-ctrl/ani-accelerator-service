@@ -1,5 +1,7 @@
 # Gov / Acc / Inference v1.2 接线结果索引
 
+> 合同更新（2026-10-27）：本文中对外 `ObserveRelease` 的要求已由[接口下线说明](../releases/2026-10-27-observe-release-retirement.md)取代（superseded）；其余历史计划与结果保留，不代表本次消费方或环境验收。
+
 批次：`GOV-ACC-INF-V12-WIRING-01`。这是本 Goal 唯一执行结果索引；[计划](governance-accelerator-inference-v1.2-plan.md)保留规划时事实，[Goal](governance-accelerator-inference-v1.2-goal.md)定义授权范围。
 
 **真实软件主链已通过 R2、R3 与最终 R4d 联测：Gov 公共创建入口经权限、Acc Resolve 和事务占额，调用真实 Inference mTLS 接收器，将原业务、plan、全量 charges 和 ACK 保存到真实 PG，再从该快照调用生产参数渲染函数；DELETE 持久受理后，显式注入的完成通知经真实 Inference refund client 到 Gov mTLS receiver/事务账本完成一次累计退额。** R4d 还验证了丢响应重投、Inference 进程重启后的原 ACK 恢复、Acc 使用同步及真实退额 receiver 的完整负向调用。

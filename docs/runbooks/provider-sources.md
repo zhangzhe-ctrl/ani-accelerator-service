@@ -94,7 +94,7 @@ v1 仍使用 `acc-hardware-attestation-v1` 签名域及其原有效期，不会�
 
 调度分配按原始 assigned 时间记录历史事实。owner 签名晚于首次采集到达时，同 Pod/container/device/node/assigned 时间的已有 scheduler 记录保留原归属及版本；不把后来到达的归属回填为同一历史版本的新报文。当前 runtime/allocation 事实继续独立严格验签并关联 usage；两个有效归属相异仍产生 ownership conflict，同时间的真实分配字段变化仍拒绝为 source revision conflict。
 
-解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。ObserveRelease 必要时在三秒内部预算内刷新一次完整归并，并在与 ingest 相同的节点锁内验证 current/consumed/证明 revision；冲突或证据不足返回 UNKNOWN。它不删除 workload、不结束 usage、不发配额释放。
+解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。内部归并继续校验 current/consumed/证明 revision，冲突或证据不足保持 UNKNOWN；它不删除 workload、不结束 usage、不发配额释放。对外 `ObserveRelease` RPC 已[下线](../releases/2026-10-27-observe-release-retirement.md)，旧路径返回 gRPC `Unimplemented`，不能再以 owner RPC 触发释放观察。
 
 Agent 连续读取 CRI `GetContainerEvents`，保存 CREATED/RUNNING/EXITED/UNKNOWN、独立原 event_type 与未解释尝试。记录先 append/fsync；每节点仅一条 Report 在途，中心事务提交后 ACK，Agent 持久 ACK 后发下一条。网络断线而日志连续不制造来源缺口；真实缺口不被重连、ACK 或空快照清除。普通同内容快照和心跳不推进领域 revision；新占用、UNKNOWN、缺口及有效性变化仍使旧判断失效。
 
@@ -102,7 +102,7 @@ Agent 连续读取 CRI `GetContainerEvents`，保存 CREATED/RUNNING/EXITED/UNKN
 
 journal 路径与超时是手动安装参数，RPC 不接收任意命令或路径。中心等待继续服从整体采集/释放期限，超时保留 UNKNOWN。证据来源时间与传输 receipt 分离，重放不刷新采样时间。
 
-完整有效的 `RELEASE_CONFIRMED` 是已持久化的历史事实，绑定列表及其聚合不能因 120 秒采样窗口过去或当前来源失联而将其降为 UNKNOWN；返回原始 observed_at、received_at 和 release 引用，不刷新证明时间。ACTIVE 仍要求来源健康及实时新鲜度；不完整、未知或时间无效的历史记录仍保守返回不完整。该规则不改变新分配重新计占用的合并逻辑，也不替代 ObserveRelease 对当前解除条件的核验。
+完整有效的 `RELEASE_CONFIRMED` 是已持久化的历史事实，绑定列表及其聚合不能因 120 秒采样窗口过去或当前来源失联而将其降为 UNKNOWN；返回原始 observed_at、received_at 和 release 引用，不刷新证明时间。ACTIVE 仍要求来源健康及实时新鲜度；不完整、未知或时间无效的历史记录仍保守返回不完整。该规则及新分配重新计占用的合并逻辑在 RPC 下线后保留，不能用这些容量观测宣称 owner 完成删除或 Governance 完成退款。
 
 ## 构造样本与验收入口
 

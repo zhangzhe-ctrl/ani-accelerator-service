@@ -32,6 +32,7 @@ import (
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 // This test binary supplies external provider observations. Production main always
@@ -272,7 +273,7 @@ func replaceDelegatedActor(message protoreflect.Message, actor string) {
 	})
 }
 
-func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
+func TestPublicRPCsMTLSAndRecovery(t *testing.T) {
 	r := testkit.NewRuntime(t, address(t), address(t))
 	connection := "contract:" + biz.NewID()
 	tenant := biz.NewID()
@@ -285,9 +286,6 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	rpc := func(method, tenantID string, in, out proto.Message) {
 		t.Helper()
 		client, wrong := gov, owner
-		if method == "ObserveRelease" {
-			client, wrong = owner, gov
-		}
 		ctx, cancel := context.WithTimeout(callContext(method, tenantID), 5*time.Second)
 		defer cancel()
 		if err := client.Invoke(ctx, methodPath(method), in, out); err != nil {
@@ -450,27 +448,44 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if fit.Status != pb.FitStatus_FIT_ESTIMATE || !fit.EstimateKnown || fit.EstimatedReplicas != 3 {
 		t.Fatal(fit)
 	}
-	release := &pb.ObserveReleaseRequest{RequestId: "contract", Ref: copyAs[pb.GpuUsageRef](t, ref), DeleteOperationId: biz.NewID(), ClusterId: cluster.ClusterId, SealedAt: time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano), Pods: []*pb.PodRef{copyAs[pb.PodRef](t, pod)}}
-	observation := new(pb.ReleaseObservation)
-	rpc("ObserveRelease", tenant, release, observation)
-	if observation.Finding != pb.ReleaseFinding_ALLOCATION_STILL_PRESENT {
-		t.Fatal(observation)
-	}
-	// Resource has a distinct certificate and can only observe its own ref.
+	// The retired wire method must stay absent for every former owner identity,
+	// Gov, and the separate node telemetry identity. Keep the literal path so
+	// generated client stubs cannot accidentally preserve access to the RPC.
 	resourceCert, resourceKey := r.PKI.Issue(t, "resource", "ani-resource-service", false)
 	resourceClient := conn(t, r, resourceCert, resourceKey)
-	resourceCtx, resourceCancel := context.WithTimeout(callContext("ObserveRelease", tenant), 5*time.Second)
-	if err := resourceClient.Invoke(resourceCtx, methodPath("ObserveRelease"), release, new(pb.ReleaseObservation)); status.Code(err) != codes.PermissionDenied {
-		t.Fatal("Resource certificate accepted foreign owner ref", err)
+	modeldevCert, modeldevKey := r.PKI.Issue(t, "modeldev", "ani-modeldev-service", false)
+	modeldev := conn(t, r, modeldevCert, modeldevKey)
+	nodeCert, nodeKey := r.PKI.Issue(t, "node-agent", "ani-node-agent", false)
+	nodeAgent := conn(t, r, nodeCert, nodeKey)
+	for _, identity := range []struct {
+		name   string
+		client *grpc.ClientConn
+	}{
+		{"Governance", gov},
+		{"Inference", owner},
+		{"Resource", resourceClient},
+		{"ModelDev", modeldev},
+		{"NodeAgent", nodeAgent},
+	} {
+		t.Run("ObserveReleaseRetired/"+identity.name, func(t *testing.T) {
+			ctx, cancel := context.WithTimeout(callContext("ObserveRelease", tenant), time.Second)
+			defer cancel()
+			err := identity.client.Invoke(ctx, "/accelerator.v1.AcceleratorUsageService/ObserveRelease", new(emptypb.Empty), new(emptypb.Empty))
+			if status.Code(err) != codes.Unimplemented {
+				t.Fatalf("retired ObserveRelease is reachable by %s: %v", identity.name, err)
+			}
+		})
+		if identity.name != "Governance" {
+			t.Run("ResolveGpuRequestGovOnly/"+identity.name, func(t *testing.T) {
+				ctx, cancel := context.WithTimeout(callContext("ResolveGpuRequest", tenant), time.Second)
+				defer cancel()
+				err := identity.client.Invoke(ctx, methodPath("ResolveGpuRequest"), &pb.ResolveGpuRequestRequest{Context: tc, Gpu: request}, new(pb.ResolvedGpuRequest))
+				if status.Code(err) != codes.PermissionDenied {
+					t.Fatalf("ResolveGpuRequest accepted %s: %v", identity.name, err)
+				}
+			})
+		}
 	}
-	resourceRelease := proto.Clone(release).(*pb.ObserveReleaseRequest)
-	resourceRelease.Ref = &pb.GpuUsageRef{TenantId: tenant, OwnerService: "ani-resource-service", ResourceId: biz.NewID(), CreateOperationId: biz.NewID()}
-	resourceRelease.Pods = nil
-	resourceObservation := new(pb.ReleaseObservation)
-	if err := resourceClient.Invoke(resourceCtx, methodPath("ObserveRelease"), resourceRelease, resourceObservation); err != nil || resourceObservation.Finding != pb.ReleaseFinding_ALLOCATION_RELEASED || !resourceObservation.Observation.Complete {
-		t.Fatal("Resource never-allocated fenced scope rejected", resourceObservation, err)
-	}
-	resourceCancel()
 	for _, action := range []string{"ListClusters", "SyncGpuUsage"} {
 		ctx, cancel := context.WithTimeout(callContext(action, tenant), time.Second)
 		err := resourceClient.Invoke(ctx, methodPath(action), &pb.SyncGpuUsageRequest{}, new(pb.SyncGpuUsageResponse))
@@ -500,7 +515,7 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		t.Fatal(syncResult)
 	}
 	usage := new(pb.GpuUsageProjection)
-	get := &pb.GetGpuUsageRequest{Context: tc, Ref: release.Ref}
+	get := &pb.GetGpuUsageRequest{Context: tc, Ref: copyAs[pb.GpuUsageRef](t, ref)}
 	rpc("GetGpuUsage", tenant, get, usage)
 	if usage.State != pb.UsageState_ENDED || usage.SourceFactRef != "" {
 		t.Fatal(usage)
@@ -510,14 +525,14 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if len(usages.Items) != 1 || usages.Items[0].Ref.ResourceId != ref.ResourceID {
 		t.Fatal(usages)
 	}
-	rpc("ListBindings", tenant, &pb.ListBindingsRequest{Context: tc, Ref: release.Ref}, bindings)
+	rpc("ListBindings", tenant, &pb.ListBindingsRequest{Context: tc, Ref: copyAs[pb.GpuUsageRef](t, ref)}, bindings)
 	if len(bindings.Items) != 1 || bindings.Items[0].PhysicalDeviceId != "" || bindings.Items[0].Pod.Uid != "" || bindings.Items[0].EvidenceRef != "" || bindings.Items[0].State != pb.AllocationState_ACTIVE {
 		t.Fatal(bindings)
 	}
-	if len(covered) != 22 {
+	if len(covered) != 21 {
 		t.Fatalf("only %d RPCs covered: %v", len(covered), covered)
 	}
-	// Cross-tenant forged payload, empty scope, untrusted identities and no cert.
+	// Cross-tenant forged payload, untrusted identities and no cert.
 	ctx, cancel := context.WithTimeout(callContext("GetGpuUsage", otherTenant), time.Second)
 	defer cancel()
 	if err = gov.Invoke(ctx, methodPath("GetGpuUsage"), get, new(pb.GpuUsageProjection)); status.Code(err) != codes.PermissionDenied {
@@ -528,7 +543,7 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	if len(otherUsages.Items) != 0 {
 		t.Fatal("another tenant's usage leaked", otherUsages)
 	}
-	otherRef := proto.Clone(release.Ref).(*pb.GpuUsageRef)
+	otherRef := copyAs[pb.GpuUsageRef](t, ref)
 	otherRef.TenantId = otherTenant
 	otherBindings := new(pb.ListBindingsResponse)
 	rpc("ListBindings", otherTenant, &pb.ListBindingsRequest{Context: tenantContext(otherTenant), Ref: otherRef}, otherBindings)
@@ -560,14 +575,6 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 	cancel()
 	if err == nil {
 		t.Fatal("untrusted CA accepted")
-	}
-	emptyScope := proto.Clone(release).(*pb.ObserveReleaseRequest)
-	emptyScope.SealedAt = ""
-	ctx, cancel = context.WithTimeout(callContext("ObserveRelease", tenant), time.Second)
-	err = owner.Invoke(ctx, methodPath("ObserveRelease"), emptyScope, new(pb.ReleaseObservation))
-	cancel()
-	if status.Code(err) != codes.InvalidArgument {
-		t.Fatal("missing creation seal accepted", err)
 	}
 	// Two real server processes race against the same PG receiver state.
 	r2 := *r
@@ -602,72 +609,17 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		}
 	}
 	second.kill(t)
-	// Positive scoped release retires old evidence, even after ENDED.
+	// Positive physical release observations still update persisted bindings and
+	// capacity after ENDED, without calling a consumer-facing release RPC.
 	store(biz.ObservationBatch{ClusterID: cluster.ClusterId, Releases: []biz.ReleaseProof{{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), EvidenceRef: "controlled:released", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: ref, ExecutionDigest: plan.Execution.ExecutionDigest}}})
-	rpc("ObserveRelease", tenant, release, observation)
-	if observation.Finding != pb.ReleaseFinding_ALLOCATION_RELEASED {
-		t.Fatal(observation)
+	rpc("ListBindings", tenant, &pb.ListBindingsRequest{Context: tc, Ref: copyAs[pb.GpuUsageRef](t, ref)}, bindings)
+	if len(bindings.Items) != 1 || bindings.Items[0].State != pb.AllocationState_RELEASE_CONFIRMED {
+		t.Fatal("positive physical release did not retire persisted binding", bindings)
 	}
-	// GR07 uses the actual mTLS receiver and PostgreSQL, without an async Usage
-	// prerequisite. The owner creates one stable close UUID for this sealed scope.
-	modeldevCert, modeldevKey := r.PKI.Issue(t, "modeldev", "ani-modeldev-service", false)
-	modeldev := conn(t, r, modeldevCert, modeldevKey)
-	modelRef := &biz.UsageRef{TenantID: tenant, OwnerService: "ani-modeldev-service", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
-	modelPod := biz.PodRef{ClusterID: cluster.ClusterId, Namespace: "training", Name: "trainjob-node-0", UID: "trainer-" + biz.NewID(), ContainerName: "node"}
-	modelNow := time.Now().UTC()
-	modelBatch := biz.ObservationBatch{ClusterID: cluster.ClusterId}
-	for _, source := range []string{"scheduler", "allocation", "runtime"} {
-		modelBatch.Claims = append(modelBatch.Claims, biz.Claim{Pod: modelPod, DeviceID: device, NodeUID: group.Nodes[0].Uid, Source: source, Cursor: "modeldev-1", ObservedAt: modelNow, ReceivedAt: modelNow, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: b.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "controlled:trainer-" + source, OwnerRef: modelRef, ExecutionDigest: plan.Execution.ExecutionDigest})
+	rpc("AdminGetCapacity", "", &pb.AdminGetCapacityRequest{Context: adminRead(), ProfileId: profile.ProfileId, ProfileVersion: 1, IncludeDevices: true}, capacity)
+	if capacity.KnownCommittedUnits != 0 || capacity.KnownFreeUnits != 4 {
+		t.Fatal("positive physical release did not restore capacity", capacity)
 	}
-	store(modelBatch)
-	modelRelease := &pb.ObserveReleaseRequest{RequestId: "modeldev-gr07", Ref: copyAs[pb.GpuUsageRef](t, modelRef), DeleteOperationId: modelRef.CreateOperationID, ClusterId: cluster.ClusterId, SealedAt: modelNow.Add(-time.Second).Format(time.RFC3339Nano), Pods: []*pb.PodRef{copyAs[pb.PodRef](t, modelPod)}}
-	modelCall := func(request *pb.ObserveReleaseRequest) (*pb.ReleaseObservation, error) {
-		ctx, cancel := context.WithTimeout(metadata.NewOutgoingContext(context.Background(), metadata.Pairs("x-ani-action", "ObserveRelease", "x-ani-tenant-id", tenant)), 5*time.Second)
-		defer cancel()
-		result := new(pb.ReleaseObservation)
-		err := modeldev.Invoke(ctx, pb.AcceleratorUsageService_ObserveRelease_FullMethodName, request, result)
-		return result, err
-	}
-	if _, err := modelCall(modelRelease); status.Code(err) != codes.InvalidArgument || !strings.Contains(err.Error(), "INVALID_RELEASE_SCOPE") {
-		t.Fatal("create UUID reused as close UUID reached receiver", err)
-	}
-	modelRelease.DeleteOperationId = biz.NewID()
-	stableRequest := proto.Clone(modelRelease)
-	for range 2 {
-		result, err := modelCall(modelRelease)
-		if err != nil || result.Finding != pb.ReleaseFinding_ALLOCATION_STILL_PRESENT || len(result.ActivePodUids) != 1 || result.ActivePodUids[0] != modelPod.UID {
-			t.Fatal("stable close scope lost live Trainer Pod", result, err)
-		}
-		if !proto.Equal(modelRelease, stableRequest) {
-			t.Fatal("close retry mutated accepted scope")
-		}
-	}
-	// Request omission cannot erase the durable actual Trainer Pod.
-	omitted := proto.Clone(modelRelease).(*pb.ObserveReleaseRequest)
-	omitted.Pods = nil
-	if result, err := modelCall(omitted); err != nil || result.Finding != pb.ReleaseFinding_ALLOCATION_STILL_PRESENT {
-		t.Fatal("omitted Trainer Pod released", result, err)
-	}
-	foreignRef := proto.Clone(modelRelease).(*pb.ObserveReleaseRequest)
-	foreignRef.Ref.OwnerService = "ani-inference"
-	if _, err := modelCall(foreignRef); status.Code(err) != codes.PermissionDenied {
-		t.Fatal("ModelDev certificate accepted foreign owner", err)
-	}
-	store(biz.ObservationBatch{ClusterID: cluster.ClusterId, Releases: []biz.ReleaseProof{{Pod: modelPod, DeviceID: device, NodeUID: group.Nodes[0].Uid, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), EvidenceRef: "controlled:trainer-exited-and-unallocated", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: modelRef, ExecutionDigest: plan.Execution.ExecutionDigest}}})
-	if result, err := modelCall(modelRelease); err != nil || result.Finding != pb.ReleaseFinding_RELEASE_UNKNOWN || !strings.Contains(strings.Join(result.Observation.Issues, ","), "SOURCE_BEFORE_SEAL") {
-		t.Fatal("pre-seal sources incorrectly completed a newly sealed scope", result, err)
-	}
-	modelSources := biz.ObservationBatch{ClusterID: cluster.ClusterId}
-	for _, source := range []string{"kubernetes", "podresources", "cri"} {
-		modelSources.Watermarks = append(modelSources.Watermarks, biz.SourceWatermark{ClusterID: cluster.ClusterId, NodeUID: group.Nodes[0].Uid, Source: source, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), Complete: true})
-	}
-	store(modelSources)
-	for range 2 {
-		if result, err := modelCall(modelRelease); err != nil || result.Finding != pb.ReleaseFinding_ALLOCATION_RELEASED || !result.Observation.Complete {
-			t.Fatal("stable distinct close scope failed after positive physical release", result, err)
-		}
-	}
-	t.Log("GR07: actual ModelDev mTLS receiver rejected create==close; stable distinct close retries retained sealed_at and actual Trainer UID, complete positive release facts required")
 	// Kill after ACK, then read/replay the same committed facts from a new process.
 	process.kill(t)
 	process = startChild(t, r, connection, marker)
@@ -736,5 +688,5 @@ func TestAll22RPCsMTLSAndRecovery(t *testing.T) {
 		t.Log("RUN-03: killed real process at", point, "commit; recovery/replay matched durable PG state")
 	}
 	process.kill(t)
-	t.Logf("RUN-01: all %d RPCs positive + wrong-service negative via real mTLS processes; PG multiprocess replay and kill/restart passed", len(covered))
+	t.Logf("RUN-01: %d retained RPCs positive + wrong-service negative via real mTLS processes; retired ObserveRelease unavailable to every service identity; PG multiprocess replay and kill/restart passed", len(covered))
 }

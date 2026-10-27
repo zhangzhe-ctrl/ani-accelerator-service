@@ -1,5 +1,7 @@
 # Accelerator v1.2 首期独立实施计划
 
+> 合同更新（2026-10-27）：本文中对外 `ObserveRelease` 的要求已由[接口下线说明](../releases/2026-10-27-observe-release-retirement.md)取代（superseded）；其余历史计划与结果保留，不代表本次消费方或环境验收。
+
 批次：`ACC-V12-01`  
 日期：2026-09-23  
 状态：`planned`，本文件不表示已开始实现或已通过验收。

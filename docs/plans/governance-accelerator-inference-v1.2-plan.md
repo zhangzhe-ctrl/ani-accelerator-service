@@ -1,5 +1,7 @@
 # Gov / Acc / Inference v1.2 创建与退额接线计划
 
+> 合同更新（2026-10-27）：本文中对外 `ObserveRelease` 的要求已由[接口下线说明](../releases/2026-10-27-observe-release-retirement.md)取代（superseded）；其余历史计划与结果保留，不代表本次消费方或环境验收。
+
 批次：`GOV-ACC-INF-V12-WIRING-01`。编制日期：2026-10-09（Asia/Shanghai）。
 
 状态：计划已形成，实施、生成、测试、提交、推送和部署均未启动。

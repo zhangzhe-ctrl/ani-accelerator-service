@@ -1,7 +1,19 @@
 # Runtime verification
 
-ACC-V12-01 supersedes the scaffold-only evidence described below. Current
-acceptance includes PostgreSQL, all 22 RPCs over mTLS, process interruption,
+The [2026-10-27 retirement](releases/2026-10-27-observe-release-retirement.md) removes
+the public `ObserveRelease` method. The 22-RPC results below are historical and
+do not assert acceptance of the remaining API or consumer migration after that change.
+
+The current process regression entry point is
+`tests/contract/TestPublicRPCsMTLSAndRecovery`. Its cases cover the remaining public
+RPCs, five certificate identities invoking the retired path and receiving
+`Unimplemented`, non-Gov Resolve rejection, the Gov Resolve path, and persisted
+`ListBindings` `RELEASE_CONFIRMED` facts with capacity recovery. The test must run
+against the candidate on Fedora with the required PostgreSQL fixture; this
+description is not a test result or real workload cleanup acceptance.
+
+ACC-V12-01 supersedes the scaffold-only evidence described below. Its recorded
+acceptance includes PostgreSQL, the then-registered RPCs over mTLS, process interruption,
 provider replay and populated restore; see [execution status](execution/status.md)
 and [the runtime runbook](runbooks/accelerator-runtime.md). All task execution is
 on Fedora. Real GPU and external integration remain `not_verified`.

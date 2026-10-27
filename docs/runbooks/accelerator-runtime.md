@@ -1,5 +1,7 @@
 # Accelerator v1.2 运行与恢复
 
+对外 `ObserveRelease` 已下线；旧客户端调用返回 gRPC `Unimplemented`。当前接口和 owner 边界见[下线说明](../releases/2026-10-27-observe-release-retirement.md)，历史运行回执仍只证明其记录的版本。
+
 历史 ACC-V12-01 批次仅在 Fedora 隔离环境进行软件验证；2026-10-17 的真实单节点 GPU 部署与回执见[执行状态](../execution/status.md)。生产二进制只装配 PostgreSQL、固定 provider 读取器、mTLS 与签名证明校验器；测试注入位于 `_test.go`，没有配置绕过。无 GPU 的安装应保持无正式供给或 CLOSED/NOT_VERIFIED。
 
 2026-10-17 用户要求保留修复版 Volcano scheduler，调度器保留结果见[保留版回执](../evidence/gpu-live-20261017/retained-receipt.json)，后续资格政策迁移及当前 ACC 镜像以[baseline 资格回执](../evidence/gpu-live-20261017/baseline-qualification-receipt.json)为准。固定调度镜像 digest 为 `sha256:ba5120f9edf947bccf9da85b25b3a11181d8c7c55a373b521209f632e018b442`，源码和[最小补丁](../evidence/gpu-live-20261017/volcano-percentage-only.patch)见兼容说明。首轮临时试验恢复原版的步骤只属历史，不能再作为当前恢复目标；已知有 Whole 百分比缺陷的 `sha256:836554c1c3286742fb6fcc721f5d3515e0e3e304a30d9cb733635f555f5ef671` 不可替换当前修复版。
@@ -28,7 +30,7 @@ baseline 不可原位替换。切换 scheduler 镜像时，先关闭旧供给、
 
 当前 ModelDev owner 接入的 runtime 要求 schema 7：新库依次显式执行 `0001` 至 `0007`；现有 schema 6 在保留恢复点后执行 `bash scripts/migrate 0007`，保留原 NodeAgent telemetry/initialization 的 0005/0006。0007 只将 usages/claims/release_proofs 的固定 owner 集合扩为 Inference、Resource 与 `ani-modeldev-service`，保留原身份 JSON、租户、原 CREATE、execution digest 和 FK 约束。应用不自动升级，不接受未迁移 schema；恢复旧二进制还需恢复与其匹配的数据库恢复点，不能只恢复启动配置或手改版本记录。
 
-ModelDev 客户端证书唯一 DNS SAN 为 `ani-modeldev-service`，ACC 配置 `security.modeldev_dns_name` 同值。该身份只允许 `/accelerator.v1.AcceleratorUsageService/ObserveRelease`；不得共用其他 owner 的客户端身份或签名公钥。启用实际训练 ownership 采集时挂载独立 `accelerator.modeldev_owner_public_key_file`，标准 Base64 原始 32 字节 Ed25519 公钥。缺少该 key 时相关物理占用仍保留而不会被关联到 ModelDev。实际 Pod UID/container、签名域及独立 close UUID 规则见[接入合同](../contracts/accelerator-consumer-contract.md#ownership-usage-and-release)。
+ModelDev 客户端证书唯一 DNS SAN 配置仍为 `ani-modeldev-service`，但该身份与 Inference、Resource 均无中心业务 RPC 权限；`ObserveRelease` 下线不恢复任何旧 owner 调用权限。启用实际训练 ownership 采集时仍挂载独立 `accelerator.modeldev_owner_public_key_file`，标准 Base64 原始 32 字节 Ed25519 公钥，不得共用其他 owner 的签名公钥。缺少该 key 时相关物理占用仍保留而不会被关联到 ModelDev。实际 Pod UID/container 与签名域规则见[接入合同](../contracts/accelerator-consumer-contract.md#ownership-usage-and-release)。
 
 运行角色与 schema/table owner 分开，禁止 SUPERUSER/CREATEDB/CREATEROLE 与数据库/schema CREATE，以及任何表所有权。示例授权使用已审核的实际角色名：
 
@@ -57,6 +59,8 @@ GRANT UPDATE ON accelerator.supply_groups, accelerator.usages,
 采集失联不删除历史 occupancy。新的失败接收保留最后可信 observed_at；received_at 不能当新观测。重连从数据库的 binding/claim/水位继续；解除必须覆盖指定 Pod/container/device、Node UID，且有在线节点、CRI 正向退出与 PodResources 无分配。API NotFound、单次无记录、普通退出/重启不构成业务实例删除或退款。
 
 已完整确认的历史释放保持原状态及证明时间，不随实时采样 TTL 过期。2026-10-17 修复了绑定查询将这类历史记录误降为 UNKNOWN 的问题；旧失败响应保留，修复后用相同 binding/Pod UID、原证明引用和时间重新读取验证。活动绑定的新鲜度与来源健康检查继续生效。
+
+对外 RPC 下线不移除上述设备退出、绑定、解除事实或容量归并，也不需要数据库迁移。`ResolveGpuRequest` 仍仅供 Gov 调用；目录/容量、`SyncGpuUsage` 与节点 `Connect` 保留原权限。Inference、Resource 的旧调用迁移和清理/通知由各 owner 完成，环境中的历史配额在整改完成后手动释放；ACC 此次不执行这些操作。
 
 ## 软件门禁与证据
 
