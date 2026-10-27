@@ -60,6 +60,25 @@ type AcceleratorDevice struct {
 	Payload        []byte
 }
 
+type AcceleratorGpuMetricHistory struct {
+	Revision          uint64
+	EventID           string
+	BindingID         string
+	SourceKey         string
+	Signature         string
+	RecordedAt        time.Time
+	Payload           []byte
+	TenantID          *string
+	OwnerService      *string
+	ResourceID        *string
+	CreateOperationID *string
+}
+
+type AcceleratorGpuMetricIndex struct {
+	Singleton bool
+	StartedAt time.Time
+}
+
 type AcceleratorGroupNode struct {
 	ClusterID string
 	NodeUid   string

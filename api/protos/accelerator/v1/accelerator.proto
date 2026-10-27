@@ -916,6 +916,8 @@ message GpuMetricScope {
   string ownership_state = 17 [json_name="ownership_state"];
   bool candidate_complete = 18 [json_name="candidate_complete"];
   repeated string reasons = 19;
+  // Immutable reconciliation evidence reference for this ownership period.
+  string evidence_ref = 20 [json_name="evidence_ref"];
 }
 message AdminGpuMetricScopesRequest {
   AdminRead context = 1;

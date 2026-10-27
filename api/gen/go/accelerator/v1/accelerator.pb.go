@@ -5067,8 +5067,10 @@ type GpuMetricScope struct {
 	OwnershipState    string                 `protobuf:"bytes,17,opt,name=ownership_state,proto3" json:"ownership_state,omitempty"`
 	CandidateComplete bool                   `protobuf:"varint,18,opt,name=candidate_complete,proto3" json:"candidate_complete,omitempty"`
 	Reasons           []string               `protobuf:"bytes,19,rep,name=reasons,proto3" json:"reasons,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// Immutable reconciliation evidence reference for this ownership period.
+	EvidenceRef   string `protobuf:"bytes,20,opt,name=evidence_ref,proto3" json:"evidence_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GpuMetricScope) Reset() {
@@ -5232,6 +5234,13 @@ func (x *GpuMetricScope) GetReasons() []string {
 		return x.Reasons
 	}
 	return nil
+}
+
+func (x *GpuMetricScope) GetEvidenceRef() string {
+	if x != nil {
+		return x.EvidenceRef
+	}
+	return ""
 }
 
 type AdminGpuMetricScopesRequest struct {
@@ -7687,7 +7696,7 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\n" +
 	"next_token\x18\x02 \x01(\tR\n" +
 	"next_token\x12=\n" +
-	"\vobservation\x18\x03 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\x96\x05\n" +
+	"\vobservation\x18\x03 \x01(\v2\x1b.accelerator.v1.ObservationR\vobservation\"\xba\x05\n" +
 	"\x0eGpuMetricScope\x12\x1a\n" +
 	"\bscope_id\x18\x01 \x01(\tR\bscope_id\x12-\n" +
 	"\x03ref\x18\x02 \x01(\v2\x1b.accelerator.v1.GpuUsageRefR\x03ref\x12$\n" +
@@ -7716,7 +7725,8 @@ const file_accelerator_v1_accelerator_proto_rawDesc = "" +
 	"\vevidence_at\x18\x10 \x01(\tR\vevidence_at\x12(\n" +
 	"\x0fownership_state\x18\x11 \x01(\tR\x0fownership_state\x12.\n" +
 	"\x12candidate_complete\x18\x12 \x01(\bR\x12candidate_complete\x12\x18\n" +
-	"\areasons\x18\x13 \x03(\tR\areasons\"\xb3\x02\n" +
+	"\areasons\x18\x13 \x03(\tR\areasons\x12\"\n" +
+	"\fevidence_ref\x18\x14 \x01(\tR\fevidence_ref\"\xb3\x02\n" +
 	"\x1bAdminGpuMetricScopesRequest\x123\n" +
 	"\acontext\x18\x01 \x01(\v2\x19.accelerator.v1.AdminReadR\acontext\x12\x1e\n" +
 	"\n" +

@@ -56,6 +56,8 @@ type rpcPolicy struct {
 }
 
 var governanceRPCs = map[string]rpcPolicy{
+	pb.AcceleratorAdminService_ListAdminGpuMetricScopes_FullMethodName:     {action: "ListAdminGpuMetricScopes", admin: true},
+	pb.AcceleratorUsageService_ListTenantGpuMetricScopes_FullMethodName:    {action: "ListTenantGpuMetricScopes", admin: false},
 	pb.AcceleratorAdminService_GetInitialization_FullMethodName:            {action: "GetInitialization", admin: true},
 	pb.AcceleratorAdminService_ListDiscoveredNodes_FullMethodName:          {action: "ListDiscoveredNodes", admin: true},
 	pb.AcceleratorAdminService_CreateInitialization_FullMethodName:         {action: "CreateInitialization", admin: true},
