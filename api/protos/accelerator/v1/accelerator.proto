@@ -832,6 +832,8 @@ message ListBindingsResponse {
 
 // 全部方法只接受Gov可信管理员委托；初始化也可由同校验CLI完成。
 service AcceleratorAdminService {
+  // Trusted platform monitoring read; never accepts a fake tenant context.
+  rpc ListAdminGpuMetricScopes(AdminGpuMetricScopesRequest) returns (GpuMetricScopesResponse);
   rpc GetInitialization(GetInitializationRequest) returns (Initialization);
   rpc ListDiscoveredNodes(ListDiscoveredNodesRequest) returns (DiscoveredNodes);
   rpc CreateInitialization(CreateInitializationRequest) returns (InitializationOperation);
@@ -882,6 +884,8 @@ service AcceleratorCatalogService {
 
 // 没有RegisterConsumer/MarkClosing/Finalize，更没有TCC三阶段。
 service AcceleratorUsageService {
+  // Trusted tenant monitoring read, including retained deleted-resource history.
+  rpc ListTenantGpuMetricScopes(TenantGpuMetricScopesRequest) returns (GpuMetricScopesResponse);
   // 仅Gov调用；异步投影同步。
   rpc SyncGpuUsage(SyncGpuUsageRequest) returns (SyncGpuUsageResponse);
   // 当前租户读取。
@@ -890,6 +894,56 @@ service AcceleratorUsageService {
   rpc ListGpuUsages(ListGpuUsagesRequest) returns (ListGpuUsagesResponse);
   // 读取可信绑定，不增加使用权。
   rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
+}
+// Internal selectors only. Governance never exposes topology to tenant clients.
+message GpuMetricScope {
+  string scope_id = 1 [json_name="scope_id"];
+  GpuUsageRef ref = 2;
+  string resource_kind = 3 [json_name="resource_kind"];
+  string cluster_id = 4 [json_name="cluster_id"];
+  NodeRef node = 5;
+  string namespace = 6;
+  string pod_name = 7 [json_name="pod_name"];
+  string container_name = 8 [json_name="container_name"];
+  string gpu_uuid = 9 [json_name="gpu_uuid"];
+  string vdevice_id = 10 [json_name="vdevice_id"];
+  string pod_uid = 11 [json_name="pod_uid"];
+  string device_id = 12 [json_name="device_id"];
+  string binding_id = 13 [json_name="binding_id"];
+  string valid_from = 14 [json_name="valid_from"];
+  string valid_to = 15 [json_name="valid_to"];
+  string evidence_at = 16 [json_name="evidence_at"];
+  string ownership_state = 17 [json_name="ownership_state"];
+  bool candidate_complete = 18 [json_name="candidate_complete"];
+  repeated string reasons = 19;
+}
+message AdminGpuMetricScopesRequest {
+  AdminRead context = 1;
+  string cluster_id = 2 [json_name="cluster_id"];
+  string tenant_id = 3 [json_name="tenant_id"];
+  GpuUsageRef ref = 4;
+  string start = 5;
+  string end = 6;
+  Page page = 7;
+  string snapshot_id = 8 [json_name="snapshot_id"];
+}
+message TenantGpuMetricScopesRequest {
+  TenantContext context = 1;
+  string cluster_id = 2 [json_name="cluster_id"];
+  GpuUsageRef ref = 3;
+  string start = 4;
+  string end = 5;
+  Page page = 6;
+  string snapshot_id = 7 [json_name="snapshot_id"];
+}
+message GpuMetricScopesResponse {
+  repeated GpuMetricScope items = 1;
+  string next_token = 2 [json_name="next_token"];
+  string snapshot_id = 3 [json_name="snapshot_id"];
+  string index_started_at = 4 [json_name="index_started_at"];
+  string evidence_at = 5 [json_name="evidence_at"];
+  bool index_complete = 6 [json_name="index_complete"];
+  repeated string reasons = 7;
 }
 message InitializationCheck {
   string key = 1;
