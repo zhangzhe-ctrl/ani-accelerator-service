@@ -203,6 +203,9 @@ func (s *pgStore) reconcileBinding(ctx context.Context, p biz.PodRef, device str
 	if err != nil {
 		return err
 	}
+	if err := s.captureMetricScope(ctx, binding, usage); err != nil {
+		return err
+	}
 	if prior != nil && reflect.DeepEqual(prior, binding) {
 		return nil
 	}

@@ -19,6 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	AcceleratorAdminService_ListAdminGpuMetricScopes_FullMethodName     = "/accelerator.v1.AcceleratorAdminService/ListAdminGpuMetricScopes"
 	AcceleratorAdminService_GetInitialization_FullMethodName            = "/accelerator.v1.AcceleratorAdminService/GetInitialization"
 	AcceleratorAdminService_ListDiscoveredNodes_FullMethodName          = "/accelerator.v1.AcceleratorAdminService/ListDiscoveredNodes"
 	AcceleratorAdminService_CreateInitialization_FullMethodName         = "/accelerator.v1.AcceleratorAdminService/CreateInitialization"
@@ -47,6 +48,8 @@ const (
 //
 // 全部方法只接受Gov可信管理员委托；初始化也可由同校验CLI完成。
 type AcceleratorAdminServiceClient interface {
+	// Trusted platform monitoring read; never accepts a fake tenant context.
+	ListAdminGpuMetricScopes(ctx context.Context, in *AdminGpuMetricScopesRequest, opts ...grpc.CallOption) (*GpuMetricScopesResponse, error)
 	GetInitialization(ctx context.Context, in *GetInitializationRequest, opts ...grpc.CallOption) (*Initialization, error)
 	ListDiscoveredNodes(ctx context.Context, in *ListDiscoveredNodesRequest, opts ...grpc.CallOption) (*DiscoveredNodes, error)
 	CreateInitialization(ctx context.Context, in *CreateInitializationRequest, opts ...grpc.CallOption) (*InitializationOperation, error)
@@ -87,6 +90,16 @@ type acceleratorAdminServiceClient struct {
 
 func NewAcceleratorAdminServiceClient(cc grpc.ClientConnInterface) AcceleratorAdminServiceClient {
 	return &acceleratorAdminServiceClient{cc}
+}
+
+func (c *acceleratorAdminServiceClient) ListAdminGpuMetricScopes(ctx context.Context, in *AdminGpuMetricScopesRequest, opts ...grpc.CallOption) (*GpuMetricScopesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GpuMetricScopesResponse)
+	err := c.cc.Invoke(ctx, AcceleratorAdminService_ListAdminGpuMetricScopes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *acceleratorAdminServiceClient) GetInitialization(ctx context.Context, in *GetInitializationRequest, opts ...grpc.CallOption) (*Initialization, error) {
@@ -295,6 +308,8 @@ func (c *acceleratorAdminServiceClient) AdminGetCapacity(ctx context.Context, in
 //
 // 全部方法只接受Gov可信管理员委托；初始化也可由同校验CLI完成。
 type AcceleratorAdminServiceServer interface {
+	// Trusted platform monitoring read; never accepts a fake tenant context.
+	ListAdminGpuMetricScopes(context.Context, *AdminGpuMetricScopesRequest) (*GpuMetricScopesResponse, error)
 	GetInitialization(context.Context, *GetInitializationRequest) (*Initialization, error)
 	ListDiscoveredNodes(context.Context, *ListDiscoveredNodesRequest) (*DiscoveredNodes, error)
 	CreateInitialization(context.Context, *CreateInitializationRequest) (*InitializationOperation, error)
@@ -337,6 +352,9 @@ type AcceleratorAdminServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAcceleratorAdminServiceServer struct{}
 
+func (UnimplementedAcceleratorAdminServiceServer) ListAdminGpuMetricScopes(context.Context, *AdminGpuMetricScopesRequest) (*GpuMetricScopesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListAdminGpuMetricScopes not implemented")
+}
 func (UnimplementedAcceleratorAdminServiceServer) GetInitialization(context.Context, *GetInitializationRequest) (*Initialization, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetInitialization not implemented")
 }
@@ -417,6 +435,24 @@ func RegisterAcceleratorAdminServiceServer(s grpc.ServiceRegistrar, srv Accelera
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&AcceleratorAdminService_ServiceDesc, srv)
+}
+
+func _AcceleratorAdminService_ListAdminGpuMetricScopes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AdminGpuMetricScopesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AcceleratorAdminServiceServer).ListAdminGpuMetricScopes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AcceleratorAdminService_ListAdminGpuMetricScopes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AcceleratorAdminServiceServer).ListAdminGpuMetricScopes(ctx, req.(*AdminGpuMetricScopesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _AcceleratorAdminService_GetInitialization_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -787,6 +823,10 @@ var AcceleratorAdminService_ServiceDesc = grpc.ServiceDesc{
 	HandlerType: (*AcceleratorAdminServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
+			MethodName: "ListAdminGpuMetricScopes",
+			Handler:    _AcceleratorAdminService_ListAdminGpuMetricScopes_Handler,
+		},
+		{
 			MethodName: "GetInitialization",
 			Handler:    _AcceleratorAdminService_GetInitialization_Handler,
 		},
@@ -1141,10 +1181,11 @@ var AcceleratorCatalogService_ServiceDesc = grpc.ServiceDesc{
 }
 
 const (
-	AcceleratorUsageService_SyncGpuUsage_FullMethodName  = "/accelerator.v1.AcceleratorUsageService/SyncGpuUsage"
-	AcceleratorUsageService_GetGpuUsage_FullMethodName   = "/accelerator.v1.AcceleratorUsageService/GetGpuUsage"
-	AcceleratorUsageService_ListGpuUsages_FullMethodName = "/accelerator.v1.AcceleratorUsageService/ListGpuUsages"
-	AcceleratorUsageService_ListBindings_FullMethodName  = "/accelerator.v1.AcceleratorUsageService/ListBindings"
+	AcceleratorUsageService_ListTenantGpuMetricScopes_FullMethodName = "/accelerator.v1.AcceleratorUsageService/ListTenantGpuMetricScopes"
+	AcceleratorUsageService_SyncGpuUsage_FullMethodName              = "/accelerator.v1.AcceleratorUsageService/SyncGpuUsage"
+	AcceleratorUsageService_GetGpuUsage_FullMethodName               = "/accelerator.v1.AcceleratorUsageService/GetGpuUsage"
+	AcceleratorUsageService_ListGpuUsages_FullMethodName             = "/accelerator.v1.AcceleratorUsageService/ListGpuUsages"
+	AcceleratorUsageService_ListBindings_FullMethodName              = "/accelerator.v1.AcceleratorUsageService/ListBindings"
 )
 
 // AcceleratorUsageServiceClient is the client API for AcceleratorUsageService service.
@@ -1153,6 +1194,8 @@ const (
 //
 // 没有RegisterConsumer/MarkClosing/Finalize，更没有TCC三阶段。
 type AcceleratorUsageServiceClient interface {
+	// Trusted tenant monitoring read, including retained deleted-resource history.
+	ListTenantGpuMetricScopes(ctx context.Context, in *TenantGpuMetricScopesRequest, opts ...grpc.CallOption) (*GpuMetricScopesResponse, error)
 	// 仅Gov调用；异步投影同步。
 	SyncGpuUsage(ctx context.Context, in *SyncGpuUsageRequest, opts ...grpc.CallOption) (*SyncGpuUsageResponse, error)
 	// 当前租户读取。
@@ -1169,6 +1212,16 @@ type acceleratorUsageServiceClient struct {
 
 func NewAcceleratorUsageServiceClient(cc grpc.ClientConnInterface) AcceleratorUsageServiceClient {
 	return &acceleratorUsageServiceClient{cc}
+}
+
+func (c *acceleratorUsageServiceClient) ListTenantGpuMetricScopes(ctx context.Context, in *TenantGpuMetricScopesRequest, opts ...grpc.CallOption) (*GpuMetricScopesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GpuMetricScopesResponse)
+	err := c.cc.Invoke(ctx, AcceleratorUsageService_ListTenantGpuMetricScopes_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *acceleratorUsageServiceClient) SyncGpuUsage(ctx context.Context, in *SyncGpuUsageRequest, opts ...grpc.CallOption) (*SyncGpuUsageResponse, error) {
@@ -1217,6 +1270,8 @@ func (c *acceleratorUsageServiceClient) ListBindings(ctx context.Context, in *Li
 //
 // 没有RegisterConsumer/MarkClosing/Finalize，更没有TCC三阶段。
 type AcceleratorUsageServiceServer interface {
+	// Trusted tenant monitoring read, including retained deleted-resource history.
+	ListTenantGpuMetricScopes(context.Context, *TenantGpuMetricScopesRequest) (*GpuMetricScopesResponse, error)
 	// 仅Gov调用；异步投影同步。
 	SyncGpuUsage(context.Context, *SyncGpuUsageRequest) (*SyncGpuUsageResponse, error)
 	// 当前租户读取。
@@ -1235,6 +1290,9 @@ type AcceleratorUsageServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedAcceleratorUsageServiceServer struct{}
 
+func (UnimplementedAcceleratorUsageServiceServer) ListTenantGpuMetricScopes(context.Context, *TenantGpuMetricScopesRequest) (*GpuMetricScopesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListTenantGpuMetricScopes not implemented")
+}
 func (UnimplementedAcceleratorUsageServiceServer) SyncGpuUsage(context.Context, *SyncGpuUsageRequest) (*SyncGpuUsageResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method SyncGpuUsage not implemented")
 }
@@ -1267,6 +1325,24 @@ func RegisterAcceleratorUsageServiceServer(s grpc.ServiceRegistrar, srv Accelera
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&AcceleratorUsageService_ServiceDesc, srv)
+}
+
+func _AcceleratorUsageService_ListTenantGpuMetricScopes_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(TenantGpuMetricScopesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AcceleratorUsageServiceServer).ListTenantGpuMetricScopes(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AcceleratorUsageService_ListTenantGpuMetricScopes_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AcceleratorUsageServiceServer).ListTenantGpuMetricScopes(ctx, req.(*TenantGpuMetricScopesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _AcceleratorUsageService_SyncGpuUsage_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -1348,6 +1424,10 @@ var AcceleratorUsageService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "accelerator.v1.AcceleratorUsageService",
 	HandlerType: (*AcceleratorUsageServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListTenantGpuMetricScopes",
+			Handler:    _AcceleratorUsageService_ListTenantGpuMetricScopes_Handler,
+		},
 		{
 			MethodName: "SyncGpuUsage",
 			Handler:    _AcceleratorUsageService_SyncGpuUsage_Handler,
