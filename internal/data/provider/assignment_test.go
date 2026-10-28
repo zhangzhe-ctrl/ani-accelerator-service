@@ -5,6 +5,7 @@ import (
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
+	"encoding/json"
 	"strings"
 	"testing"
 	"time"
@@ -35,11 +36,18 @@ func assignedPodClaimsUsing(t *testing.T, reader *Provider, pod pod, now time.Ti
 	return assignedPodClaimsAtFactor(t, reader, pod, now, 1)
 }
 
-func assignedPodClaimsAtFactor(t *testing.T, reader *Provider, pod pod, now time.Time, factor uint32) ([]biz.Claim, error) {
+func assignedPodClaimsAtFactor(t *testing.T, reader *Provider, pod pod, now time.Time, factor uint32, environment ...string) ([]biz.Claim, error) {
 	t.Helper()
+	if environment == nil {
+		environment = []string{"NVIDIA_VISIBLE_DEVICES=" + liveGPUUUID, "CUDA_DEVICE_MEMORY_LIMIT_0=4096m", "CUDA_DEVICE_SM_LIMIT=10"}
+	}
+	info, err := json.Marshal(map[string]any{"runtimeSpec": map[string]any{"process": map[string]any{"env": environment}}})
+	if err != nil {
+		t.Fatal(err)
+	}
 	status := &cri.ContainerStatusResponse{
 		Status: &cri.ContainerStatus{Id: "live-container", Metadata: &cri.ContainerMetadata{Name: "inference"}, Labels: map[string]string{"io.kubernetes.pod.uid": pod.Metadata.UID}, State: cri.ContainerState_CONTAINER_RUNNING},
-		Info:   map[string]string{"info": `{"runtimeSpec":{"process":{"env":["NVIDIA_VISIBLE_DEVICES=` + liveGPUUUID + `","CUDA_DEVICE_MEMORY_LIMIT_0=4096m","CUDA_DEVICE_SM_LIMIT=10"]}}}`},
+		Info:   map[string]string{"info": string(info)},
 	}
 	snapshot := nodeSnapshot{
 		ObservedAt: now, RuntimeOK: true, ResourcesOK: true,
@@ -52,6 +60,35 @@ func assignedPodClaimsAtFactor(t *testing.T, reader *Provider, pod pod, now time
 		group.Baseline.BaselineDigest = strings.Repeat("b", 64)
 	}
 	return reader.podClaims(context.Background(), "cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
+}
+
+func TestPodClaimsRuntimeEnvironmentDuplicatesDoNotDuplicateBinding(t *testing.T) {
+	now := time.Unix(1792173213, 0).UTC()
+	for _, selected := range []string{liveGPUUUID, gpuUUID} {
+		t.Run(selected, func(t *testing.T) {
+			claims, err := assignedPodClaimsAtFactor(t, &Provider{}, liveAssignedPod(), now, 1,
+				"NVIDIA_VISIBLE_DEVICES=all", "NVIDIA_VISIBLE_DEVICES="+selected,
+				"CUDA_DEVICE_MEMORY_LIMIT_0=4096m", "CUDA_DEVICE_SM_LIMIT=10")
+			if selected != liveGPUUUID {
+				if err == nil || len(claims) != 0 {
+					t.Fatalf("effective runtime GPU disagreed with scheduler but was accepted: claims=%+v error=%v", claims, err)
+				}
+				return
+			}
+			if err != nil || len(claims) != 3 {
+				t.Fatalf("effective GPU did not retain three independent sources: claims=%+v error=%v", claims, err)
+			}
+			for index, source := range []string{"scheduler", "runtime", "allocation"} {
+				if claims[index].Source != source || claims[index].DeviceID != claims[0].DeviceID || claims[index].MemoryMiB != 4096 {
+					t.Fatalf("runtime normalization changed source, device or units: %+v", claims)
+				}
+			}
+			binding, err := biz.MergeBinding("binding", claims, nil, nil)
+			if err != nil || binding.State != biz.Active || !binding.Observation.Complete || binding.MemoryMiB != 4096 {
+				t.Fatalf("three agreeing sources did not merge into one allocation: binding=%+v error=%v", binding, err)
+			}
+		})
+	}
 }
 
 func TestSchedulerClaimKeepsHistoricalFactorAcrossLiveFactorChange(t *testing.T) {

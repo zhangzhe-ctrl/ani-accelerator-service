@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"encoding/json"
+	"reflect"
 	"strings"
 	"sync"
 	"testing"
@@ -149,6 +150,53 @@ func TestProviderContinuousNodeTelemetryPreservesReleaseRevision(t *testing.T) {
 
 func TestProviderNewSessionWithoutFreshSnapshotCannotFreeOrReleaseGPU(t *testing.T) {
 	providerControlledSources(t, "v1.16.0", "session_cache")
+}
+
+func TestProviderRuntimeEnvironmentOrderSurvivesTelemetry(t *testing.T) {
+	providerControlledSources(t, "v1.16.0", "runtime_env_order")
+}
+
+func providerRuntimeEnvironmentOrderContract(t *testing.T, database *data.Postgres, adapter *Provider, cluster biz.Cluster, group biz.SupplyGroup, pod biz.PodRef, capacity func() *biz.CapacityView) {
+	t.Helper()
+	ctx := context.Background()
+	views, err := database.NodeTelemetry(ctx, cluster.ConnectionRef)
+	if err != nil || len(views) != 1 || views[0].State.Snapshot == nil || len(views[0].State.Snapshot.Containers) != 1 {
+		t.Fatalf("missing persisted runtime snapshot: views=%+v error=%v", views, err)
+	}
+	want := duplicateRuntimeGPUEnvironment(6144)
+	var stored []string
+	for _, entry := range views[0].State.Snapshot.Containers[0].GPUEnvironment {
+		stored = append(stored, entry.Name+"="+entry.Value)
+	}
+	if !reflect.DeepEqual(stored, want) {
+		t.Fatalf("telemetry storage changed raw GPU environment order or duplicates: got=%v want=%v", stored, want)
+	}
+	snapshot := telemetryNodeSnapshot(views[0], time.Now().UTC(), time.Minute)
+	statuses, ok := runtimeFor(snapshot, pod.UID, pod.ContainerName)
+	if !ok || len(statuses) != 1 {
+		t.Fatalf("persisted runtime identity did not reconstruct: ok=%t statuses=%d", ok, len(statuses))
+	}
+	var verbose struct {
+		RuntimeSpec struct {
+			Process struct {
+				Environment []string `json:"env"`
+			} `json:"process"`
+		} `json:"runtimeSpec"`
+	}
+	if err = json.Unmarshal([]byte(statuses[0].Info["info"]), &verbose); err != nil || !reflect.DeepEqual(verbose.RuntimeSpec.Process.Environment, want) {
+		t.Fatalf("runtime reconstruction changed raw GPU environment: got=%v want=%v error=%v", verbose.RuntimeSpec.Process.Environment, want, err)
+	}
+	batch, err := adapter.Collect(ctx, cluster, []biz.SupplyGroup{group})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = database.Transact(ctx, func(transaction biz.Transaction) error { return transaction.SaveObservation(ctx, batch) }); err != nil {
+		t.Fatal(err)
+	}
+	view := capacity()
+	if !view.Observation.Complete || view.KnownCommittedUnits != 1 || view.KnownFreeUnits != 7 {
+		t.Fatalf("reconstructed repeated environment duplicated or lost allocation: %+v", view)
+	}
 }
 
 func providerSessionCacheContract(t *testing.T, database *data.Postgres, adapter *Provider, cluster biz.Cluster, group biz.SupplyGroup, usecase *biz.Usecase, owner context.Context, ref *biz.UsageRef, pod biz.PodRef, runtime *replayState, fixture *nodeTelemetryFixture, capacity func() *biz.CapacityView) {

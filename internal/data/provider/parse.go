@@ -179,9 +179,9 @@ func ParseGPUEnvironment(entries []biz.GPUEnvironmentEntry) (RuntimeAllocation, 
 	for _, entry := range entries {
 		k, v := entry.Name, entry.Value
 		if k == "NVIDIA_VISIBLE_DEVICES" || strings.HasPrefix(k, "CUDA_DEVICE_MEMORY_LIMIT_") || k == "CUDA_DEVICE_SM_LIMIT" {
-			if _, exists := env[k]; exists {
-				return RuntimeAllocation{}, biz.Invalid("RUNTIME_DUPLICATE_FIELD")
-			}
+			// The supported CRI source preserves OCI env order. Both runc and
+			// NVIDIA's runtime use the last value of a repeated key. Validate
+			// that effective value below; never fall back to a shadowed value.
 			env[k] = v
 		} else {
 			return RuntimeAllocation{}, biz.Invalid("GPU_ENVIRONMENT_INVALID")

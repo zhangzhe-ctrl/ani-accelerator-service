@@ -26,6 +26,8 @@
 
 `node_test.go` 通过 Unix gRPC 驱动生产 `readNode`，覆盖 containerd 2.1.5/2.3.4、runtime/API 不匹配、Version/List/Status 失败、状态 ID 不匹配，以及 GPU 身份和 env 缺失拒绝。这是协议边界回归，不能替代相应实际部署版本的 GPU 消费验收。
 
+当前支持的 containerd CRI 原始 `runtimeSpec.process.env` 保留数组顺序。解析 `NVIDIA_VISIBLE_DEVICES`、`CUDA_DEVICE_MEMORY_LIMIT_0`、`CUDA_DEVICE_SM_LIMIT` 时，同名键采用最后一个值，先归一化再校验；最终值为空、非法或与独立分配事实冲突时继续拒绝，不能回退到前一个合法值。该覆盖语义已核对受管组合 containerd 2.3.4、runc 1.4.3 与 NVIDIA Container Toolkit 1.20.1，参考 [runc 环境解析](https://github.com/opencontainers/runc/blob/v1.4.3/libcontainer/env.go#L12-L46) 和 [NVIDIA 环境解析](https://github.com/NVIDIA/nvidia-container-toolkit/blob/dffc40b4f820ce5c512633bac9e0418d0e05a2ee/internal/config/image/builder.go#L98-L110)；不据此声明任意 runtime 或多卡形态受支持，也不按版本号选择解析分支。原始遥测及其顺序完整持久保存，仅在解析时计算有效值；Pod/容器身份、调度 UUID、PodResources、显存 MiB 与核心限制的现有交叉核对，以及来源异常时的节点级未知保护保持不变。后置 CDI 环境中的 `NVIDIA_VISIBLE_DEVICES=void` 不能作为无分配或容器退出证明。
+
 本机 NVML、PodResources、CRI/events 与有限 journal 由独立 `ani-node-agent` DaemonSet 采集。中心的 Inspect/Collect 只读取认证后持久保存的逐节点事实；K8s、owner、预算、Claim/Binding 与释放判断仍由中心执行。节点服务使用 TLS 1.3、精确服务 SAN 和 Pod 绑定 SA token，唯一节点 RPC 是 `accelerator.node.v1.NodeTelemetryService/Connect`。未接管节点可被发现，但不产生可售容量。
 
 新准入核对每个认证节点的 NVML UUID、型号和物理 bytes，并继续核对受管 scheduler/plugin 的实际镜像、ConfigMap 摘要、F/K 与节点注册。宿主驱动版本及 HAMi 库文件原地更新没有自动指纹监控，必须由受管变更流程触发 baseline 更新和重新验收；不能把声明的 `hami_core_revision` 当成实时采集结果。
