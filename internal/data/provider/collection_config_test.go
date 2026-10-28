@@ -17,6 +17,10 @@ func TestProviderConfigurationIndependentCollection(t *testing.T) {
 	}
 }
 
+func TestProviderRuntimeEnvironmentDuplicatesPreserveUnknownUnits(t *testing.T) {
+	providerControlledSources(t, "v1.15.2", "factor_duplicate_env")
+}
+
 type unavailableInventory struct{}
 
 func (unavailableInventory) Read(context.Context) ([]Inventory, error) {
@@ -26,6 +30,12 @@ func (unavailableInventory) Read(context.Context) ([]Inventory, error) {
 func configurationObservation(t *testing.T, fault string, adapter *Provider, telemetry *nodeTelemetryFixture, state *replayState, cluster biz.Cluster, group biz.SupplyGroup, db *data.Postgres, u *biz.Usecase, owner context.Context, ref *biz.UsageRef, pod biz.PodRef, capacity func() *biz.CapacityView) {
 	t.Helper()
 	ctx := context.Background()
+	if fault == "factor_duplicate_env" {
+		state.mu.Lock()
+		state.runtimeEnvironment = duplicateRuntimeGPUEnvironment(6144)
+		state.mu.Unlock()
+		fault = "factor"
+	}
 	switch fault {
 	case "inventory_missing":
 		telemetry.inventory = unavailableInventory{}

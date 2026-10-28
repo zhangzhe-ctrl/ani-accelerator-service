@@ -41,7 +41,7 @@ func TestProviderRestartReleasesOnlyOldUIDWithPositiveJournal(t *testing.T) {
 	providerControlledSources(t, "v1.16.0", "restart_release")
 }
 
-func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapter *Provider, cluster biz.Cluster, group biz.SupplyGroup, oldPod biz.PodRef, replacementUID string, state *replayState, telemetry *nodeTelemetryFixture) {
+func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapter *Provider, cluster biz.Cluster, group biz.SupplyGroup, oldPod biz.PodRef, replacementUID string, state *replayState, telemetry *nodeTelemetryFixture, capacity func() *biz.CapacityView) {
 	t.Helper()
 	ctx := context.Background()
 	state.setFault("replacement_pod")
@@ -51,6 +51,8 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 	newAttempt := oldAttempt
 	newAttempt.PodUID, newAttempt.ContainerID, newAttempt.SandboxID = replacementUID, strings.Repeat("e", 64), strings.Repeat("f", 64)
 	newAttempt.State = 2
+	replacementEnvironment := append([]biz.GPUEnvironmentEntry{{Name: "NVIDIA_VISIBLE_DEVICES", Value: "all"}}, oldAttempt.GPUEnvironment...)
+	newAttempt.GPUEnvironment = append([]biz.GPUEnvironmentEntry(nil), replacementEnvironment...)
 	writeReport := func(snapshot *biz.TelemetrySnapshot, attempts []biz.RuntimeAttempt) {
 		t.Helper()
 		report := biz.NodeReport{Epoch: telemetry.state.Epoch, Sequence: telemetry.state.LastSequence + 1, LogID: telemetry.identity.LogID, OriginPodUID: telemetry.identity.PodUID, OriginInstanceID: telemetry.identity.InstanceID, OriginBootID: telemetry.identity.BootID, Snapshot: snapshot, Attempts: attempts}
@@ -112,9 +114,13 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 		{name: "sandbox_id_without_positive_chain", change: func() {
 			recovery.attempt.JournalProvenance = json.RawMessage(`{"sandbox_id":"` + oldAttempt.SandboxID + `"}`)
 		}},
+		{name: "replacement_effective_gpu_unknown", change: func() {
+			newAttempt.GPUEnvironment = append(newAttempt.GPUEnvironment, biz.GPUEnvironmentEntry{Name: "NVIDIA_VISIBLE_DEVICES", Value: "all"})
+		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			recovery.attempt, recovery.complete = exited, true
+			newAttempt.GPUEnvironment = append([]biz.GPUEnvironmentEntry(nil), replacementEnvironment...)
 			if test.change != nil {
 				test.change()
 			}
@@ -126,6 +132,7 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 		})
 	}
 	recovery.attempt, recovery.complete = exited, true
+	newAttempt.GPUEnvironment = append([]biz.GPUEnvironmentEntry(nil), replacementEnvironment...)
 	writeFacts(false)
 	closedGap := biz.TelemetryGap{Sources: []string{"cri_events"}, Reason: "CRI_EVENT_SUBSCRIPTION_GAP", End: now.Add(-10 * time.Second), DiscoveredAt: now.Add(-10 * time.Second)}
 	writeGap(closedGap)
@@ -179,6 +186,10 @@ func providerRestartReleaseContract(t *testing.T, database *data.Postgres, adapt
 		return nil
 	}); err != nil {
 		t.Fatal(err)
+	}
+	view := capacity()
+	if !view.Observation.Complete || view.KnownCommittedUnits != 1 || view.KnownFreeUnits != 7 {
+		t.Fatalf("old UID release lost or freed the running replacement allocation: %+v", view)
 	}
 	views, err := database.NodeTelemetry(ctx, cluster.ConnectionRef)
 	if err != nil {

@@ -38,6 +38,7 @@ type replayState struct {
 	finishedAt                                time.Time
 	runtimeID                                 string
 	runtimeUnknown                            bool
+	runtimeEnvironment                        []string
 }
 
 func (s *replayState) getFault() string  { s.mu.Lock(); defer s.mu.Unlock(); return s.fault }
@@ -60,6 +61,19 @@ func (s *replayState) runtimeIdentity() (string, bool) {
 		id = "cri-container"
 	}
 	return id, s.runtimeUnknown
+}
+
+func (s *replayState) gpuEnvironment(memory int64) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.runtimeEnvironment != nil {
+		return append([]string(nil), s.runtimeEnvironment...)
+	}
+	return []string{"NVIDIA_VISIBLE_DEVICES=" + gpuUUID, fmt.Sprintf("CUDA_DEVICE_MEMORY_LIMIT_0=%dm", memory), "CUDA_DEVICE_SM_LIMIT=25"}
+}
+
+func duplicateRuntimeGPUEnvironment(memory int64) []string {
+	return []string{"NVIDIA_VISIBLE_DEVICES=all", "CUDA_DEVICE_SM_LIMIT=25", "NVIDIA_VISIBLE_DEVICES=" + gpuUUID, fmt.Sprintf("CUDA_DEVICE_MEMORY_LIMIT_0=%dm", memory)}
 }
 
 func (s *replayState) snapshot() (int64, bool, bool, bool, bool) {
@@ -121,7 +135,11 @@ func (r *replayRuntime) ContainerStatus(context.Context, *cri.ContainerStatusReq
 	} else if unknown {
 		state = cri.ContainerState_CONTAINER_UNKNOWN
 	}
-	return &cri.ContainerStatusResponse{Status: &cri.ContainerStatus{Id: id, Metadata: &cri.ContainerMetadata{Name: "inference"}, State: state, FinishedAt: finished, Labels: map[string]string{"io.kubernetes.pod.uid": r.podUID}}, Info: map[string]string{"info": fmt.Sprintf(`{"runtimeSpec":{"process":{"env":["NVIDIA_VISIBLE_DEVICES=%s","CUDA_DEVICE_MEMORY_LIMIT_0=%dm","CUDA_DEVICE_SM_LIMIT=25"]}}}`, gpuUUID, memory)}}, nil
+	info, err := json.Marshal(map[string]any{"runtimeSpec": map[string]any{"process": map[string]any{"env": r.state.gpuEnvironment(memory)}}})
+	if err != nil {
+		return nil, err
+	}
+	return &cri.ContainerStatusResponse{Status: &cri.ContainerStatus{Id: id, Metadata: &cri.ContainerMetadata{Name: "inference"}, State: state, FinishedAt: finished, Labels: map[string]string{"io.kubernetes.pod.uid": r.podUID}}, Info: map[string]string{"info": string(info)}}, nil
 }
 
 type replayInventory struct{}
@@ -240,6 +258,9 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	replacementAssertion, _ := biz.Canonical(OwnerAssertion{replacementPodRef, *ref, executionDigest})
 	replacementSignature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v2\n"), replacementAssertion...)))
 	state := &replayState{memory: workloadMiB}
+	if configurationFault == "runtime_env_order" {
+		state.runtimeEnvironment = duplicateRuntimeGPUEnvironment(workloadMiB)
+	}
 	if configurationFault == "restart_release" {
 		state.runtimeID = strings.Repeat("c", 64)
 	}
@@ -476,10 +497,6 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		providerFactor10Contract(t, db, adapter, cluster, g, profile, podRef, state, telemetry)
 		return
 	}
-	if configurationFault == "restart_release" {
-		providerRestartReleaseContract(t, db, adapter, cluster, g, podRef, replacementPodUID, state, telemetry)
-		return
-	}
 	if configurationFault == "discovery_contract" {
 		providerDiscoveryContract(t, db, adapter, cluster, g, state, telemetry)
 		return
@@ -639,6 +656,14 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	v := capacity()
 	if !v.Observation.Complete || v.KnownCommittedUnits != 1 || v.KnownFreeUnits != 7 || v.UnplacedRequestedUnits != 1 {
 		t.Fatal(v)
+	}
+	if configurationFault == "restart_release" {
+		providerRestartReleaseContract(t, db, adapter, cluster, g, podRef, replacementPodUID, state, telemetry, capacity)
+		return
+	}
+	if configurationFault == "runtime_env_order" {
+		providerRuntimeEnvironmentOrderContract(t, db, adapter, cluster, g, podRef, capacity)
+		return
 	}
 	owner := biz.WithCaller(ctx, biz.Caller{Service: "ani-inference", Action: "ObserveRelease", TenantID: ref.TenantID})
 	if configurationFault == "session_cache" {
