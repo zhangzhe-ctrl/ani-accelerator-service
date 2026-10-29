@@ -24,6 +24,16 @@ SERVICE_NAME ?= ani-accelerator-service
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 LDFLAGS := -X main.Name=$(SERVICE_NAME) -X main.Version=$(VERSION)
 
+DOCKER ?= docker
+IMAGE ?=
+PLATFORM ?= linux/amd64
+TARGET ?= service
+BUILDER_IMAGE ?= golang:1.26.10-bookworm
+RUNTIME_IMAGE ?= gcr.io/distroless/static-debian12:nonroot
+IMAGE_GOPROXY ?= https://goproxy.cn,https://proxy.golang.org,direct
+IMAGE_OUTPUT_DIR ?= .work/images
+SOURCE_REVISION ?=
+
 .PHONY: tools check-buf supply-chain-tools check-govulncheck check-cyclonedx check-gitleaks config api design-test generate build test verify vuln secrets sbom supply-chain-verify audit clean help
 
 tools: check-buf check-sqlc
@@ -96,6 +106,17 @@ build:
 	mkdir -p bin
 	$(GO) build -trimpath -ldflags "$(LDFLAGS)" -o bin/$(SERVICE_NAME) ./cmd/...
 
+.PHONY: image test-image
+image:
+	@$(PYTHON) scripts/build-image.py --image "$(IMAGE)" --version "$(VERSION)" \
+		--platform "$(PLATFORM)" --target "$(TARGET)" --docker "$(DOCKER)" \
+		--builder-image "$(BUILDER_IMAGE)" --runtime-image "$(RUNTIME_IMAGE)" \
+		--goproxy "$(IMAGE_GOPROXY)" --source-revision "$(SOURCE_REVISION)" \
+		--output-dir "$(IMAGE_OUTPUT_DIR)"
+
+test-image:
+	PYTHONDONTWRITEBYTECODE=1 $(PYTHON) -m unittest discover -s tests/image -v
+
 test:
 	$(GO) test -count=1 ./...
 
@@ -158,6 +179,8 @@ clean:
 	rm -rf bin .tools .work .tmp
 
 help:
+	@echo "make image IMAGE=<registry/project/name:tag> VERSION=<version> [PLATFORM=linux/amd64]"
+	@echo "make test-image run the image orchestration tests (Docker boundary double)"
 	@echo "make tools    install pinned config generator"
 	@echo "make generate regenerate typed config and GPU API"
 	@echo "make api      generate pinned GPU protobuf/gRPC bindings"

@@ -1,5 +1,44 @@
 # Accelerator 执行状态
 
+## 统一生产镜像入口试行（2026-10-29）
+
+- 基线 `origin/main=8cdb1c4304a5c79aabe0c2921937922608161e53`；独立分支
+  `codex/acc-production-image-20261029`，工作区 `ani-accelerator-service-image`。
+  实际镜像内容由单独的构建输入 snapshot 标识，不把基线 HEAD 当成完整候选。
+- 已实现根 Dockerfile、统一 `make image IMAGE=... VERSION=... PLATFORM=... TARGET=service`、
+  独占源码上下文及结果 JSON；固定 Go 1.26.10，静态编译，运行用户 `10001:10001`，
+  程序 `/app/bin/server`，默认 `-conf /app/configs`。使用方法见[生产镜像手册](../runbooks/production-image.md)。
+- Fedora 原环境缺少 Buildx、根盘约剩 1.9GB，首轮镜像尝试等待超时；原 7 项流程测试通过。
+  用户明确授权本次 `.40` 验证例外。最终 8 项流程测试、真实镜像构建与运行入口检查均在
+  `192.168.25.40` 独立任务目录通过，实际命令、源码/镜像摘要与结果见[验证回执](records/acc-production-image-20261029.json)。
+- 首轮真实冷构建外层等待 1100s 超时，同一子进程继续完成编译与镜像加载；随后结果核对发现
+  Docker 29 containerd 存储使用 OCI index ID、BuildKit 不提供 config digest 的兼容问题。
+  已修复并补对应测试。最终 `make test-image` 退出 0（8 项）；`make image` 退出 0，缓存复验 31.82s。
+- 镜像中真实程序 `-h` 退出 0；无配置启动退出 1，实际日志版本为 `8cdb1c4-image-review`。
+  导出检查确认程序、CA、notice 存在，源码/Git/私密配置不存在；临时检查容器已删除。
+  上述为早期构建检查；后续真实发布与业务读取结果见下项，不把两阶段证据混用。
+- **内网发布与真实业务读取 PASS**：用户明确要求本次跳过 `make verify` 并继续发布、验收。
+  已向 `10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service` 推送固定 digest
+  `sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d`（4.60s），
+  在 `kubernetes-admin@ani-kcn-full` 的 `ani-system/ani-accelerator-service` 完成镜像替换（16.33s）。
+  原运行版本 `caafab05…` 与候选基线 `8cdb1c4…` 的 Git tree 均为 `00ee094bd2ed5e9c28cf0b169d5e266e440dd7fb`；
+  Deployment UID 保留，仅镜像字段变化，无数据库迁移。现有 `-conf /etc/accelerator/config.yaml` 与挂载保持。
+- 合法平台管理员经 Gov HTTP 权限校验 → mTLS ACC → 真实 PG/节点事实，前后各 6 个业务读取均成功：
+  1 个集群、3 个 ACTIVE 规格、6 张 GPU；三个规格容量观测均完整且时间前进，目录与设备身份、
+  名义容量不变。两整卡组占用/可用分别为 0/2、1/1，共享组为 1/3。
+  新二进制日志确认版本 `8cdb1c4-image-review`、业务 RPC 200、节点 telemetry 已继续接收。
+  3 个 Agent 与 2 个既有 GPU 业务 Pod 的 UID/重启计数保持。此次验收是目录、设备与容量读取，
+  没有新增 GPU 创建/删除、训练或推理生命周期验收。详见[发布回执](records/acc-production-release-20261029.json)。
+- 三节点新镜像拉取和旧镜像运行入口均通过；6 个临时检查 Pod 已精确删除，验收会话已正常退出并确认
+  token 失效，临时 registry 凭据与 `.40` Docker CA 文件已移除。保留旧镜像和恢复脚本，未触发回滚。
+  任务源码、原始日志、镜像和构建缓存保留用于复现。
+- 发布阶段 `make verify` **NOT_RUN（用户明确跳过）**。随后用户要求将本批 ACC 改动提 PR 并合入 main；
+  提交阶段 Fedora 的独立测试库容器启动超时，完整 `make verify` 尚未开始，用户再次明确要求
+  **本次也跳过 `make verify`，注明未跑并直接合并**。该例外仅适用于本次提交与合并，不修改默认门禁。
+- 本次提交候选在 Fedora 复跑 `make test-image`：8 项通过，Docker 为明确外部边界替身；
+  日志在 `fedora:/home/chabking/codex-runs/acc-image-pr-20261029.a3kKqUmi/evidence/test-image.log`。
+  既有真实构建和业务读取证据仍按上述 snapshot/digest 记账，不冒充本次全量质量检查通过。
+
 ## 新环境与 factor=10 增补（2026-10-22，真实业务主链 PASS）
 
 - **新增授权范围**：用户要求支持 factor=10，并将本批 ACC/Gov/Resource/Agent 部署到 `proxychains ssh kubercloud@10.10.1.66` 所指新集群的 `ani-system` 后验证。此授权不覆盖修改旧 10～12 集群、插件模式、网络配置或前端代码；旧环境外部 Gov 发布继续保留。

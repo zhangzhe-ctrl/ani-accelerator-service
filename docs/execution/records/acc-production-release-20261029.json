@@ -1,0 +1,457 @@
+{
+  "date": "2026-10-29",
+  "scope": "Publish ACC production-image candidate and verify real authenticated catalog/device/capacity reads.",
+  "authorization": "User explicitly requested skipping make verify for this run and continuing Harbor publication, deployment and real business verification.",
+  "build_receipt": "acc-production-image-20261029.json",
+  "base_revision": "8cdb1c4304a5c79aabe0c2921937922608161e53",
+  "previous_binary_revision": "caafab05bf982ed38e066ddba6e1fc5df554e1d2",
+  "source_tree_both_revisions": "00ee094bd2ed5e9c28cf0b169d5e266e440dd7fb",
+  "source_snapshot": "sha256:5c4ba54e14d4ded9ea550d129c020bb816edf975b36bc5b3b5fa156e0f0dcc76",
+  "make_verify": {
+    "status": "NOT_RUN",
+    "reason": "User explicitly skipped this run; no Git commit was created."
+  },
+  "harbor": {
+    "target": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service:8cdb1c4-prod-image-20261029-1JNiOn22",
+    "source_image_id": "sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+    "push_rc": 0,
+    "push_elapsed_seconds": 4.6,
+    "registry_digest": "sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+    "artifact_type": "IMAGE",
+    "immutable_image": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service@sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+    "artifact_tags": [
+      "8cdb1c4-prod-image-20261029-1JNiOn22"
+    ]
+  },
+  "cluster": {
+    "context": "kubernetes-admin@ani-kcn-full",
+    "namespace": "ani-system",
+    "deployment": "ani-accelerator-service",
+    "rollout": {
+      "action": "deploy",
+      "result": "PASS",
+      "elapsed_seconds": 16.33,
+      "time": "2026-10-29T11:50:51.944016+00:00",
+      "deployment_uid": "c2bd8f9c-97bc-45e3-b7f0-1e3441c4e6ac",
+      "generation": 12,
+      "image": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service@sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+      "pods": [
+        {
+          "name": "ani-accelerator-service-64c6b979f8-cwpw9",
+          "uid": "816174d5-1cf4-4fb7-bdbb-640b3838ff1e",
+          "node": "node2",
+          "phase": "Running",
+          "containers": [
+            {
+              "ready": true,
+              "restartCount": 0,
+              "imageID": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service@sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d"
+            }
+          ]
+        }
+      ]
+    },
+    "final_state": {
+      "deployment_uid": "c2bd8f9c-97bc-45e3-b7f0-1e3441c4e6ac",
+      "generation": 12,
+      "revision": "12",
+      "image": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service@sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+      "only_image_changed": true,
+      "ready_replicas": 1,
+      "pods": [
+        {
+          "name": "ani-accelerator-service-64c6b979f8-cwpw9",
+          "uid": "816174d5-1cf4-4fb7-bdbb-640b3838ff1e",
+          "ready": true,
+          "restart_counts": [
+            0
+          ]
+        }
+      ]
+    },
+    "config_argument_preserved": [
+      "-conf",
+      "/etc/accelerator/config.yaml"
+    ],
+    "database_migration": "NOT_RUN_NOT_REQUIRED_IDENTICAL_SOURCE_TREE"
+  },
+  "node_pull_and_rollback_image_checks": [
+    {
+      "name": "acc-image-check-kc25-new-node1",
+      "uid": "f45c55e0-70c8-4121-9f30-edfa1ee7e3da",
+      "node": "node1",
+      "phase": "Succeeded",
+      "statuses": [
+        {
+          "imageID": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service@sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+          "state": {
+            "terminated": {
+              "containerID": "containerd://9790c830ce55a3185ed8d3eebfe7798839face1a86d221c050f3a09e37d4e70e",
+              "exitCode": 0,
+              "finishedAt": "2026-10-29T11:46:11Z",
+              "reason": "Completed",
+              "startedAt": "2026-10-29T11:46:11Z"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "acc-image-check-kc25-new-node2",
+      "uid": "0c1198f4-d00b-4c69-a47e-fe89bf7e372a",
+      "node": "node2",
+      "phase": "Succeeded",
+      "statuses": [
+        {
+          "imageID": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service@sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+          "state": {
+            "terminated": {
+              "containerID": "containerd://b4ee9de8dc3f405ed392837e34be8e84e0bde20572d5120cff86098b962cd08b",
+              "exitCode": 0,
+              "finishedAt": "2026-10-29T11:46:12Z",
+              "reason": "Completed",
+              "startedAt": "2026-10-29T11:46:12Z"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "acc-image-check-kc25-new-node3",
+      "uid": "dec224ea-f7ff-4f38-8bd8-97cdca05d575",
+      "node": "node3",
+      "phase": "Succeeded",
+      "statuses": [
+        {
+          "imageID": "10.10.1.66:30003/ani-gpu-platform/ani-accelerator-service@sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+          "state": {
+            "terminated": {
+              "containerID": "containerd://b17b7e9cf392917f555bc990be8d3786a5edd519e3078bc9f1584fdaf441ebe3",
+              "exitCode": 0,
+              "finishedAt": "2026-10-29T11:46:12Z",
+              "reason": "Completed",
+              "startedAt": "2026-10-29T11:46:12Z"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "acc-image-check-kc25-old-node1",
+      "uid": "e980607c-fa39-407e-8638-8c6c3ba0d6ce",
+      "node": "node1",
+      "phase": "Succeeded",
+      "statuses": [
+        {
+          "imageID": "localhost/ani-gpu-monitoring/ani-accelerator-service@sha256:f8579b09d5c8bf149ce74ff62854bc4cd738e12ae8411004e9ad09da7d6d7a4b",
+          "state": {
+            "terminated": {
+              "containerID": "containerd://f4d82c2f2f84de7a311aa4c2781b4bcbffc6fc516022c231adcfaea69a27a3d3",
+              "exitCode": 0,
+              "finishedAt": "2026-10-29T11:46:11Z",
+              "reason": "Completed",
+              "startedAt": "2026-10-29T11:46:11Z"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "acc-image-check-kc25-old-node2",
+      "uid": "c33e4eab-3b8a-4811-a35d-1f34dc189eb3",
+      "node": "node2",
+      "phase": "Succeeded",
+      "statuses": [
+        {
+          "imageID": "localhost/ani-gpu-monitoring/ani-accelerator-service@sha256:f8579b09d5c8bf149ce74ff62854bc4cd738e12ae8411004e9ad09da7d6d7a4b",
+          "state": {
+            "terminated": {
+              "containerID": "containerd://7757515e37a0f00956816fd2dc5054d46d5be4fce0ae9bf6439c167f9f89c98e",
+              "exitCode": 0,
+              "finishedAt": "2026-10-29T11:46:11Z",
+              "reason": "Completed",
+              "startedAt": "2026-10-29T11:46:11Z"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "acc-image-check-kc25-old-node3",
+      "uid": "2720b1d5-c52f-4a31-b4d3-2884e2ca42af",
+      "node": "node3",
+      "phase": "Succeeded",
+      "statuses": [
+        {
+          "imageID": "localhost/ani-gpu-monitoring/ani-accelerator-service@sha256:f8579b09d5c8bf149ce74ff62854bc4cd738e12ae8411004e9ad09da7d6d7a4b",
+          "state": {
+            "terminated": {
+              "containerID": "containerd://b26c7d0358a87d1f02de1166328bfab602ebe2f8642b84c48ed3d598400ec979",
+              "exitCode": 0,
+              "finishedAt": "2026-10-29T11:46:11Z",
+              "reason": "Completed",
+              "startedAt": "2026-10-29T11:46:11Z"
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "business": {
+    "chain": "Real platform login/permissions -> Governance HTTP -> mTLS ACC -> persistent PostgreSQL and trusted node facts",
+    "before": {
+      "phase": "before",
+      "result": "PASS",
+      "cluster_count": 1,
+      "profile_count": 3,
+      "device_count": 6,
+      "capacity_count": 3,
+      "request_count": 6
+    },
+    "after": {
+      "phase": "after",
+      "result": "PASS",
+      "cluster_count": 1,
+      "profile_count": 3,
+      "device_count": 6,
+      "capacity_count": 3,
+      "request_count": 6
+    },
+    "capacities": [
+      {
+        "profile_id": "4a698fa6-93b3-441d-846a-6c001637fe8a",
+        "mode": "WHOLE_EXCLUSIVE",
+        "physical_device_count": "2",
+        "nominal_units": "2",
+        "committed_before": "0",
+        "committed_after": "0",
+        "free_before": "2",
+        "free_after": "2",
+        "observation_complete": true,
+        "observed_at_before": "2026-10-29T11:49:23.480337484Z",
+        "observed_at_after": "2026-10-29T11:50:53.602178989Z"
+      },
+      {
+        "profile_id": "67960b01-19bd-460b-b9f0-fb4d533318e9",
+        "mode": "WHOLE_EXCLUSIVE",
+        "physical_device_count": "2",
+        "nominal_units": "2",
+        "committed_before": "1",
+        "committed_after": "1",
+        "free_before": "1",
+        "free_after": "1",
+        "observation_complete": true,
+        "observed_at_before": "2026-10-29T11:49:25.78443821Z",
+        "observed_at_after": "2026-10-29T11:50:55.916327826Z"
+      },
+      {
+        "profile_id": "ac998f7a-c39a-49aa-8aae-d932d567116a",
+        "mode": "SHARED_FIXED",
+        "physical_device_count": "2",
+        "nominal_units": "4",
+        "committed_before": "1",
+        "committed_after": "1",
+        "free_before": "3",
+        "free_after": "3",
+        "observation_complete": true,
+        "observed_at_before": "2026-10-29T11:48:57.353951241Z",
+        "observed_at_after": "2026-10-29T11:50:57.551789404Z"
+      }
+    ],
+    "runtime_evidence": {
+      "workloads": [
+        {
+          "namespace": "ani-system",
+          "name": "ani-node-agent-6cjcl",
+          "uid_unchanged": true,
+          "before_phase": "Running",
+          "after_phase": "Running",
+          "restart_counts_unchanged": true
+        },
+        {
+          "namespace": "ani-system",
+          "name": "ani-node-agent-jhqfg",
+          "uid_unchanged": true,
+          "before_phase": "Running",
+          "after_phase": "Running",
+          "restart_counts_unchanged": true
+        },
+        {
+          "namespace": "ani-system",
+          "name": "ani-node-agent-rw5vb",
+          "uid_unchanged": true,
+          "before_phase": "Running",
+          "after_phase": "Running",
+          "restart_counts_unchanged": true
+        },
+        {
+          "namespace": "ani-system",
+          "name": "image-registry-20261026-whole-gpu-predictor-6bcd6cdfb-p9vw6",
+          "uid_unchanged": true,
+          "before_phase": "Running",
+          "after_phase": "Running",
+          "restart_counts_unchanged": true
+        },
+        {
+          "namespace": "tenant-64c5c35a-f554-432c-b4bc-7b4f36f08420",
+          "name": "instance-63b52ff4-e489-4df6-b6fb-be10a36e2eb9-0",
+          "uid_unchanged": true,
+          "before_phase": "Running",
+          "after_phase": "Running",
+          "restart_counts_unchanged": true
+        }
+      ],
+      "pod_uids_preserved": true,
+      "restart_counts_preserved": true,
+      "observed_binary_versions": [
+        "8cdb1c4-image-review"
+      ],
+      "node_telemetry_reports": 4,
+      "business_requests": [
+        {
+          "time": "2026-10-29T11:51:21.804275427Z",
+          "service.version": "8cdb1c4-image-review",
+          "operation": "/accelerator.v1.AcceleratorAdminService/AdminListProfiles",
+          "code": 200,
+          "reason": "",
+          "trace_id": "332e967d01427bdbc9be1cd6fce34a5d"
+        },
+        {
+          "time": "2026-10-29T11:51:21.83359284Z",
+          "service.version": "8cdb1c4-image-review",
+          "operation": "/accelerator.v1.AcceleratorAdminService/ListDevices",
+          "code": 200,
+          "reason": "",
+          "trace_id": "0fad3e1a09471c191d6c7c73cdd28ccd"
+        },
+        {
+          "time": "2026-10-29T11:51:21.885142739Z",
+          "service.version": "8cdb1c4-image-review",
+          "operation": "/accelerator.v1.AcceleratorAdminService/AdminGetCapacity",
+          "code": 200,
+          "reason": "",
+          "trace_id": "96caa6dd49e6a3808cb6db12ce6a012f"
+        },
+        {
+          "time": "2026-10-29T11:51:21.943382933Z",
+          "service.version": "8cdb1c4-image-review",
+          "operation": "/accelerator.v1.AcceleratorAdminService/AdminGetCapacity",
+          "code": 200,
+          "reason": "",
+          "trace_id": "f2405f6697545b46d15120a78c5d54c0"
+        },
+        {
+          "time": "2026-10-29T11:51:21.976946118Z",
+          "service.version": "8cdb1c4-image-review",
+          "operation": "/accelerator.v1.AcceleratorAdminService/AdminGetCapacity",
+          "code": 200,
+          "reason": "",
+          "trace_id": "2f58229981ea82c1aff25273d311bc97"
+        }
+      ],
+      "errors": []
+    }
+  },
+  "cleanup": {
+    "pods": {
+      "deleted": [
+        {
+          "name": "acc-image-check-kc25-new-node1",
+          "uid": "f45c55e0-70c8-4121-9f30-edfa1ee7e3da",
+          "delete_rc": 0
+        },
+        {
+          "name": "acc-image-check-kc25-new-node2",
+          "uid": "0c1198f4-d00b-4c69-a47e-fe89bf7e372a",
+          "delete_rc": 0
+        },
+        {
+          "name": "acc-image-check-kc25-new-node3",
+          "uid": "dec224ea-f7ff-4f38-8bd8-97cdca05d575",
+          "delete_rc": 0
+        },
+        {
+          "name": "acc-image-check-kc25-old-node1",
+          "uid": "e980607c-fa39-407e-8638-8c6c3ba0d6ce",
+          "delete_rc": 0
+        },
+        {
+          "name": "acc-image-check-kc25-old-node2",
+          "uid": "c33e4eab-3b8a-4811-a35d-1f34dc189eb3",
+          "delete_rc": 0
+        },
+        {
+          "name": "acc-image-check-kc25-old-node3",
+          "uid": "2720b1d5-c52f-4a31-b4d3-2884e2ca42af",
+          "delete_rc": 0
+        }
+      ],
+      "remaining": 0,
+      "result": "PASS"
+    },
+    "authentication": {
+      "csrf_status": 200,
+      "logout_status": 200,
+      "logout_result": {
+        "status": "revoked",
+        "session_revoked": true
+      },
+      "revoked_token_check_status": 401,
+      "session_file_removed": true,
+      "docker_logout_rc": 0,
+      "temporary_docker_ca_removed": true,
+      "result": "PASS"
+    }
+  },
+  "rollback": {
+    "status": "NOT_RUN",
+    "reason": "Candidate passed rollout and business checks; previous image -h succeeded on all three nodes.",
+    "expected_deployment_uid": "c2bd8f9c-97bc-45e3-b7f0-1e3441c4e6ac",
+    "restore_image": "localhost/ani-gpu-monitoring/ani-accelerator-service@sha256:f8579b09d5c8bf149ce74ff62854bc4cd738e12ae8411004e9ad09da7d6d7a4b",
+    "cluster_host_command": [
+      "python3",
+      "/var/tmp/acc-image-release-20261029.kc25cu5_/rollout.py",
+      "rollback"
+    ],
+    "guard": "Requires original Deployment UID and candidate image, then uses current resourceVersion and a JSON test/replace image patch."
+  },
+  "not_run": [
+    "New GPU workload create/delete lifecycle",
+    "New training or inference execution",
+    "Actual rollback rehearsal",
+    "Git commit/push/PR merge"
+  ],
+  "diagnostic_attempts": [
+    "Stored bootstrap admin credential returned 401; user-provided current credentials succeeded through normal login.",
+    "Initial unscoped API probes returned 400; canonical cluster/profile parameters then passed.",
+    "Direct SSH checks for node2/node3 failed; Kubernetes help-only Pods verified both new and old images on all three nodes.",
+    "Transient proxy SSH failures occurred before Deployment mutation; recovered via an isolated SSH control socket."
+  ],
+  "evidence": {
+    "host40_root": "root@192.168.25.40:/var/tmp/acc-image-20261029.1JNiOn22/release",
+    "cluster_root": "kubercloud@10.10.1.66:/var/tmp/acc-image-release-20261029.kc25cu5_",
+    "local_raw_archive": ".work/remote/host40-release-20261029/release-evidence.tar.gz",
+    "archive_sha256": "3620a41e37678423966e4e301e7873d0e9df839998b41009abe935e86ea67d6f",
+    "file_sha256": {
+      "harbor-push.json": "c142b075656f6590092a1a60341aa97953059a899899aae698967c9173828405",
+      "harbor-push.log": "b845d32a1c1a79dbe196e536bf469581587a88d3bb899f9d0b176183b5e27bd5",
+      "business-before.json": "2267af2a3062adef7314fb82f0687e1527b3ff1ef41212f2e4ead6592a4a3baa",
+      "business-before-result.json": "bd60ee7e907c40f9147fe4570e99ae407aaede0e97d3b50845fa9bf487743335",
+      "business-after.json": "45899840db464c787b0c4d57730fdea3593b9be0398c3275e95543f033b05a85",
+      "business-after-result.json": "05218f5b68ae3720130474bb831a725ae3da4b66557a8ee8812eddc747055125",
+      "cleanup-auth.json": "7a9e7615ed753b72ee50f84fa1e28027f7e092d65fcbce8af55e75b28647ff92",
+      "cluster/deployment-before.json": "f86adeba037898d62da6e8749852182f1b6300ef83425471fff696e5531cfbf1",
+      "cluster/pods-before.json": "99e83e40bad1fcf39bd061b12ae1d81cb8bd56aa34600efab1098b79b37e629e",
+      "cluster/image-check-summary.json": "e1022ee7a991a910e56a0a83493b7545b1de8ccf36dd63c94c503d1ac1177053",
+      "cluster/deploy-patch.json": "b1b0df388ee8efd5d725157d42859ea3152b10d533547d685376519f9f727be0",
+      "cluster/deploy-result.json": "9fe5e4d2b38543e0a34c7afcc8a50ddbb7a5ef875acaf111652a2060b0e8481b",
+      "cluster/deploy-pods-result.json": "789cf97406a4b60ddb4465aeac8a688974c02353b29a97cd6ff3c2c03f783066",
+      "cluster/post-deploy-runtime-check.json": "22826ecc3d999605c1b7463b70e7220a586db98c8c737fdb227bc3733f0498c9",
+      "cluster/cleanup-pods.json": "7d14293c8570fe3e52b24072a726cc2d783a869205b1ac706f1e0945d9393727",
+      "cluster/final-state.json": "a10290a459783ecf7b47c7bcd78b8b6d1269dde593419dc79c76cd7f56892a39",
+      "cluster/workloads-before.json": "508e00ddc8ad4553e2ff89db118e9d76a601555a26f199fa4ca8367d30d507c5",
+      "cluster/workloads-deploy-after.json": "508e00ddc8ad4553e2ff89db118e9d76a601555a26f199fa4ca8367d30d507c5",
+      "cluster/post-business-runtime.log": "53b794b15b1c7183b6e8a35b34918062e3ecda78ce7ba18fa84e288c2bff8194"
+    }
+  }
+}

@@ -1,0 +1,19 @@
+# scripts/build-image.py supplies an isolated context containing only these inputs.
+**
+!Dockerfile
+!.dockerignore
+!go.mod
+!go.sum
+!THIRD_PARTY_NOTICES.go-kratos-layout.txt
+!api/
+!api/**
+!cmd/
+!cmd/**
+!internal/
+!internal/**
+!pkg/
+!pkg/**
+**/*_test.go
+**/*.key
+**/*.pem
+**/.env*

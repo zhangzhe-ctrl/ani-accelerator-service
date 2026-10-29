@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-29",
+  "branch": "codex/acc-production-image-20261029",
+  "baseline_commit": "8cdb1c4304a5c79aabe0c2921937922608161e53",
+  "source_archive_sha256": "7b603314d2c3e975d26efe5b46128a15332a5889048c39c1209060edc261360a",
+  "source_snapshot": "sha256:5c4ba54e14d4ded9ea550d129c020bb816edf975b36bc5b3b5fa156e0f0dcc76",
+  "execution_host": "192.168.25.40",
+  "host_exception": "User explicitly authorized this image validation on host40 after Fedora lacked Buildx and disk headroom.",
+  "verification": {
+    "host": "192.168.25.40",
+    "source_archive_sha256": "7b603314d2c3e975d26efe5b46128a15332a5889048c39c1209060edc261360a",
+    "test_image_exit": 0,
+    "image_command": [
+      "make",
+      "image",
+      "IMAGE=localhost/ani-accelerator-service:production-image-review-v2-1JNiOn22",
+      "VERSION=8cdb1c4-image-review",
+      "SOURCE_REVISION=8cdb1c4304a5c79aabe0c2921937922608161e53",
+      "BUILDER_IMAGE=m.daocloud.io/docker.io/library/golang@sha256:23ce71337b726608afb1bc00986e630a05034a87a87ea1fc2cd1ae5cf33387eb",
+      "RUNTIME_IMAGE=m.daocloud.io/gcr.io/distroless/static-debian12@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab"
+    ],
+    "image_exit": 0,
+    "elapsed_seconds": 31.82
+  },
+  "image_result": {
+    "schema_version": 1,
+    "service": "ani-accelerator-service",
+    "source": "https://github.com/zhangzhe-ctrl/ani-accelerator-service",
+    "source_revision": "8cdb1c4304a5c79aabe0c2921937922608161e53",
+    "source_dirty": null,
+    "source_snapshot": "sha256:5c4ba54e14d4ded9ea550d129c020bb816edf975b36bc5b3b5fa156e0f0dcc76",
+    "version": "8cdb1c4-image-review",
+    "target": "service",
+    "platform": "linux/amd64",
+    "image": "localhost/ani-accelerator-service:production-image-review-v2-1JNiOn22",
+    "local_image_id": "sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+    "local_config_digest": null,
+    "local_descriptor_digest": "sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+    "local_descriptor_media_type": "application/vnd.oci.image.index.v1+json",
+    "registry_digest": null,
+    "pushed": false,
+    "builder_image": "m.daocloud.io/docker.io/library/golang@sha256:23ce71337b726608afb1bc00986e630a05034a87a87ea1fc2cd1ae5cf33387eb",
+    "runtime_image": "m.daocloud.io/gcr.io/distroless/static-debian12@sha256:afa5c872c891853ca7fcf1f12c3edb23f7eeef36189728842dd51042ff57f7ab",
+    "buildkit_metadata": "/var/tmp/acc-image-20261029.1JNiOn22/source-v2/.work/images/image-2_8zo0ni/buildkit.json",
+    "source_manifest": "/var/tmp/acc-image-20261029.1JNiOn22/source-v2/.work/images/image-2_8zo0ni/source-manifest.json"
+  },
+  "runtime_verification": {
+    "host": "192.168.25.40",
+    "image": "localhost/ani-accelerator-service:production-image-review-v2-1JNiOn22",
+    "image_id": "sha256:d6333e777de5ef145b80dc34b73cccc8b9cb6ed0467337035ce02559d8e45f8d",
+    "help_exit": 0,
+    "missing_config_exit": 1,
+    "binary_reported_version": "8cdb1c4-image-review",
+    "binary_sha256": "64e315acbca1f752d7a5d2839aba640f1c6fe2cea4a6cfb68d1fa544d9314475",
+    "binary_bytes": 25460898,
+    "toolchain": "go1.26.10",
+    "source_and_private_config_absent": true,
+    "ca_bundle_present": true,
+    "notice_present": true,
+    "temporary_container_removed": "498476e5940f82cdd7ee792fd39c6609b1d773eb3ee272ff063d404f57b1a93d",
+    "business_startup": "NOT_RUN",
+    "harbor_push": "NOT_RUN",
+    "cluster_update": "NOT_RUN"
+  },
+  "not_run": {
+    "make_verify": "Packaging-only change; no commit created. Original pre-commit gate remains required.",
+    "business_startup": "No PG/mTLS/provider configuration or business resources used.",
+    "harbor_push": "Outside this pilot scope.",
+    "cluster_update": "Outside this pilot scope.",
+    "arm64_runtime": "Only linux/amd64 was exercised."
+  },
+  "earlier_failures": [
+    "Fedora image attempt: Buildx unavailable; outer wait timed out; task-owned child processes stopped. Original seven boundary tests passed there.",
+    "First host40 cold build: outer 1100s wait timed out; original child completed the build without a second concurrent build.",
+    "First receipt check rejected Docker 29 OCI index ID and missing config digest. Fixed with a dedicated regression case; final eight tests and make image exited zero."
+  ],
+  "remote_evidence_root": "root@192.168.25.40:/var/tmp/acc-image-20261029.1JNiOn22",
+  "evidence_sha256": {
+    "binary-build-info.log": "8e15f2192e33fdd52279fda459b455d21d081c6989945bde91ffe3cb0084db3a",
+    "image-build-v2.log": "b039b4ce89de96ad63678754dd2a7776cabdf1c69fb322219f69a4ed1ba7b9dc",
+    "image-build.log": "83e3e44685259ad60624ae50e7d89139c848156c7a9332ec3462a05eefa7d274",
+    "image-stdout-v2.json": "89ea67a90633abc84d49df801a60b5bbab5a0e01597c43efd3cd537e5989ef0b",
+    "runtime-help.log": "66b0a646faf078f76ccaaba465dbbf6fc456a3862fd6286e6e15b525992f869c",
+    "runtime-missing-config.log": "822ea291bf6aed38c6dc804a48853a840c60740111651938ac28f9fea7befab1",
+    "runtime-verification.json": "8be725c65051be8fd83effdaafcdad17149298e3ce891bd72b0c1ef8c557ebd6",
+    "test-image-v2.log": "e71f846caef34ca45bb4aaecb9f8ea087de591ddacb7b78b717275d538860360",
+    "verification-v2.json": "fdc1952f6a2a91ffa21a46637be2e8974993c075b9d98d7caa512ee282d8f25d"
+  }
+}
