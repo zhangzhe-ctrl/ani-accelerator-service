@@ -108,7 +108,7 @@ func (r *replayRuntime) Version(context.Context, *cri.VersionRequest) (*cri.Vers
 	return &cri.VersionResponse{Version: "0.1.0", RuntimeName: "containerd", RuntimeVersion: "2.1.5", RuntimeApiVersion: "v1"}, nil
 }
 func (r *replayRuntime) ListContainers(context.Context, *cri.ListContainersRequest) (*cri.ListContainersResponse, error) {
-	if r.state.getFault() == "pending_owner" {
+	if fault := r.state.getFault(); fault == "pending_owner" || fault == "admission_rejected" {
 		return &cri.ListContainersResponse{}, nil
 	}
 	_, exited, _, _, failed := r.state.snapshot()
@@ -187,6 +187,10 @@ func TestProviderControlledSourcesPersistRecoverAndRelease(t *testing.T) {
 	}
 }
 
+func TestProviderRejectedAdmissionReleasedBeforePodDisappears(t *testing.T) {
+	providerControlledSources(t, "v1.15.2", "admission_rejected")
+}
+
 func TestProviderLateOwnerPreservesHistoricalSchedulerAndAssociatesRuntime(t *testing.T) {
 	providerControlledSources(t, "v1.15.2", "late_owner")
 }
@@ -258,6 +262,10 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	replacementAssertion, _ := biz.Canonical(OwnerAssertion{replacementPodRef, *ref, executionDigest})
 	replacementSignature := base64.StdEncoding.EncodeToString(ed25519.Sign(ownerKey, append([]byte("acc-owner-pod-v2\n"), replacementAssertion...)))
 	state := &replayState{memory: workloadMiB}
+	if configurationFault == "admission_rejected" {
+		state.absent = true
+		state.setFault("admission_rejected")
+	}
 	if configurationFault == "runtime_env_order" {
 		state.runtimeEnvironment = duplicateRuntimeGPUEnvironment(workloadMiB)
 	}
@@ -369,6 +377,11 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 					annotations["accelerator.ani.io/memory-block-mib"] = "1"
 				}
 				items = append(items, map[string]any{"metadata": map[string]any{"uid": podUID, "name": "workload", "namespace": "replay", "resourceVersion": "1", "labels": map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}, "annotations": annotations}, "spec": map[string]any{"nodeName": "replay-node", "containers": []any{map[string]any{"name": "inference", "resources": map[string]any{"limits": map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": workloadBlocks}}}}}})
+				if fault == "admission_rejected" {
+					rejected := items[len(items)-1].(map[string]any)
+					rejected["metadata"].(map[string]any)["creationTimestamp"] = assignmentTime.Add(-time.Minute).Format(time.RFC3339Nano)
+					rejected["status"] = map[string]string{"phase": "Failed", "reason": "UnexpectedAdmissionError"}
+				}
 			}
 			response = map[string]any{"items": items}
 			if fault == "replacement_pod" {
@@ -493,6 +506,30 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 		}
 	}
 	collect()
+	if configurationFault == "admission_rejected" {
+		check := func() {
+			t.Helper()
+			if err := db.View(ctx, func(reader biz.Reader) error {
+				bindings, err := reader.Bindings(ctx, biz.BindingFilter{ClusterID: cluster.ClusterID}, "", 10)
+				if err != nil {
+					return err
+				}
+				if len(bindings) != 1 || bindings[0].State != biz.ReleaseConfirmed {
+					t.Fatalf("first observation of rejected Pod left occupancy: %+v", bindings)
+				}
+				return nil
+			}); err != nil {
+				t.Fatal(err)
+			}
+		}
+		check()
+		state.mu.Lock()
+		state.apiDeleted = true
+		state.mu.Unlock()
+		collect()
+		check()
+		return
+	}
 	if configurationFault == "factor10" {
 		providerFactor10Contract(t, db, adapter, cluster, g, profile, podRef, state, telemetry)
 		return

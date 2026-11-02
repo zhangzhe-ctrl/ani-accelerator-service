@@ -134,6 +134,7 @@ type ReleaseProof struct {
 	ReceivedAt          time.Time `json:"received_at"`
 	EvidenceRef         string    `json:"evidence_ref"`
 	RuntimeExited       bool      `json:"runtime_exited"`
+	AdmissionRejected   bool      `json:"admission_rejected,omitempty"`
 	AllocationAbsent    bool      `json:"allocation_absent"`
 	NodeOnline          bool      `json:"node_online"`
 	OwnerRef            *UsageRef `json:"owner_ref"`

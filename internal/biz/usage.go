@@ -312,7 +312,7 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 					return Denied()
 				}
 				currentRevision := !nodeFacts || (proof.CheckedNodeRevision > 0 && proof.CheckedNodeRevision == telemetry[proof.NodeUID].CurrentRevision)
-				if currentRevision && proof.OwnerRef != nil && *proof.OwnerRef == *ref && proof.RuntimeExited && proof.AllocationAbsent && proof.NodeOnline {
+				if currentRevision && proof.OwnerRef != nil && *proof.OwnerRef == *ref && (proof.RuntimeExited || proof.AdmissionRejected) && proof.AllocationAbsent && proof.NodeOnline {
 					proofs[proof.DeviceID] = proof
 				}
 			}

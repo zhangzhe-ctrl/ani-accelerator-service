@@ -15,7 +15,9 @@ func MergeBinding(id string, claims []Claim, proof *ReleaseProof, usage *UsagePr
 		if c.Pod != first.Pod || c.DeviceID != first.DeviceID {
 			return nil, Invalid("BINDING_SCOPE_MISMATCH")
 		}
-		if proof != nil && proof.Pod == c.Pod && proof.DeviceID == c.DeviceID && proof.NodeUID == c.NodeUID && proof.RuntimeExited && proof.AllocationAbsent && proof.NodeOnline && !c.ObservedAt.After(proof.ObservedAt) {
+		// A rejected admission retires scheduler intent only. It must never
+		// erase a runtime/allocation fact, including one received later.
+		if proof != nil && proof.Pod == c.Pod && proof.DeviceID == c.DeviceID && proof.NodeUID == c.NodeUID && (proof.RuntimeExited || (proof.AdmissionRejected && c.Source == "scheduler")) && proof.AllocationAbsent && proof.NodeOnline && !c.ObservedAt.After(proof.ObservedAt) {
 			continue
 		}
 		current = append(current, c)
@@ -124,7 +126,7 @@ func ValidateObservationBatch(batch ObservationBatch) error {
 		if err := ValidatePod(p.Pod); err != nil {
 			return err
 		}
-		if p.Pod.ClusterID != batch.ClusterID || !UUID(p.DeviceID) || !Ref(p.NodeUID) || !Ref(p.EvidenceRef) || p.ObservedAt.IsZero() || !p.RuntimeExited || !p.AllocationAbsent || !p.NodeOnline {
+		if p.Pod.ClusterID != batch.ClusterID || !UUID(p.DeviceID) || !Ref(p.NodeUID) || !Ref(p.EvidenceRef) || p.ObservedAt.IsZero() || p.RuntimeExited == p.AdmissionRejected || !p.AllocationAbsent || !p.NodeOnline {
 			return Invalid("INVALID_RELEASE_PROOF")
 		}
 	}
