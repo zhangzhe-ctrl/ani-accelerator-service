@@ -184,6 +184,7 @@ type metadata struct {
 	Labels            map[string]string `json:"labels"`
 	Annotations       map[string]string `json:"annotations"`
 	DeletionTimestamp string            `json:"deletionTimestamp"`
+	CreationTimestamp string            `json:"creationTimestamp"`
 }
 type node struct {
 	Metadata metadata `json:"metadata"`
@@ -230,8 +231,11 @@ type pod struct {
 		} `json:"volumes"`
 	} `json:"spec"`
 	Status struct {
-		Phase             string `json:"phase"`
-		ContainerStatuses []struct {
+		Phase                      string            `json:"phase"`
+		Reason                     string            `json:"reason"`
+		InitContainerStatuses      []json.RawMessage `json:"initContainerStatuses"`
+		EphemeralContainerStatuses []json.RawMessage `json:"ephemeralContainerStatuses"`
+		ContainerStatuses          []struct {
 			Name    string `json:"name"`
 			ImageID string `json:"imageID"`
 			Ready   bool   `json:"ready"`

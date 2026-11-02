@@ -477,6 +477,13 @@ func (p *Provider) collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 				continue
 			}
 			batch.Claims = append(batch.Claims, claims...)
+			// Persist rejected scheduler intent and its release together, even
+			// when the failed Pod disappears before the next collection.
+			for _, claim := range claims {
+				if proof := admissionReleaseProof(claim, claims, source, snapshot, pods, now); proof != nil {
+					batch.Releases = append(batch.Releases, *proof)
+				}
+			}
 		}
 	}
 	return batch, nil
@@ -786,6 +793,10 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 				}
 				statuses, ok := runtimeFor(snapshot, binding.Pod.UID, binding.Pod.ContainerName)
 				if !ok {
+					continue
+				}
+				if proof := admissionReleaseProof(*claim, claims, node, snapshot, currentPods, now); proof != nil {
+					result = append(result, *proof)
 					continue
 				}
 				unmapped := unexplainedJournalSandboxes(snapshot, statuses, *binding.Pod)
