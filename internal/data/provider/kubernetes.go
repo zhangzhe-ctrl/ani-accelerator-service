@@ -159,7 +159,12 @@ func (k *kubeReader) get(ctx context.Context, path string, out any) error {
 	if resp.StatusCode != 200 {
 		return biz.Precondition("SOURCE_UNKNOWN")
 	}
-	if json.NewDecoder(io.LimitReader(resp.Body, 16<<20)).Decode(out) != nil {
+	decoder := json.NewDecoder(io.LimitReader(resp.Body, 16<<20))
+	if decoder.Decode(out) != nil {
+		return biz.Precondition("PROVIDER_RESPONSE_INVALID")
+	}
+	var trailing any
+	if decoder.Decode(&trailing) != io.EOF {
 		return biz.Precondition("PROVIDER_RESPONSE_INVALID")
 	}
 	return nil
@@ -254,6 +259,9 @@ func (k *kubeReader) nodes(ctx context.Context) ([]node, error) {
 	if l.Metadata.Continue != "" {
 		return nil, biz.Precondition("SOURCE_INCOMPLETE")
 	}
+	if l.Items == nil {
+		return nil, biz.Precondition("PROVIDER_RESPONSE_INVALID")
+	}
 	seenUIDs, seenNames := map[string]bool{}, map[string]bool{}
 	for _, item := range l.Items {
 		if !biz.Ref(item.Metadata.UID) || !kubernetesDNSName(item.Metadata.Name) || seenUIDs[item.Metadata.UID] || seenNames[item.Metadata.Name] {
@@ -279,6 +287,9 @@ func (k *kubeReader) pods(ctx context.Context) ([]pod, string, error) {
 	}
 	if list.Metadata.Continue != "" || list.Metadata.ResourceVersion == "" {
 		return nil, "", biz.Precondition("SOURCE_INCOMPLETE")
+	}
+	if list.Items == nil {
+		return nil, "", biz.Precondition("PROVIDER_RESPONSE_INVALID")
 	}
 	seen := map[string]bool{}
 	for _, item := range list.Items {

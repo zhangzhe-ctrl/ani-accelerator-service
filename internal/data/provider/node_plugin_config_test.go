@@ -187,7 +187,7 @@ type nodePluginFixture struct {
 // runtime socket or telemetry database is needed for inspection and discovery.
 func newNodePluginFixture(t *testing.T) *nodePluginFixture {
 	t.Helper()
-	f := &nodePluginFixture{repo: providerRepository{reader: &providerReader{}}, cluster: biz.Cluster{ClusterID: biz.NewID(), ConnectionRef: "node-config:" + biz.NewID()}}
+	f := &nodePluginFixture{repo: providerRepository{reader: &providerReader{}}, workloads: []pod{}, cluster: biz.Cluster{ClusterID: biz.NewID(), ConnectionRef: "node-config:" + biz.NewID()}}
 	configs := []map[string]string{{"config.json": "{\"deviceSplitCount\":1}"}, {"config.json": "{\"deviceSplitCount\":2}"}}
 	schedulerData := map[string]string{schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
 	schedulerDigest, err := schedulerconfig.ConfigMapDigest("v1.15.2", schedulerData, nil)
