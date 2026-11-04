@@ -62,11 +62,24 @@ func TestTelemetryCurrentIdentityAndSourceFailuresRemainUnknown(t *testing.T) {
 		name   string
 		change func(*biz.NodeTelemetryView, time.Time)
 	}{
-		{"current_identity_missing", func(view *biz.NodeTelemetryView, now time.Time) {
-			view.State.Snapshot.Containers = []biz.RuntimeAttempt{{ContainerID: "current-container", ContainerName: "app", State: 2, ObservedAt: now}}
-		}},
-		{"source_incomplete", func(view *biz.NodeTelemetryView, _ time.Time) { view.State.Snapshot.Sources[0].Complete = false }},
-		{"source_stale", func(view *biz.NodeTelemetryView, now time.Time) { view.State.Snapshot.Sources[0].ObservedAt = now.Add(-2 * time.Minute) }},
+		{
+			"current_identity_missing",
+			func(view *biz.NodeTelemetryView, now time.Time) {
+				view.State.Snapshot.Containers = []biz.RuntimeAttempt{{ContainerID: "current-container", ContainerName: "app", State: 2, ObservedAt: now}}
+			},
+		},
+		{
+			"source_incomplete",
+			func(view *biz.NodeTelemetryView, _ time.Time) {
+				view.State.Snapshot.Sources[0].Complete = false
+			},
+		},
+		{
+			"source_stale",
+			func(view *biz.NodeTelemetryView, now time.Time) {
+				view.State.Snapshot.Sources[0].ObservedAt = now.Add(-2 * time.Minute)
+			},
+		},
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			now := time.Now().UTC()

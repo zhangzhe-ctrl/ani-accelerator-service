@@ -16,10 +16,18 @@ func TestPostgresCurrentRetirementPersistsAndFencesNewOccupancy(t *testing.T) {
 	node, device := f.group.Nodes[0], biz.NewID()
 	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "current-retirement", UID: biz.NewID(), ContainerName: "inference"}
 	identity := biz.NodeIdentity{
-		ConnectionRef: f.cluster.ConnectionRef, NodeUID: node.UID, NodeName: node.Name,
-		PodUID: biz.NewID(), PodNamespace: "ani-node-system", PodName: "agent",
-		ServiceAccount: "ani-node-agent", DaemonSetUID: biz.NewID(), InstanceID: biz.NewID(),
-		LogID: biz.NewID(), BootID: biz.NewID(), TokenExpiresAt: now.Add(time.Minute),
+		ConnectionRef:  f.cluster.ConnectionRef,
+		NodeUID:        node.UID,
+		NodeName:       node.Name,
+		PodUID:         biz.NewID(),
+		PodNamespace:   "ani-node-system",
+		PodName:        "agent",
+		ServiceAccount: "ani-node-agent",
+		DaemonSetUID:   biz.NewID(),
+		InstanceID:     biz.NewID(),
+		LogID:          biz.NewID(),
+		BootID:         biz.NewID(),
+		TokenExpiresAt: now.Add(time.Minute),
 	}
 	state, err := f.db.OpenNodeSession(ctx, identity, now.Add(time.Minute))
 	if err != nil {
@@ -28,16 +36,22 @@ func TestPostgresCurrentRetirementPersistsAndFencesNewOccupancy(t *testing.T) {
 	report := func(at time.Time, containers []biz.RuntimeAttempt) {
 		t.Helper()
 		snapshot := &biz.TelemetrySnapshot{
-			CaptureEpoch: state.Epoch, CaptureStart: at, CaptureEnd: at, Containers: containers,
-			Sources: []biz.TelemetrySource{{Name: "cri", ObservedAt: at, Complete: true}, {Name: "podresources", ObservedAt: at, Complete: true}},
+			CaptureEpoch: state.Epoch,
+			CaptureStart: at,
+			CaptureEnd:   at,
+			Containers:   containers,
+			Sources:      []biz.TelemetrySource{{Name: "cri", ObservedAt: at, Complete: true}, {Name: "podresources", ObservedAt: at, Complete: true}},
 		}
 		digest, err := biz.Hash(snapshot)
 		if err != nil {
 			t.Fatal(err)
 		}
 		state, err = f.db.SaveNodeReport(ctx, identity.ConnectionRef, node.UID, biz.NodeReport{
-			Epoch: state.Epoch, Sequence: state.LastSequence + 1, LogID: identity.LogID,
-			PayloadDigest: digest, Snapshot: snapshot,
+			Epoch:         state.Epoch,
+			Sequence:      state.LastSequence + 1,
+			LogID:         identity.LogID,
+			PayloadDigest: digest,
+			Snapshot:      snapshot,
 		}, at)
 		if err != nil {
 			t.Fatal(err)
@@ -49,9 +63,16 @@ func TestPostgresCurrentRetirementPersistsAndFencesNewOccupancy(t *testing.T) {
 	retirement := func(at time.Time) biz.ObservationBatch {
 		result := batch()
 		result.Releases = []biz.ReleaseProof{{
-			Pod: pod, DeviceID: device, NodeUID: node.UID, ObservedAt: at, ReceivedAt: at,
-			EvidenceRef: "current-state:retired", Retirement: biz.RetirementCurrentState,
-			AllocationAbsent: true, NodeOnline: true, CheckedNodeRevision: state.CurrentRevision,
+			Pod:                 pod,
+			DeviceID:            device,
+			NodeUID:             node.UID,
+			ObservedAt:          at,
+			ReceivedAt:          at,
+			EvidenceRef:         "current-state:retired",
+			Retirement:          biz.RetirementCurrentState,
+			AllocationAbsent:    true,
+			NodeOnline:          true,
+			CheckedNodeRevision: state.CurrentRevision,
 		}}
 		return result
 	}
@@ -86,8 +107,11 @@ func TestPostgresCurrentRetirementPersistsAndFencesNewOccupancy(t *testing.T) {
 	report(base.Add(time.Second), nil)
 	initial := batch()
 	initial.Devices = []biz.DeviceRecord{{
-		Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &node, VendorDeviceID: "GPU-current-retirement", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: base.Format(time.RFC3339Nano), ReceivedAt: base.Format(time.RFC3339Nano)}},
-		ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest,
+		Device:               biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &node, VendorDeviceID: "GPU-current-retirement", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: base.Format(time.RFC3339Nano), ReceivedAt: base.Format(time.RFC3339Nano)}},
+		ProviderMemoryBlocks: 24576,
+		MemoryBlockMiB:       1,
+		SafeMemoryBudgetMiB:  24576,
+		BaselineDigest:       f.group.Baseline.BaselineDigest,
 	}}
 	for _, source := range []string{"scheduler", "runtime", "allocation"} {
 		claim := biz.Claim{Pod: pod, DeviceID: device, NodeUID: node.UID, Source: source, ObservedAt: base, ReceivedAt: base, State: biz.AllocationUnknown, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "old:" + source}

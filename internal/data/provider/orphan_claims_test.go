@@ -57,7 +57,7 @@ func currentOrphanSnapshot(t *testing.T, node NodeSource, captured time.Time, at
 	t.Helper()
 	state := biz.NodeTelemetryState{
 		Identity: biz.NodeIdentity{LogID: "orphan-log", NodeUID: node.UID, NodeName: node.Name},
-		Epoch: 1, CurrentRevision: 7, LeaseExpiresAt: captured.Add(time.Minute),
+		Epoch:    1, CurrentRevision: 7, LeaseExpiresAt: captured.Add(time.Minute),
 		Snapshot: &biz.TelemetrySnapshot{CaptureEpoch: 1, CaptureStart: captured, CaptureEnd: captured, Sources: []biz.TelemetrySource{
 			{Name: "cri", ObservedAt: captured, Complete: true},
 			{Name: "podresources", ObservedAt: captured, Complete: true},
