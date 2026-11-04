@@ -1,41 +1,36 @@
 package provider
 
 import (
+	"math"
 	"testing"
 	"time"
 )
 
-func TestDeviceBudgetUsesBothLiveLimits(t *testing.T) {
-	for _, tc := range []struct {
+func TestDeviceBudgetUsesRegisteredBlocksAndVerifiedFactor(t *testing.T) {
+	for _, test := range []struct {
 		name    string
 		blocks  int64
 		factor  uint32
-		bytes   uint64
 		want    int64
 		invalid bool
 	}{
-		{name: "plugin_lower", blocks: 15360, factor: 1, bytes: 16127 << 20, want: 15360},
-		{name: "nvml_lower", blocks: 16384, factor: 1, bytes: 16127 << 20, want: 16127},
-		{name: "nvml_fractional_mib", blocks: 16384, factor: 1, bytes: (16127 << 20) + (1 << 19), want: 16127},
-		{name: "different_card", blocks: 12288, factor: 1, bytes: 24576 << 20, want: 12288},
-		{name: "factor10_plugin_lower", blocks: 1536, factor: 10, bytes: 16127 << 20, want: 15360},
-		{name: "factor10_nvml_floor", blocks: 1638, factor: 10, bytes: (16127 << 20) + (1 << 19), want: 16120},
-		{name: "factor10_card_floor", blocks: 2458, factor: 10, bytes: 24576 << 20, want: 24570},
-		{name: "factor_unknown", blocks: 100, factor: 2, bytes: 24576 << 20, invalid: true},
-		{name: "zero_registration", factor: 1, bytes: 16127 << 20, invalid: true},
-		{name: "missing_nvml", blocks: 15360, factor: 1, invalid: true},
-		{name: "old_factor", blocks: 60, factor: 256, bytes: 16127 << 20, invalid: true},
+		{name: "factor_one", blocks: 16384, factor: 1, want: 16384},
+		{name: "factor_ten", blocks: 2458, factor: 10, want: 24580},
+		{name: "factor_unknown", blocks: 100, factor: 2, invalid: true},
+		{name: "zero_registration", factor: 1, invalid: true},
+		{name: "negative_registration", blocks: -1, factor: 1, invalid: true},
+		{name: "overflow", blocks: math.MaxInt64, factor: 10, invalid: true},
 	} {
-		t.Run(tc.name, func(t *testing.T) {
-			got, err := deviceMemoryBudget(tc.blocks, tc.factor, tc.bytes)
-			if tc.invalid {
+		t.Run(test.name, func(t *testing.T) {
+			budget, err := deviceMemoryBudget(test.blocks, test.factor)
+			if test.invalid {
 				if err == nil {
-					t.Fatal("missing or mismatched source accepted")
+					t.Fatal("invalid registration or factor accepted")
 				}
 				return
 			}
-			if err != nil || got != tc.want {
-				t.Fatalf("budget = %d, error = %v, want = %d", got, err, tc.want)
+			if err != nil || budget != test.want {
+				t.Fatalf("budget = %d, error = %v, want = %d", budget, err, test.want)
 			}
 		})
 	}

@@ -33,7 +33,8 @@ const (
 type AllocationState int32
 
 const (
-	Active            AllocationState = 1
+	Active AllocationState = 1
+	// ReleaseConfirmed means this key is absent from the current allocation set.
 	ReleaseConfirmed  AllocationState = 2
 	AllocationUnknown AllocationState = 3
 )
@@ -45,14 +46,6 @@ const (
 	WaitForCapacity    FitStatus = 2
 	FitUnknown         FitStatus = 3
 	RequestUnsupported FitStatus = 4
-)
-
-type ReleaseFinding int32
-
-const (
-	AllocationReleased ReleaseFinding = 1
-	StillPresent       ReleaseFinding = 2
-	ReleaseUnknown     ReleaseFinding = 3
 )
 
 type Actor struct {
@@ -297,13 +290,4 @@ type GpuFit struct {
 	EstimateKnown     bool         `json:"estimate_known"`
 	Reasons           []string     `json:"reasons"`
 	Observation       *Observation `json:"observation"`
-}
-type ReleaseObservation struct {
-	EvidenceID        string         `json:"evidence_id"`
-	Ref               *UsageRef      `json:"ref"`
-	Finding           ReleaseFinding `json:"finding"`
-	ActivePodUIDs     []string       `json:"active_pod_uids"`
-	UncertainNodeUIDs []string       `json:"uncertain_node_uids"`
-	Observation       *Observation   `json:"observation"`
-	EvidenceDigest    string         `json:"evidence_digest"`
 }

@@ -1,6 +1,9 @@
 package biz
 
-import "context"
+import (
+	"context"
+	"time"
+)
 
 type ListResult[T any] struct {
 	Items       []T          `json:"items"`
@@ -241,39 +244,35 @@ func (u *Usecase) bindingViews(ctx context.Context, r Reader, f BindingFilter, a
 	if err != nil {
 		return nil, err
 	}
+	states := map[string]*CollectionState{}
 	for i := range bs {
 		b := &bs[i]
-		if b.Pod == nil {
+		if b.Pod == nil || b.State == ReleaseConfirmed {
 			continue
 		}
-		observation := bindingsObservation([]Binding{*b}, u.now(), u.freshness)
-		// A complete persisted release retires the covered historical claims.
-		// Current source availability cannot undo that established fact.
-		if b.State == ReleaseConfirmed && observation.Complete {
-			continue
-		}
-		claims, _, err := r.PodEvidence(ctx, *b.Pod)
-		if err != nil {
-			return nil, err
-		}
-		watermarks, err := r.SourceHealth(ctx, b.Pod.ClusterID)
-		if err != nil {
-			return nil, err
-		}
-		healthy := false
-		for _, c := range claims {
-			if c.DeviceID == b.PhysicalDeviceID {
-				healthy = nodeSourcesHealthy(watermarks, c.NodeUID, u.now(), u.freshness)
-				break
+		state := states[b.Pod.ClusterID]
+		if state == nil {
+			state, err = r.CollectionState(ctx, b.Pod.ClusterID)
+			if err != nil {
+				return nil, err
 			}
+			states[b.Pod.ClusterID] = state
 		}
-		if !healthy || !observation.Complete {
+		current := false
+		if state.Observation != nil {
+			observed, _ := time.Parse(time.RFC3339Nano, state.Observation.ObservedAt)
+			current = state.Observation.Complete && fresh(observed, u.now(), u.freshness)
+		}
+		if !current || !bindingsObservation([]Binding{*b}, u.now(), u.freshness).Complete {
 			b.State = AllocationUnknown
-			if b.Observation == nil {
-				b.Observation = &Observation{}
+			observation := Observation{}
+			if b.Observation != nil {
+				observation = *b.Observation
+				observation.Issues = append([]string(nil), b.Observation.Issues...)
 			}
-			b.Observation.Complete = false
-			b.Observation.Issues = unique(append(b.Observation.Issues, "SOURCE_UNKNOWN"))
+			observation.Complete = false
+			observation.Issues = unique(append(observation.Issues, "SOURCE_UNKNOWN"))
+			b.Observation = &observation
 		}
 	}
 	return bs, nil

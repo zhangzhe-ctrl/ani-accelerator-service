@@ -26,7 +26,7 @@ func (p *Provider) EnsureInitializationLabels(ctx context.Context, cluster biz.C
 	nodes := append([]biz.NodeRef{}, group.Nodes...)
 	sort.Slice(nodes, func(left, right int) bool { return nodes[left].UID < nodes[right].UID })
 	for _, target := range nodes {
-		if !biz.Ref(target.UID) || !nodeIdentityDNSName(target.Name) {
+		if !biz.Ref(target.UID) || !kubernetesDNSName(target.Name) {
 			return biz.Invalid("INVALID_GROUP_NODES")
 		}
 		completed := false

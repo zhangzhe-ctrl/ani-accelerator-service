@@ -70,32 +70,40 @@ func (u *Usecase) CheckFit(ctx context.Context, a *TenantContext, request *GpuRe
 }
 func (u *Usecase) capacity(ctx context.Context, r Reader, p *Profile, g *SupplyGroup, details bool) (*CapacityView, error) {
 	v := &CapacityView{ProfileID: p.ProfileID, ProfileVersion: p.ProfileVersion, Mode: p.Spec.Mode, Observation: &Observation{Complete: true}}
-	watermarks, err := r.SourceHealth(ctx, g.ClusterID)
+	state, err := r.CollectionState(ctx, g.ClusterID)
 	if err != nil {
 		return nil, err
 	}
-	after := ""
-	for _, w := range watermarks {
-		if w.Source == "kubernetes" && w.Complete && fresh(w.ObservedAt, u.now(), u.freshness) {
-			v.UnplacedRequestedUnits, err = Add(v.UnplacedRequestedUnits, w.PendingByGroup[g.GroupID])
-			if err != nil {
-				return nil, err
-			}
-		}
+	allocationComplete := false
+	if state.Observation != nil {
+		observed, _ := time.Parse(time.RFC3339Nano, state.Observation.ObservedAt)
+		allocationComplete = state.Observation.Complete && fresh(observed, u.now(), u.freshness)
+		v.Observation.ObservedAt = state.Observation.ObservedAt
+		v.Observation.ReceivedAt = state.Observation.ReceivedAt
+		v.Observation.Issues = append(v.Observation.Issues, state.Observation.Issues...)
 	}
+	if allocationComplete {
+		v.UnplacedRequestedUnits = state.PendingByGroup[g.GroupID]
+	} else {
+		v.Observation.Complete = false
+		v.Observation.Issues = append(v.Observation.Issues, "SOURCE_UNKNOWN")
+	}
+	after := ""
 	var snapshot []string
+	if state.Observation != nil {
+		snapshot = append(snapshot, state.Observation.SnapshotRef)
+	}
 	for {
 		ds, err := r.Devices(ctx, g.ClusterID, g.GroupID, after, 201)
 		if err != nil {
 			return nil, err
 		}
 		for _, d := range ds {
-			bs, err := r.DeviceBindings(ctx, d.Device.DeviceID)
+			bs, err := r.CurrentDeviceBindings(ctx, d.Device.DeviceID)
 			if err != nil {
 				return nil, err
 			}
-			healthy := d.Device.Node != nil && nodeSourcesHealthy(watermarks, d.Device.Node.UID, u.now(), u.freshness)
-			capacity, err := ComputeDeviceCapacity(d, *p.Spec, *g.Baseline, bs, u.now(), u.freshness, healthy)
+			capacity, err := ComputeDeviceCapacity(d, *p.Spec, *g.Baseline, bs, u.now(), u.freshness, allocationComplete)
 			if err != nil {
 				return nil, err
 			}
@@ -135,10 +143,10 @@ func (u *Usecase) capacity(ctx context.Context, r Reader, p *Profile, g *SupplyG
 	v.Observation.SnapshotRef, _ = Hash(unique(snapshot))
 	return v, nil
 }
-func ComputeDeviceCapacity(d DeviceRecord, s ProfileSpec, b ProviderBaseline, bindings []Binding, now time.Time, ttl time.Duration, sourcesHealthy bool) (DeviceCapacity, error) {
+func ComputeDeviceCapacity(d DeviceRecord, s ProfileSpec, b ProviderBaseline, bindings []Binding, now time.Time, ttl time.Duration, allocationComplete bool) (DeviceCapacity, error) {
 	c := DeviceCapacity{DeviceID: d.Device.DeviceID, SafeMemoryBudgetMiB: d.SafeMemoryBudgetMiB, ProviderMemoryBlocks: d.ProviderMemoryBlocks, MemoryBlockMiB: d.MemoryBlockMiB, Complete: true}
 	unknown := func(reason string) { c.Complete = false; c.Issues = append(c.Issues, reason) }
-	if d.Device.Observation == nil || d.Device.Node == nil || !sourcesHealthy {
+	if d.Device.Observation == nil || d.Device.Node == nil || !allocationComplete {
 		unknown("SOURCE_UNKNOWN")
 	} else {
 		t, _ := time.Parse(time.RFC3339Nano, d.Device.Observation.ObservedAt)
@@ -157,9 +165,9 @@ func ComputeDeviceCapacity(d DeviceRecord, s ProfileSpec, b ProviderBaseline, bi
 	if err != nil {
 		unknown("MEMORY_UNIT_UNVERIFIED")
 	}
-	if d.SafeMemoryBudgetMiB <= 0 || d.Device.PhysicalMemoryBytes == 0 {
+	if d.SafeMemoryBudgetMiB <= 0 {
 		unknown("SOURCE_UNKNOWN")
-	} else if d.SafeMemoryBudgetMiB > c.ReportedMemoryMiB || uint64(d.SafeMemoryBudgetMiB) > d.Device.PhysicalMemoryBytes/(1<<20) {
+	} else if d.SafeMemoryBudgetMiB != c.ReportedMemoryMiB {
 		unknown("CAPACITY_INVARIANT_VIOLATION")
 	}
 	if s.Mode == Whole {

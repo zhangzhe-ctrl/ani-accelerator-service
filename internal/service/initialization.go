@@ -41,15 +41,12 @@ func (handler *Accelerator) ListDiscoveredNodes(ctx context.Context, request *pb
 	}
 	output := &pb.DiscoveredNodes{Total: result.Total, DiscoveryRevision: result.DiscoveryRevision}
 	for _, node := range result.Items {
-		mapped := &pb.DiscoveredNode{Node: &pb.NodeRef{Uid: node.Node.UID, Name: node.Node.Name}, GroupId: node.GroupID, AgentOnline: node.AgentOnline, AgentLeaseExpiresAt: initializationTime(node.AgentLeaseExpiresAt), Selectable: node.Selectable, BlockingReasons: node.BlockingReasons}
+		mapped := &pb.DiscoveredNode{Node: &pb.NodeRef{Uid: node.Node.UID, Name: node.Node.Name}, GroupId: node.GroupID, Selectable: node.Selectable, BlockingReasons: node.BlockingReasons}
 		for _, gpu := range node.GPUs {
 			mapped.Gpus = append(mapped.Gpus, &pb.DiscoveredGPU{Uuid: gpu.UUID, ModelKey: gpu.ModelKey, PhysicalMemoryBytes: gpu.PhysicalMemoryBytes, SafeMemoryBudgetMib: gpu.SafeMemoryBudgetMiB, BudgetReason: gpu.BudgetReason})
 		}
 		for _, baseline := range node.Baselines {
 			mapped.Baselines = append(mapped.Baselines, &pb.DiscoveredBaseline{BaselineRef: baseline.BaselineRef, Mode: pb.SupplyMode(baseline.Mode).String(), Source: baseline.Source})
-		}
-		for _, source := range node.Sources {
-			mapped.Sources = append(mapped.Sources, &pb.NodeSource{Source: source.Name, ObservedAt: initializationTime(source.ObservedAt), ReceivedAt: initializationTime(source.ReceivedAt), Complete: source.Complete, Issues: source.Issues})
 		}
 		output.Items = append(output.Items, mapped)
 	}

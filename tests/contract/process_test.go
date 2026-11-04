@@ -47,7 +47,7 @@ func (controlledProvider) Inspect(_ context.Context, _ biz.Cluster, g biz.Supply
 	return i, nil
 }
 func (controlledProvider) Collect(_ context.Context, c biz.Cluster, _ []biz.SupplyGroup) (biz.ObservationBatch, error) {
-	return biz.ObservationBatch{ClusterID: c.ClusterID}, nil
+	return biz.ObservationBatch{ClusterID: c.ClusterID, ReceivedAt: time.Now().UTC(), BindingIssues: []string{"SOURCE_UNKNOWN"}}, nil
 }
 
 type interruptKey struct{}
@@ -411,14 +411,24 @@ func TestPublicRPCsMTLSAndRecovery(t *testing.T) {
 	device := biz.NewID()
 	pod := biz.PodRef{ClusterID: cluster.ClusterId, Namespace: "contract", Name: "inference", UID: "pod-" + biz.NewID(), ContainerName: "inference"}
 	batch := biz.ObservationBatch{ClusterID: cluster.ClusterId, Devices: []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: cluster.ClusterId, GroupID: group.GroupId, Node: copyAs[biz.NodeRef](t, group.Nodes[0]), VendorDeviceID: "GPU-01234567-89ab-cdef-0123-456789abcdef", ModelKey: group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: b.BaselineDigest}}}
-	for _, source := range []string{"scheduler", "allocation", "runtime"} {
-		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: b.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "controlled:" + source, OwnerRef: ref, ExecutionDigest: plan.Execution.ExecutionDigest})
-	}
-	for _, source := range []string{"kubernetes", "podresources", "cri"} {
-		batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: cluster.ClusterId, NodeUID: group.Nodes[0].Uid, Source: source, ObservedAt: now, ReceivedAt: now, Complete: true})
-	}
+	batch.ObservedAt, batch.ReceivedAt, batch.SnapshotRef, batch.PodListComplete = now, now, "contract-pods-1", true
+	batch.LivePodUIDs = []string{pod.UID}
+	batch.NodeListComplete = true
+	batch.LiveNodeUIDs, batch.InventoryCompleteNodeUIDs = []string{group.Nodes[0].Uid}, []string{group.Nodes[0].Uid}
+	batch.Bindings = []biz.ObservedBinding{{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid,
+		MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: b.BaselineDigest, MemoryBlockMiB: 1,
+		OwnerRef: ref, ExecutionDigest: plan.Execution.ExecutionDigest}}
 	store := func(b biz.ObservationBatch) {
 		t.Helper()
+		if err := db.View(context.Background(), func(reader biz.Reader) error {
+			state, err := reader.CollectionState(context.Background(), b.ClusterID)
+			if err == nil {
+				b.BaseObservationRevision = state.Revision
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
 		if err := db.Transact(context.Background(), func(tx biz.Transaction) error { return tx.SaveObservation(context.Background(), b) }); err != nil {
 			t.Fatal(err)
 		}
@@ -449,14 +459,12 @@ func TestPublicRPCsMTLSAndRecovery(t *testing.T) {
 		t.Fatal(fit)
 	}
 	// The retired wire method must stay absent for every former owner identity,
-	// Gov, and the separate node telemetry identity. Keep the literal path so
+	// and Gov. Keep the literal path so
 	// generated client stubs cannot accidentally preserve access to the RPC.
 	resourceCert, resourceKey := r.PKI.Issue(t, "resource", "ani-resource-service", false)
 	resourceClient := conn(t, r, resourceCert, resourceKey)
 	modeldevCert, modeldevKey := r.PKI.Issue(t, "modeldev", "ani-modeldev-service", false)
 	modeldev := conn(t, r, modeldevCert, modeldevKey)
-	nodeCert, nodeKey := r.PKI.Issue(t, "node-agent", "ani-node-agent", false)
-	nodeAgent := conn(t, r, nodeCert, nodeKey)
 	for _, identity := range []struct {
 		name   string
 		client *grpc.ClientConn
@@ -465,7 +473,6 @@ func TestPublicRPCsMTLSAndRecovery(t *testing.T) {
 		{"Inference", owner},
 		{"Resource", resourceClient},
 		{"ModelDev", modeldev},
-		{"NodeAgent", nodeAgent},
 	} {
 		t.Run("ObserveReleaseRetired/"+identity.name, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(callContext("ObserveRelease", tenant), time.Second)
@@ -609,16 +616,17 @@ func TestPublicRPCsMTLSAndRecovery(t *testing.T) {
 		}
 	}
 	second.kill(t)
-	// Positive physical release observations still update persisted bindings and
-	// capacity after ENDED, without calling a consumer-facing release RPC.
-	store(biz.ObservationBatch{ClusterID: cluster.ClusterId, Releases: []biz.ReleaseProof{{Pod: pod, DeviceID: device, NodeUID: group.Nodes[0].Uid, ObservedAt: time.Now().UTC(), ReceivedAt: time.Now().UTC(), EvidenceRef: "controlled:released", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: ref, ExecutionDigest: plan.Execution.ExecutionDigest}}})
+	// A complete current Pod list ends occupancy independently of Usage ENDED.
+	batch.Bindings, batch.LivePodUIDs = nil, nil
+	batch.ObservedAt, batch.ReceivedAt, batch.SnapshotRef = time.Now().UTC(), time.Now().UTC(), "contract-pods-empty"
+	store(batch)
 	rpc("ListBindings", tenant, &pb.ListBindingsRequest{Context: tc, Ref: copyAs[pb.GpuUsageRef](t, ref)}, bindings)
 	if len(bindings.Items) != 1 || bindings.Items[0].State != pb.AllocationState_RELEASE_CONFIRMED {
-		t.Fatal("positive physical release did not retire persisted binding", bindings)
+		t.Fatal("complete Pod list did not end persisted binding", bindings)
 	}
 	rpc("AdminGetCapacity", "", &pb.AdminGetCapacityRequest{Context: adminRead(), ProfileId: profile.ProfileId, ProfileVersion: 1, IncludeDevices: true}, capacity)
 	if capacity.KnownCommittedUnits != 0 || capacity.KnownFreeUnits != 4 {
-		t.Fatal("positive physical release did not restore capacity", capacity)
+		t.Fatal("current allocation end did not restore capacity", capacity)
 	}
 	// Kill after ACK, then read/replay the same committed facts from a new process.
 	process.kill(t)

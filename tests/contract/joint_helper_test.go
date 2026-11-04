@@ -77,21 +77,108 @@ func TestJointObservationFixture(t *testing.T) {
 		t.Fatal("fixture scope differs from accepted usage")
 	}
 	now := time.Now().UTC()
-	batch := biz.ObservationBatch{ClusterID: group.ClusterID}
+	batch := biz.ObservationBatch{ClusterID: group.ClusterID, ObservedAt: now, ReceivedAt: now,
+		SnapshotRef: "joint-current-pods", PodListComplete: true, NodeListComplete: true}
+	livePods, incompletePods, liveNodes := map[string]bool{}, map[string]bool{}, map[string]bool{}
+	// This fixture supplies a complete controlled list, preserving unrelated
+	// current fixture allocations rather than manufacturing a partial release poll.
+	if err = db.View(context.Background(), func(reader biz.Reader) error {
+		state, err := reader.CollectionState(context.Background(), group.ClusterID)
+		if err != nil {
+			return err
+		}
+		batch.BaseObservationRevision = state.Revision
+		for after := ""; ; {
+			devices, err := reader.Devices(context.Background(), group.ClusterID, "", after, 200)
+			if err != nil {
+				return err
+			}
+			for _, device := range devices {
+				if device.Device.Node == nil {
+					return biz.Invalid("FIXTURE_DEVICE_NODE_MISSING")
+				}
+				batch.Devices = append(batch.Devices, device)
+				liveNodes[device.Device.Node.UID] = true
+				bindings, err := reader.CurrentDeviceBindings(context.Background(), device.Device.DeviceID)
+				if err != nil {
+					return err
+				}
+				for _, binding := range bindings {
+					if binding.Pod == nil {
+						return biz.Invalid("FIXTURE_BINDING_POD_MISSING")
+					}
+					if *binding.Pod == *in.Pod && binding.PhysicalDeviceID == in.DeviceID {
+						continue
+					}
+					livePods[binding.Pod.UID] = true
+					if binding.State != biz.Active {
+						incompletePods[binding.Pod.UID] = true
+						continue
+					}
+					observed := biz.ObservedBinding{Pod: *binding.Pod, DeviceID: binding.PhysicalDeviceID,
+						NodeUID: device.Device.Node.UID, MemoryMiB: binding.MemoryMiB, CoreLimitPercent: binding.CoreLimitPercent,
+						BaselineDigest: binding.SourceBaselineDigest, MemoryBlockMiB: binding.SourceMemoryBlockMiB, OwnerRef: binding.VerifiedUsageRef}
+					if binding.VerifiedUsageRef != nil {
+						linked, err := reader.Usage(context.Background(), *binding.VerifiedUsageRef)
+						if err != nil {
+							return err
+						}
+						observed.ExecutionDigest = linked.ExecutionDigest
+					}
+					batch.Bindings = append(batch.Bindings, observed)
+				}
+			}
+			if len(devices) < 200 {
+				break
+			}
+			after = devices[len(devices)-1].Device.DeviceID
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
 	if in.State == "ACTIVE" {
 		if in.MemoryMiB <= 0 || in.CoreLimitPercent == 0 || in.CoreLimitPercent > 100 {
 			t.Fatal("actual external memory/core observation required")
 		}
-		batch.Devices = []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: in.DeviceID, ClusterID: group.ClusterID, GroupID: group.GroupID, Node: &group.Nodes[0], VendorDeviceID: "GPU-joint-" + in.DeviceID, ModelKey: group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576 / int64(group.Baseline.MemoryBlockMiB), MemoryBlockMiB: group.Baseline.MemoryBlockMiB, SafeMemoryBudgetMiB: 24576, BaselineDigest: group.Baseline.BaselineDigest}}
-		for _, source := range []string{"scheduler", "allocation", "runtime"} {
-			batch.Claims = append(batch.Claims, biz.Claim{Pod: *in.Pod, DeviceID: in.DeviceID, NodeUID: group.Nodes[0].UID, Source: source, Cursor: "joint-active", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: in.MemoryMiB, CoreLimitPercent: in.CoreLimitPercent, BaselineDigest: group.Baseline.BaselineDigest, MemoryBlockMiB: group.Baseline.MemoryBlockMiB, EvidenceRef: "isolated-joint:" + source, OwnerRef: &in.Ref, ExecutionDigest: usage.ExecutionDigest})
+		device := biz.DeviceRecord{Device: biz.PhysicalDevice{DeviceID: in.DeviceID, ClusterID: group.ClusterID,
+			GroupID: group.GroupID, Node: &group.Nodes[0], VendorDeviceID: "GPU-joint-" + in.DeviceID,
+			ModelKey: group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY",
+			Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}},
+			ProviderMemoryBlocks: 24576 / int64(group.Baseline.MemoryBlockMiB), MemoryBlockMiB: group.Baseline.MemoryBlockMiB,
+			SafeMemoryBudgetMiB: (24576 / int64(group.Baseline.MemoryBlockMiB)) * int64(group.Baseline.MemoryBlockMiB), BaselineDigest: group.Baseline.BaselineDigest}
+		found := false
+		for index := range batch.Devices {
+			if batch.Devices[index].Device.DeviceID == in.DeviceID {
+				batch.Devices[index], found = device, true
+			}
 		}
-		for _, source := range []string{"kubernetes", "podresources", "cri"} {
-			batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: group.ClusterID, NodeUID: group.Nodes[0].UID, Source: source, ObservedAt: now, ReceivedAt: now, Complete: true})
+		if !found {
+			batch.Devices = append(batch.Devices, device)
 		}
-	} else {
-		batch.Releases = []biz.ReleaseProof{{Pod: *in.Pod, DeviceID: in.DeviceID, NodeUID: group.Nodes[0].UID, ObservedAt: now, ReceivedAt: now, EvidenceRef: "isolated-joint:scope-release", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: &in.Ref, ExecutionDigest: usage.ExecutionDigest}}
+		liveNodes[group.Nodes[0].UID], livePods[in.Pod.UID] = true, true
+		batch.Bindings = append(batch.Bindings, biz.ObservedBinding{Pod: *in.Pod, DeviceID: in.DeviceID,
+			NodeUID: group.Nodes[0].UID, MemoryMiB: in.MemoryMiB, CoreLimitPercent: in.CoreLimitPercent,
+			BaselineDigest: group.Baseline.BaselineDigest, MemoryBlockMiB: group.Baseline.MemoryBlockMiB,
+			OwnerRef: &in.Ref, ExecutionDigest: usage.ExecutionDigest})
 	}
+	for uid := range livePods {
+		batch.LivePodUIDs = append(batch.LivePodUIDs, uid)
+	}
+	for uid := range incompletePods {
+		batch.IncompletePodUIDs = append(batch.IncompletePodUIDs, uid)
+	}
+	for uid := range liveNodes {
+		batch.LiveNodeUIDs = append(batch.LiveNodeUIDs, uid)
+		batch.InventoryCompleteNodeUIDs = append(batch.InventoryCompleteNodeUIDs, uid)
+	}
+	current := batch.Bindings[:0]
+	for _, binding := range batch.Bindings {
+		if !incompletePods[binding.Pod.UID] {
+			current = append(current, binding)
+		}
+	}
+	batch.Bindings = current
 	if err = db.Transact(context.Background(), func(tx biz.Transaction) error { return tx.SaveObservation(context.Background(), batch) }); err != nil {
 		t.Fatal(err)
 	}

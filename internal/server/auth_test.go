@@ -10,7 +10,6 @@ import (
 	"os"
 	"testing"
 
-	nodepb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/node/v1"
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
@@ -26,7 +25,7 @@ import (
 )
 
 func serviceSecurity() *conf.Security {
-	return &conf.Security{GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service", NodeAgentDnsName: "ani-node-agent"}
+	return &conf.Security{GovernanceDnsName: "ani-governance", InferenceDnsName: "ani-inference-service", ResourceDnsName: "ani-resource-service", ModeldevDnsName: "ani-modeldev-service"}
 }
 func verifiedContext(t *testing.T, pki *testkit.PKI, certFile string) context.Context {
 	t.Helper()
@@ -178,10 +177,10 @@ func TestStreamingRPCsUseTheSameServicePolicy(t *testing.T) {
 	for _, identity := range []string{"ani-governance", "ani-resource-service", "ani-inference-service", "ani-modeldev-service", "ani-node-agent"} {
 		cert, _ := pki.Issue(t, identity, identity, false)
 		stream := authenticationStream{ctx: verifiedContext(t, pki, cert)}
-		for _, method := range []string{healthpb.Health_Watch_FullMethodName, "/grpc.health.v1.Fake/Watch", pb.AcceleratorCatalogService_ListProfiles_FullMethodName, nodepb.NodeTelemetryService_Connect_FullMethodName, nodepb.NodeTelemetryService_Connect_FullMethodName + "Extra"} {
+		for _, method := range []string{healthpb.Health_Watch_FullMethodName, "/grpc.health.v1.Fake/Watch", pb.AcceleratorCatalogService_ListProfiles_FullMethodName, "/accelerator.node.v1.NodeTelemetryService/Connect", "/accelerator.node.v1.NodeTelemetryService/Connect" + "Extra"} {
 			called := false
 			err := AuthorizeStream(serviceSecurity())(nil, stream, &grpc.StreamServerInfo{FullMethod: method}, func(any, grpc.ServerStream) error { called = true; return nil })
-			if identity == "ani-governance" && method == healthpb.Health_Watch_FullMethodName || identity == "ani-node-agent" && method == nodepb.NodeTelemetryService_Connect_FullMethodName {
+			if identity == "ani-governance" && method == healthpb.Health_Watch_FullMethodName {
 				if err != nil || !called {
 					t.Fatal(err)
 				}

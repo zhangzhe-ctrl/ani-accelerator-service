@@ -1,68 +1,52 @@
 # Accelerator persistence
 
-`Postgres` owns pgx transaction lifetimes. Every production database statement,
-including startup security/version checks and advisory locks, is defined in
-`queries/accelerator.sql` and executed through sqlc-generated `accdb.Queries`.
-A `pgStore` holds only the generated queries bound to its single `pgx.Tx`.
-Domain interfaces and JSON snapshots remain in `internal/biz`; sqlc and pgx types
-do not cross that boundary. No arbitrary SQL execution helper is exposed.
+`Postgres` owns pgx transaction lifetimes. Production SQL is defined under
+`queries/` and executed through sqlc-generated `accdb.Queries`. A `pgStore`
+contains only queries bound to its transaction. The domain never imports pgx or
+sqlc types, and no arbitrary SQL helper is exposed.
 
-The only schema authority is the ordered `migrations/` chain. sqlc v1.30.0 reads
-that chain directly. `make sqlc` regenerates; `make verify-sqlc` checks the exact
-module identity/checksum, compiles queries, regenerates without changes, rejects
-inline production/test SQL, and emits input/output hashes. The pinned checksum is
-`h1:H4HrNwPc0hntxGWzAbhlfplPRN4bQpXFx+CaEMcKz6c=` in `scripts/verify-sqlc`.
+The ordered `migrations/` chain is the only schema authority. sqlc v1.30.0 reads
+that chain; `make sqlc` regenerates its output. Application startup only checks
+schema version and runtime-role privileges; it never migrates or seeds data.
 
-## Scope and constraints
+## Current projection
 
-- Clusters, pools, groups, physical devices and unassociated provider facts are
-  platform/cluster-scoped supply inventory. They do not manufacture a tenant.
-  The business layer resolves each persisted cluster to a connection configured in
-  `provider.json` before these reads. Cluster listing and collection filter by
-  that same connection set; there is no user or tenant cluster allowlist.
-- Usage reads, revisions, writes, conflicts and tenant binding pages use explicit
-  tenant/owner/resource/create identities. Composite foreign keys preserve the
-  tenant. Binding references are either fully absent (unassociated physical
-  occupancy) or complete and refer to the same tenant usage.
-- Cryptographically verified claims/release proofs may arrive before usage.
-  Their generated relation columns expose the complete owner scope derived from
-  JSON. They deliberately have no usage FK because pre-projection evidence is a
-  valid global inventory fact; tenant-visible bindings require a matching usage.
-- Migration 0002 makes required JSON comparisons `IS TRUE`, preventing missing
-  keys/JSON null from bypassing CHECK constraints. It disables RLS/forced RLS and
-  removes any policies in the owned schema. Startup reads reject table owners,
-  superusers, BYPASSRLS, DDL/TEMP privileges and any residual RLS/policy.
-- Reconciliation scans are explicitly cluster-scoped inventory processing, not
-  tenant request APIs. No global tenant-list business query exists.
-- A new NodeAgent stream epoch discards the previous epoch's snapshot cache and
-  invalidates its fact revision. Log acknowledgements, runtime-attempt history,
-  gaps and recovery requests remain durable. Previous-epoch FIFO records still
-  advance their original sequence, but cannot restore current inventory. Until
-  a complete current-epoch capture arrives, missing cache remains unknown for
-  capacity and release; it does not prove allocation absence.
+A complete Kubernetes Pod list and its current Volcano assignments replace the
+current occupancy set. Binding identity remains cluster/Pod UID/container/device;
+ended rows remain available to paginated resource lists, but current reads use
+partial indexes and never load historical claims, attempts or monitoring events.
+
+Collection reads the cluster observation revision before provider I/O. The write
+transaction takes the cluster lock, compares that revision, updates devices and
+bindings, and advances the revision atomically. A competing collection retries
+only at the next normal poll. A failed list preserves the corresponding current
+set and marks its observation incomplete; it is not an empty list.
+
+`devices.inventory_present` tracks the current registered inventory. Complete
+Node and registration lists may retire missing identities. Failed registration
+preserves current identities as unknown. Optional physical-memory bytes have no
+capacity role and are zero when not freshly available.
+
+Signed owner candidates may precede Usage. The candidate is private metadata,
+not a tenant association. A matching immutable Usage can link pending bindings,
+including ended rows, without changing allocation state or observations. Usage
+replays only touch still-pending matches. Existing verified owner columns,
+composite Usage foreign keys and tenant JSON checks remain in force.
 
 ## Upgrade and recovery
 
-Stop new admission and provider polling, back up the populated database, then
-explicitly run `scripts/migrate 0002` as the migration owner. It validates existing
-rows transactionally and aborts on inconsistent legacy JSON. Repair invalid facts
-from authoritative records; do not coerce, delete or invent tenant identity.
-Fresh databases require the ordered 0001 through 0007 chain. Runtime startup never migrates or seeds.
+Schema 9 is an explicit one-window cutover: stop every schema-8 writer and its
+connections, back up the database, then run `scripts/migrate 0009` as the migration
+owner. Apply the updated runtime grants, including UPDATE on clusters. Existing
+binding IDs and quantities remain; current observations start incomplete until
+the first successful complete collection. The seven obsolete proof, telemetry
+and monitoring-history tables are dropped. Fresh databases run migrations 1–9.
 
-The ModelDev-owner runtime requires schema version 7. Migration 0007 extends only
-the finite owner set and retains the original new-write identity checks and schema-5/6 NodeAgent telemetry/initialization relations.
-Do not roll the old binary back over
-new writes: stop writers and restore the retained pre-upgrade backup into an
-isolated database, verify it, then choose a compatible binary. There is no
-automatic destructive DOWN migration.
+Do not mix schema-8 and schema-9 writers. Rollback requires the coordinated
+schema-8 backup and matching old binaries/config after handling any new business
+writes; changing only the image cannot restore removed tables.
 
-`make verify` requires isolated `ACC_TEST_DSN_FILE` and `ACC_FORMAL_DSN_FILE`
-references with different database names, and runs real restricted-role tests.
-The latter is reserved for the ordinary production-process A-layer gate;
-software source/consumption fixtures use the former. `make test-race` adds
-concurrent transaction/association checks.
-`scripts/test-postgres-recovery` requires a labeled task container and an evidence
-location, dumps populated data, checks failed transactional DDL rollback,
-restores to a separate database, compares every data table and reruns repository
-and contract tests there. Test SQL resides under `testdata/` and operational SQL
-under `scripts/`; it is never a second schema definition.
+Required tests use isolated restricted-role PostgreSQL databases. Operational
+and test SQL stays in scripts/testdata, separate from the migration authority.
+`scripts/test-postgres-recovery` restores into a separate task database and
+compares the remaining business relations. Never run it against production.

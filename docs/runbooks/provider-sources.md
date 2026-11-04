@@ -1,113 +1,107 @@
-# volcano-hami-factor-v1 来源合同
+# Kubernetes / Volcano 当前分配来源
 
-这是生产 reader/normalizer 的支持边界。历史软件回放使用按固定上游格式**构造**的样本，不能认证硬件组合。2026-10-17 的单节点 T4 实测独立记录于[执行状态](../execution/status.md)：真实来源为 Kubernetes v1.35.8、Volcano v1.15.2、device plugin v1.12.0、containerd v2.3.4 和 NVIDIA driver 580.178.04。其他硬件或部署组合不能沿用该结果。
+ACC 保存 Kubernetes 与 Volcano 的当前设备、分配和配置投影。它不读取
+CRI、PodResources、containerd journal 或 node-agent 事件，也不证明历史
+容器进程已经退出。Governance 配额、owner 删除和 ACC 当前分配分别更新。
 
-## 支持组合与来源
+## 来源与单位
 
-| 来源 | 固定合同/读取字段 | 身份、单位及信任 |
+| 来源 | 使用的数据 | 用途 |
 |---|---|---|
-| Kubernetes core/v1、coordination.k8s.io/v1 Lease | HTTPS GET Nodes、Pods、指定 ConfigMaps；Ready lastHeartbeatTime、Node UID、annotations、容器与资源、imageID；旧 Node status 再 GET 同名 kube-node-lease Lease | Ready 必须 True。status 心跳新鲜则直接采用；过旧时核对 Lease name/namespace、ownerReference 的 Node UID/name、holderIdentity 和 renewTime，时限取 freshness 与 leaseDurationSeconds 的较小值。受管 CA/server_name、client cert 或 token 文件；只读 RBAC，无写入；缺权限/失联/过期不当在线；分页截断拒绝 |
-| Kubernetes `node.k8s.io/v1` RuntimeClass | HTTPS GET the managed baseline's exact `runtimeclasses/{name}`; metadata name/UID/resourceVersion, handler, scheduling and overhead | Read-only `get` permission is required. Only optional `kubernetes.io/hostname` scheduling is supported; it must match each original group Node UID's actual label. Nonempty overhead/tolerations, missing facts and unknown/conflicting selectors fail closed. No global RuntimeClass writes or owner fallback. |
-| Volcano v1.12.0 | `volcano.sh/node-vgpu-register` 的 UUID/count/memory/model/health/mode；`volcano.sh/node-vgpu-handshake` | memory 是 BLOCKS，绑定受控 F；heartbeat 为实际上游时间，非本服务接收时间 |
-| Volcano device plugin v1.12.0 | 实际 Ready 插件 imageID；显式 `--gpu-memory-factor`、`--device-split-count`；ConfigMap摘要 | 按镜像 SHA256、F、K、组 Node UID 核对。未显式暴露有效参数拒绝，不能仅信请求 baseline |
-| Volcano scheduler v1.12.0 | scheduler imageID/config 摘要、Queue Open；`volcano.sh/vgpu-ids-new`、`volcano.sh/vgpu-time` | 分配字符串为 UUID/NVIDIA/blocks/cores，按 GPU 容器顺序；时间 Unix 秒。调度分配是历史事实，不续写为新 runtime 观测 |
-| Volcano scheduler v1.15.2 + independent device plugin v1.12.0 | 上述默认注册/分配格式；额外读取三个默认 vgpu Allocatable 资源键 | [固定源码比较及真实 Queue 缺陷](volcano-v1.15.2-compatibility.md)。Allocatable 必须为正整数；原版 Whole 百分比计划被 Queue 拒绝，派生修复镜像须独立冻结 digest、baseline 和硬件证明。不能以版本相同沿用原证明；其他组合拒绝 |
-| Kubernetes PodResources v1（Go 模块 v0.35.3） | List 的 namespace/Pod name/container/resource/device_ids | 仅显式配置的 Unix socket；设备伪 ID 只证明分配存在，不能当物理 UUID；由同 Pod UID 的 CRI 事实桥接 |
-| containerd / CRI v1（Go 模块 v0.35.3） | Version 必须报告 containerd、非空 runtime 版本和 API v1；ListContainers、verbose ContainerStatus，返回容器 ID 必须一致；GPU 容器继续核对 reserved Pod UID/container metadata 与 Info[info].runtimeSpec.process.env | 按实际能力和字段校验，不锁定 containerd 小版本。`NVIDIA_VISIBLE_DEVICES=GPU-...`、`CUDA_DEVICE_MEMORY_LIMIT_0=<MiB>m`、`CUDA_DEVICE_SM_LIMIT` 仍须完整有效，MiB 不能再乘 F；其他 runtime/API、RPC 失败或状态身份不明保留未知。无 GPU 容器和 EXITED 状态不要求 GPU env；仅 Unix socket |
-| CRI v1 容器事件 | GetContainerEvents 的 sandbox metadata、container ID/name/state、FinishedAt | 连续订阅并持久保存全部已见 attempt；仅正向 EXITED 补充解除事实，当前 Running/Unknown 优先阻断 |
-| containerd 原始 system journal | 固定 journalctl 查询、trusted machine/boot/unit/uid 元数据与完整创建、退出链 | 只读实际节点 journal；用明确 TaskExit 时间恢复错过的事件，不从缺失推断，不改写运行分配或配额 |
-| NVML（Go binding v0.13.0-1） | GetUUID/GetName/GetMemoryInfo.Total | 实际本节点物理 bytes；平台 device UUID 由 cluster+Node UID+vendor UUID 派生 UUIDv8，不使用 index |
-| 硬件验收资格 | `gpu-hardware-qualification-v2` Ed25519 签名 JSON | 独立受控实验 manifest 摘要、cluster/group/baseline/spec、完整 Node UID/物理 UUID、物理 bytes/安全 MiB；绑定 baseline，无时间自动失效。旧 `gpu-hardware-consumption-v1` 保留原到期语义，须显式迁移。RPC 不能自报 VERIFIED |
-| owner 归属证明 | `acc-owner-pod-v1` Ed25519 | 签名绑定实际 Pod UID/container、原资源 ref、冻结 plan digest；普通标签不获得租户归属 |
+| Kubernetes PodList | 完整 Pod UID 集合、phase、容器资源、Volcano 分配注解、list resourceVersion | 当前绑定成员、分配数量及未放置需求 |
+| Kubernetes NodeList | Node UID/name、当前组标签、Ready、心跳与绑定该 UID 的 Lease | 当前节点范围和容量健康 |
+| `volcano.sh/node-vgpu-register` | 物理 GPU UUID、型号、注册块数、K、Healthy | 当前设备清单和预算来源 |
+| `volcano.sh/node-vgpu-handshake` | 上游注册观察时间 | 设备事实的新鲜度 |
+| `volcano.sh/vgpu-ids-new` | 按 GPU 容器顺序排列的 UUID、blocks、core percent | 当前分配，不能用设备索引代替 UUID |
+| 已管理的 plugin/scheduler Pod 和 ConfigMap | imageID、显式 F/K、挂载与配置摘要 | 确认 baseline、单位与配置一致性 |
+| RuntimeClass / Volcano Queue | 精确 RuntimeClass 身份、受支持 selector、Queue Open | 初始化和供给组配置检查 |
+| 可选 Prometheus NVML total | Node UID + canonical GPU UUID 的物理显存 bytes | 设备参数展示；缺失为 0，不参与容量或释放 |
 
-上游源码参考：[Volcano v1.12.0](https://github.com/volcano-sh/volcano/tree/v1.12.0)、[device plugin v1.12.0](https://github.com/Project-HAMi/volcano-vgpu-device-plugin/tree/v1.12.0)、[containerd 2.1.5 ContainerStatus](https://github.com/containerd/containerd/blob/v2.1.5/internal/cri/server/container_status.go)、[Kubelet PodResources v0.35.3](https://github.com/kubernetes/kubelet/tree/v0.35.3/pkg/apis/podresources)、[CRI v0.35.3](https://github.com/kubernetes/cri-api/tree/v0.35.3/pkg/apis/runtime/v1)。实际下载文件与 SHA 保存在本次 Fedora 仓外 evidence，上游 tag 名不能替代部署镜像 digest。
+显存预算固定为 `注册 blocks × 已验证 F`，支持 F 为 1 或 10。分配注解中
+的 blocks 使用同一个 F 归一为 MiB。K、核心预算和 Whole 单卡互斥限制继续
+生效；不从 NVML bytes、监控使用率或空闲显存计算调度预算。
 
-插件 v1.12.0 在 [PodAllocationSuccess/Failed](https://github.com/Project-HAMi/volcano-vgpu-device-plugin/blob/afefcc2ff7944e9e68275e83217cf5eb7fb4a585/pkg/util/util.go#L295-L312) 都会把 `volcano.sh/vgpu-time` 改写为 `18446744073709551615`。只有这个确切 marker 且 `volcano.sh/bind-phase=success` 时，reader 采用 scheduler 写入的 `volcano.sh/bind-time` 严格 Unix 秒；缺失、失败或未知时间仍拒绝，不用当前时间续写历史。scheduler Claim 的 revision 由分配事实摘要构成，无关 Pod status/resourceVersion 变更不会改写同一历史证据。
+支持的软件组合由已冻结的 `ProviderBaseline` 校验。现有镜像、启动参数、
+ConfigMap 摘要、RuntimeClass 和 Queue 检查保留；v1.15.2 / v1.16.0 scheduler
+继续要求三个默认 vgpu Allocatable 资源为正整数。历史硬件验证结果只覆盖
+其记录的组合，不能替代当前配置检查。
 
-`node_test.go` 通过 Unix gRPC 驱动生产 `readNode`，覆盖 containerd 2.1.5/2.3.4、runtime/API 不匹配、Version/List/Status 失败、状态 ID 不匹配，以及 GPU 身份和 env 缺失拒绝。这是协议边界回归，不能替代相应实际部署版本的 GPU 消费验收。
+## 当前绑定更新
 
-当前支持的 containerd CRI 原始 `runtimeSpec.process.env` 保留数组顺序。解析 `NVIDIA_VISIBLE_DEVICES`、`CUDA_DEVICE_MEMORY_LIMIT_0`、`CUDA_DEVICE_SM_LIMIT` 时，同名键采用最后一个值，先归一化再校验；最终值为空、非法或与独立分配事实冲突时继续拒绝，不能回退到前一个合法值。该覆盖语义已核对受管组合 containerd 2.3.4、runc 1.4.3 与 NVIDIA Container Toolkit 1.20.1，参考 [runc 环境解析](https://github.com/opencontainers/runc/blob/v1.4.3/libcontainer/env.go#L12-L46) 和 [NVIDIA 环境解析](https://github.com/NVIDIA/nvidia-container-toolkit/blob/dffc40b4f820ce5c512633bac9e0418d0e05a2ee/internal/config/image/builder.go#L98-L110)；不据此声明任意 runtime 或多卡形态受支持，也不按版本号选择解析分支。原始遥测及其顺序完整持久保存，仅在解析时计算有效值；Pod/容器身份、调度 UUID、PodResources、显存 MiB 与核心限制的现有交叉核对，以及来源异常时的节点级未知保护保持不变。后置 CDI 环境中的 `NVIDIA_VISIBLE_DEVICES=void` 不能作为无分配或容器退出证明。
+完整成功的 PodList 才能替换当前绑定集合，resourceVersion 原样保存为
+SnapshotRef；不把它解释为数字或释放凭证。
 
-本机 NVML、PodResources、CRI/events 与有限 journal 由独立 `ani-node-agent` DaemonSet 采集。中心的 Inspect/Collect 只读取认证后持久保存的逐节点事实；K8s、owner、预算、Claim/Binding 与释放判断仍由中心执行。节点服务使用 TLS 1.3、精确服务 SAN 和 Pod 绑定 SA token，唯一节点 RPC 是 `accelerator.node.v1.NodeTelemetryService/Connect`。未接管节点可被发现，但不产生可售容量。
+- Pod UID 缺席、phase 为 Failed/Succeeded，或合法当前 assignment 不再包含
+  原绑定 key：该绑定不再计占。公开状态仍使用 `RELEASE_CONFIRMED`。
+- Pending、重启中、非终态 Terminating Pod 仍有合法 assignment：继续计占。
+- 合法空 assignment：结束该 Pod 原逐卡占用；仍有未放置请求时更新
+  `UnplacedRequestedUnits`，不与已分配 Pending Pod 重复扣减。
+- annotation、容器映射或单位无法解释：只保留该 Pod 原当前绑定为 Unknown；
+  不复活已结束历史，不制造零显存占用。
+- PodList 失败、缺少 resourceVersion 或分页未完成：保留原成员和数量，
+  当前观察不完整。其他 Node/设备读取仍可独立更新。
+- Node、设备或配置错误不阻止完整 PodList 中已经缺席或终态的 UID 结束。
 
-新准入核对每个认证节点的 NVML UUID、型号和物理 bytes，并继续核对受管 scheduler/plugin 的实际镜像、ConfigMap 摘要、F/K 与节点注册。宿主驱动版本及 HAMi 库文件原地更新没有自动指纹监控，必须由受管变更流程触发 baseline 更新和重新验收；不能把声明的 `hami_core_revision` 当成实时采集结果。
+绑定身份保持 `cluster + Pod UID + container name + physical GPU`。每轮重新
+验证当前 owner 签名；没有有效签名的真实分配仍计占，但不获得 tenant/usage
+关联。Usage ENDED 不会消除当前仍存在的 Pod 分配。
 
-## 受管连接配置
+## 当前设备清单
 
-`provider_config_file` 是部署者维护的 JSON，不由 RegisterCluster 写入。顶层为 `connections` 数组，每项字段如下。空数组允许以无供给模式启动，登记只能引用其中已有 ref。
+完整 NodeList 中缺席的 Node UID、或完整合法注册清单中缺席的 GPU，退出
+默认设备列表与容量读取。不健康卡仍在当前清单。Node/注册读取失败时保留
+原当前设备身份并标 Unknown，不能把失败结果当空清单。
 
-这也是 ACC 的唯一基础设施管理范围：管理、目录、容量和解析根据数据库中的 `cluster.connection_ref` 回查该配置；不新增独立集群授权清单，不按用户或租户重复配置连接范围。用户权限、套餐和配额由 Gov 管理，ACC 仍校验调用服务、完整 RPC 方法、可信上下文、租户数据和实体关联。已登记集群的连接不在当前配置时，相关访问拒绝；注册接口不能提交任意 API 地址、凭据或 socket 路径。配置读取于启动装配，变更通过受管部署流程生效。
+Node Ready、Lease、注册健康、单位/配置一致性和当前事实新鲜度决定容量
+能否报告已知可用。Node 失联不触发历史证明或日志补证；正常当前来源恢复后
+由下一轮集合替换收敛。
+
+## 可选精确物理显存
+
+受管 connection 可包含：
 
 ```json
 {
-  "connections": [{
-    "ref": "managed:cluster-a",
-    "api_server": "https://api.cluster.example:6443",
-    "server_name": "api.cluster.example",
-    "ca_file": "/run/accelerator/kubernetes/ca.crt",
-    "cert_file": "/run/accelerator/kubernetes/client.crt",
-    "key_file": "/run/accelerator/kubernetes/client.key",
-    "token_file": "",
-    "plugin_namespace": "kube-system",
-    "plugin_selector": "app=volcano-device-plugin",
-    "plugin_container": "device-plugin",
-    "plugin_config_map": "device-plugin-config",
-    "node_plugin_config_maps": [{
-      "node_uid": "10000000-0000-4000-8000-000000000003",
-      "node_name": "gpu-node-3",
-      "config_map": "device-plugin-shared-config"
-    }],
-    "scheduler_namespace": "volcano-system",
-    "scheduler_selector": "app=volcano-scheduler",
-    "scheduler_container": "volcano-scheduler",
-    "scheduler_config_map": "volcano-scheduler-configmap",
-    "node_agent_identity": {
-      "namespace": "ani-node-system",
-      "service_account": "ani-node-agent",
-      "daemon_set": "ani-node-agent",
-      "audience": "ani-node-agent"
-    },
-    "installation_baselines": []
-  }]
+  "prometheus_inventory": {
+    "url": "https://existing-prometheus.example",
+    "ca_file": "/run/prometheus/ca.pem",
+    "bearer_token_file": "/run/prometheus/token"
+  }
 }
 ```
 
-名称、selector 和路径必须按实际安装核对，不能把示例视为已探测值。中心保留原读取权限，并增加固定用途的 TokenReview、Agent Pod/SA/DaemonSet 读取和 Node patch；中心代码只允许写供给组/型号/基线三键，patch 包含 UID/resourceVersion test。Agent 不持有业务数据库或 owner 私钥。HTTPS 禁止重定向和未验证证书；token_file 每次请求重新读取。
+URL 与凭据独立于 Kubernetes 连接；CA 和 token 文件可省略。ACC 每轮每个
+已注册集群最多查询一次，子超时 2 秒：
 
-`node_plugin_config_maps` 可省略；未映射节点仍使用连接的 `plugin_config_map`。每项只允许真实 `node_uid`、`node_name` 和同一插件 namespace 的 `config_map`，UID 与名称分别唯一；未知或不相符的节点身份拒绝。覆盖引用只有在实际 Ready 插件 Pod 的指定容器将该 ConfigMap 的非空 `config.json` 挂载至 `/config/config.json` 时才有效：支持整个卷挂载 `/config`，或固定 `config.json` subPath 挂载该文件。同一运行容器的镜像、F/K 和挂载须一起匹配，不能拼接不同 Pod 的证据。Inspect 与初始化发现按节点读取真实摘要；组内每个节点仍须等于该组已冻结的 `node_config_digest`，不会更新或重算既有 baseline。该映射不提供 inventory、epoch、lease、socket 或本地采集能力。
+```promql
+nvidia_smi_memory_total_bytes{ani_cluster_id="<clusterID>",ani_gpu_source="nvml"}
+```
 
-`installation_baselines` 每项为 `mode` 与现有 `ProviderBaseline` 的 `baseline`；运维登记真实安装声明，摘要复用 BaselineDigest。空配置显示未知，不猜预算或版本。中心启动明确拒绝旧 `local_node_uid`、`nodes`、`runtime_events_directory` 和 `runtime_journal` 采集配置；socket、journal 与持久状态目录移至 Agent 部署参数。
+仅给本轮已由合法 NodeRegister 创建的设备记录补值。关联使用 `ani_node_uid`
+及 `uuid`；UUID 去 `GPU-` 前缀并转小写只用于指标匹配，不改变 PhysicalID。
+重复 scrape 按同一 Node UID/UUID 取 max；非法数值忽略。指标不能创建设备或
+恢复已退出当前清单的设备。
 
-旧 Adopt RPC 仍同步验证并登记 CLOSED 组。新的初始化 operation 编排三键标签、ACTIVE Profile 和自身版本链 OPEN；已有 CLOSED 组与无 Profile 的新组不会自动开放。节点同名重建不能继承旧 UID。
+未配置、查询失败或样本缺失时本轮 bytes 写 0，不沿用上轮值；因来源失败而
+仅保留旧身份的设备也清零。0 表示“未知”，不改变设备观察完整性、预算、
+绑定、初始化可选状态或 DiscoveryRevision。设备列表和容量请求不现查 Prom。
+初始化未注册时不查 Prom，注册后只从已提交设备记录读取可选展示值。
 
-证明文件名为 SHA256(verification_ref UTF-8).json，只能从配置证明目录读取。内容结构见 `internal/data/provider/attestation.go`。v2 使用 `schema_version=2`、`kind=gpu-hardware-qualification-v2`，签名载荷为 `acc-hardware-qualification-v2` + LF + acc-c14n-v1 规范 JSON payload；保留真实 `verified_at`，不包含 `expires_at`，不因经过 24 小时或更长时间自动失效。节点/物理设备身份、显存或受管 GPU 镜像与配置不再匹配时，拒绝新解析并要求按变化后的 baseline 重新验收。
+## 配置与身份边界
 
-v1 仍使用 `acc-hardware-attestation-v1` 签名域及其原有效期，不会被静默解释为长期资格。迁移时核对当前受管配置与原实验范围，用新文件和部署 ConfigMap 显式签发 v2；原始签名、实验、baseline 摘要与回执保留，不能改写旧 `expires_at` 或把政策迁移称为新硬件实验。没有关键环境变更时不重训模型或重复整套满载实验。签名者必须在服务外核验原始实验；重复 JSON 键、未知字段、错作用域/错预算/错签名、未来验收时间及给 v2 指定非空到期时间均拒绝。签名者私钥不在服务配置中。
+保留受管 Kubernetes CA/server_name、client certificate 或 token 文件、节点
+ConfigMap 覆盖、InstallationBaselines。token 文件在请求时重新读取。
+初始化现有的条件标签写入继续使用独立 guard 和 Node UID/resourceVersion 检查。
 
-## 持久观测与容量
+移除 `node_agent_identity`、`local_node_uid`、`nodes` socket 配置、
+`runtime_events_directory`、`runtime_journal`。配置仍严格解码，旧字段不能
+静默生效。ACC 不再接受 node-agent mTLS/TokenReview 或 telemetry RPC；
+Governance 服务认证、owner Ed25519、公有/租户隔离保持。
 
-同一 cluster+Pod UID+container+device 的 scheduler/allocation/runtime 合并一次。runtime 与 allocation 必须一致才是完整 ACTIVE；冲突保守保留最大计量，只使可定位的设备 UNKNOWN。无法定位物理设备/容器的破损来源使该节点未知，不能分摊到猜测的父卡。
+初始化结构版本只包含既有 connection/baseline/节点标签以及注册 GPU 的
+UUID、ModelKey、MemoryBlocks、SplitCount、Healthy；排序稳定，物理 bytes、
+采样时间和 agent 状态不进入哈希。旧 operation 的冻结 revision 不被改写，
+继续遵守既有 VALIDATE、CONFLICT 和 Retry 行为。
 
-供给组未关联 usage 的真实占用以及未签名的工作负载仍减少该组容量；完全没有可信 F 的未接管节点不产生可售容量。已观察但未放置的 Pod 请求按实际 group selector 单独计入 unplaced_requested_units，不分配到设备。全组缺观测时 complete=false，known_free_units=0 是未知下界而非“确定耗尽”。
-
-安全预算不得超过物理 bytes 与逐卡量化预算；份数受 K、MiB、可加核心预算约束。逐卡 floor 后求和，不能跨卡拼余量。配置/F 漂移先拒绝新解析和新解释，历史样本保留原 factor。来源失败保留最后可信时间，落库失败水位；接收时间不伪造观察时间。
-
-验收资格与运行源健康分开判断。资格缺失/损坏/旧 v1 过期，或调度镜像、配置偏离准入 baseline，不停止 Kubernetes、PodResources、CRI 的事实采集和正向释放证明。此时库存/可售容量保持保守不完整，不凭健康水位宣称可以新增分配；单位 F 或注册格式无法核对时不重新解释分配块数。来源水位表达实际连接、节点与读取健康，不把准入配置不匹配伪装为来源失联。真实来源失联、容器未退出或仍有设备分配时仍不能确认释放。
-
-调度分配按原始 assigned 时间记录历史事实。owner 签名晚于首次采集到达时，同 Pod/container/device/node/assigned 时间的已有 scheduler 记录保留原归属及版本；不把后来到达的归属回填为同一历史版本的新报文。当前 runtime/allocation 事实继续独立严格验签并关联 usage；两个有效归属相异仍产生 ownership conflict，同时间的真实分配字段变化仍拒绝为 source revision conflict。
-
-解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。内部归并继续校验 current/consumed/证明 revision，冲突或证据不足保持 UNKNOWN；它不删除 workload、不结束 usage、不发配额释放。对外 `ObserveRelease` RPC 已[下线](../releases/2026-10-27-observe-release-retirement.md)，旧路径返回 gRPC `Unimplemented`，不能再以 owner RPC 触发释放观察。
-
-Agent 连续读取 CRI `GetContainerEvents`，保存 CREATED/RUNNING/EXITED/UNKNOWN、独立原 event_type 与未解释尝试。记录先 append/fsync；每节点仅一条 Report 在途，中心事务提交后 ACK，Agent 持久 ACK 后发下一条。网络断线而日志连续不制造来源缺口；真实缺口不被重连、ACK 或空快照清除。普通同内容快照和心跳不推进领域 revision；新占用、UNKNOWN、缺口及有效性变化仍使旧判断失效。
-
-中心只向认证节点下发有界的已知 Pod/container RecoverExitRequest，并持久保存其范围以支持跨 epoch 重放。Agent 用固定本机 journal 配置验证 machine/boot/root/containerd 来源和 sandbox→create→exit 正向链，最多十六次尝试、四 MiB 输出。结果经中心校验和持久归并后补充历史退出；当前 Running/UNKNOWN 不会被旧退出覆盖，局部补证不清除全局 SourceGap。
-
-journal 路径与超时是手动安装参数，RPC 不接收任意命令或路径。中心等待继续服从整体采集/释放期限，超时保留 UNKNOWN。证据来源时间与传输 receipt 分离，重放不刷新采样时间。
-
-完整有效的 `RELEASE_CONFIRMED` 是已持久化的历史事实，绑定列表及其聚合不能因 120 秒采样窗口过去或当前来源失联而将其降为 UNKNOWN；返回原始 observed_at、received_at 和 release 引用，不刷新证明时间。ACTIVE 仍要求来源健康及实时新鲜度；不完整、未知或时间无效的历史记录仍保守返回不完整。该规则及新分配重新计占用的合并逻辑在 RPC 下线后保留，不能用这些容量观测宣称 owner 完成删除或 Governance 完成退款。
-
-## 构造样本与验收入口
-
-`parse_test.go` 固定上游字符串，F=1024，blocks=6、runtime=6144m；`replay_test.go` 构造两张 24576 MiB 设备、K=4、6 GiB/25% 请求，通过真实 TLS HTTP server 与真实 Unix gRPC server 驱动生产读取器；NVML 库存仅在测试装配中注入。Node/scheduler/PodResources/CRI 原始格式和签名 payload 均在测试源码中可复现，源码 manifest 给出样本模板摘要。每次回放的随机身份、证书与当前时间是隔离输入，不称实际采集。
-
-`make test-provider` 在真实 PG 中验证三源合并、未投影占用、pending、单卡矛盾、失联/陈旧/F 漂移未知、适配器重建、API 强删保留、正向解除恢复；`trust_test.go` 验证签名、预算、Node UID、过期和重复键边界。最终命令/候选摘要/原始日志见执行验收记录。
+完成新 ACC 与 schema/消费者切换后可退役 node-agent。GPU driver、device
+plugin、scheduler、RuntimeClass、现有 exporter 和 Prometheus 继续保留。

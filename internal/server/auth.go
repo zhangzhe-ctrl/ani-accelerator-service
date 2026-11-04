@@ -9,7 +9,6 @@ import (
 
 	"github.com/go-kratos/kratos/v3/middleware"
 	kratosgrpc "github.com/go-kratos/kratos/v3/transport/grpc"
-	nodepb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/node/v1"
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
@@ -56,8 +55,6 @@ type rpcPolicy struct {
 }
 
 var governanceRPCs = map[string]rpcPolicy{
-	pb.AcceleratorAdminService_ListAdminGpuMetricScopes_FullMethodName:     {action: "ListAdminGpuMetricScopes", admin: true},
-	pb.AcceleratorUsageService_ListTenantGpuMetricScopes_FullMethodName:    {action: "ListTenantGpuMetricScopes", admin: false},
 	pb.AcceleratorAdminService_GetInitialization_FullMethodName:            {action: "GetInitialization", admin: true},
 	pb.AcceleratorAdminService_ListDiscoveredNodes_FullMethodName:          {action: "ListDiscoveredNodes", admin: true},
 	pb.AcceleratorAdminService_CreateInitialization_FullMethodName:         {action: "CreateInitialization", admin: true},
@@ -113,11 +110,6 @@ func authenticatedService(ctx context.Context, config *conf.Security) (string, e
 		return "ani-inference", nil
 	case config.ResourceDnsName:
 		return "ani-resource-service", nil
-	case "ani-node-agent":
-		if config.NodeAgentDnsName == "ani-node-agent" {
-			return "ani-node-agent", nil
-		}
-		return "", status.Error(codes.PermissionDenied, "SERVICE_IDENTITY_DENIED")
 	case config.ModeldevDnsName:
 		return "ani-modeldev-service", nil
 	default:
@@ -146,7 +138,7 @@ func AuthorizeStream(config *conf.Security) grpc.StreamServerInterceptor {
 		if err != nil {
 			return err
 		}
-		if !((service == "ani-governance" && info.FullMethod == healthpb.Health_Watch_FullMethodName) || (service == "ani-node-agent" && info.FullMethod == nodepb.NodeTelemetryService_Connect_FullMethodName)) {
+		if !(service == "ani-governance" && info.FullMethod == healthpb.Health_Watch_FullMethodName) {
 			return status.Error(codes.PermissionDenied, "ACTION_DENIED")
 		}
 		return next(srv, stream)

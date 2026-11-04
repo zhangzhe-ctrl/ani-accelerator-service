@@ -7,8 +7,7 @@ import (
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 )
 
-// NodePluginConfigMap selects only a managed plugin configuration. Node
-// telemetry and collection remain exclusively owned by the authenticated Agent.
+// NodePluginConfigMap selects the managed plugin configuration for one Node UID.
 type NodePluginConfigMap struct {
 	NodeUID   string `json:"node_uid"`
 	NodeName  string `json:"node_name"`

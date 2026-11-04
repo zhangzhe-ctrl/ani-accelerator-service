@@ -2,224 +2,179 @@ package data
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
-	"github.com/jackc/pgx/v5"
-	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
-	"reflect"
-	"sort"
+	"math"
+	"slices"
 	"time"
+
+	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 )
 
 func (s *pgStore) SaveObservation(ctx context.Context, batch biz.ObservationBatch) error {
 	if err := biz.ValidateObservationBatch(batch); err != nil {
 		return err
 	}
-	locked := map[string]biz.NodeTelemetryState{}
-	nodes := make([]string, 0, len(batch.NodeRevisions))
-	for node := range batch.NodeRevisions {
-		nodes = append(nodes, node)
-	}
-	sort.Strings(nodes)
-	for _, node := range nodes {
-		payload, err := s.q.LockNodeTelemetryState(ctx, batch.ConnectionRef, node)
-		if errors.Is(err, pgx.ErrNoRows) && batch.NodeRevisions[node] == 0 {
-			continue
-		}
-		if err != nil {
-			return cleanError(err)
-		}
-		var state biz.NodeTelemetryState
-		if json.Unmarshal(payload, &state) != nil {
-			return biz.Precondition("STORED_TELEMETRY_INVALID")
-		}
-		if state.CurrentRevision != batch.NodeRevisions[node] {
-			return biz.Conflict("NODE_REVISION_CONFLICT")
-		}
-		locked[node] = state
-	}
 	if err := s.Lock(ctx, "observation:"+batch.ClusterID); err != nil {
 		return err
 	}
-	for _, d := range batch.Devices {
-		if d.Device.PhysicalMemoryBytes == 0 {
-			prior, err := decodeOne[biz.DeviceRecord](s.q.SaveObservationData1(ctx, d.Device.DeviceID))
-			if err != nil && !biz.IsNotFound(err) {
-				return err
-			}
-			if prior != nil {
-				d.Device.PhysicalMemoryBytes = prior.Device.PhysicalMemoryBytes
-				// Preserve the last trusted inventory observation, while reporting
-				// the new failed reception separately. It cannot become free capacity.
-				d.Device.Observation.ObservedAt = prior.Device.Observation.ObservedAt
-			}
-		}
-		b, err := jsonBytes(d)
-		if err != nil {
-			return err
-		}
-		observed, _ := time.Parse(time.RFC3339Nano, d.Device.Observation.ObservedAt)
-		if err = cleanError(s.q.SaveObservationWrite2(ctx, d.Device.DeviceID, d.Device.ClusterID, d.Device.GroupID, d.Device.Node.UID, d.Device.VendorDeviceID, observed, b)); err != nil {
-			return err
-		}
+	row, err := s.q.LockCollectionStateData(ctx, batch.ClusterID)
+	if err != nil {
+		return cleanError(err)
 	}
-	for _, c := range batch.Claims {
-		prior, err := decodeOne[biz.Claim](s.q.SaveObservationData3(ctx, c.Pod.ClusterID, c.Pod.UID, c.Pod.ContainerName, c.DeviceID, c.Source))
-		if err != nil && !biz.IsNotFound(err) {
-			return err
-		}
-		if prior != nil && prior.ObservedAt.Equal(c.ObservedAt) {
-			x, y := *prior, c
-			x.ReceivedAt = time.Time{}
-			y.ReceivedAt = time.Time{}
-			a, _ := biz.Hash(x)
-			b, _ := biz.Hash(y)
-			if a != b {
-				return biz.Conflict("SOURCE_REVISION_CONFLICT")
-			}
-		}
-		b, err := jsonBytes(c)
-		if err != nil {
-			return err
-		}
-		if err = cleanError(s.q.SaveObservationWrite4(ctx, c.Pod.ClusterID, c.Pod.UID, c.Pod.ContainerName, c.DeviceID, c.Source, c.ObservedAt, b)); err != nil {
-			return err
-		}
+	if row.ObservationRevision != batch.BaseObservationRevision {
+		return biz.Conflict("OBSERVATION_REVISION_CONFLICT")
 	}
-	for _, p := range batch.Releases {
-		b, err := jsonBytes(p)
-		if err != nil {
-			return err
-		}
-		if err = cleanError(s.q.SaveObservationWrite5(ctx, p.Pod.ClusterID, p.Pod.UID, p.Pod.ContainerName, p.DeviceID, p.ObservedAt, b)); err != nil {
-			return err
-		}
+	if row.ObservationRevision >= math.MaxInt64 {
+		return biz.Precondition("OBSERVATION_REVISION_EXHAUSTED")
 	}
-	for _, w := range batch.Watermarks {
-		if !w.Complete {
-			prior, err := decodeOne[biz.SourceWatermark](s.q.SaveObservationData6(ctx, w.ClusterID, w.NodeUID, w.Source))
-			if err != nil && !biz.IsNotFound(err) {
-				return err
-			}
-			w.ObservedAt = time.Time{}
-			if prior != nil {
-				w.ObservedAt = prior.ObservedAt
-				w.Cursor = prior.Cursor
-			}
-		}
-		if w.ObservedAt.IsZero() {
-			w.ObservedAt = time.Unix(0, 0).UTC()
-		}
-		b, err := jsonBytes(w)
-		if err != nil {
-			return err
-		}
-		if err = cleanError(s.q.SaveObservationWrite7(ctx, w.ClusterID, w.NodeUID, w.Source, w.ObservedAt, b)); err != nil {
-			return err
-		}
-	}
-	// Reconcile all persisted keys, including keys absent from this poll. This
-	// preserves unknown occupancy and repairs binding-before-projection races.
-	claims, err := decodeMany[biz.Claim](s.q.SaveObservationData8(ctx, batch.ClusterID))
+	state, err := decodeOne[biz.CollectionState](row.CurrentObservation, nil)
 	if err != nil {
 		return err
 	}
-	for _, c := range claims {
-		if err = s.reconcileBinding(ctx, c.Pod, c.DeviceID); err != nil {
-			return err
-		}
-	}
-	for _, node := range nodes {
-		state, found := locked[node]
-		if !found {
-			continue
-		}
-		state.ConsumedRevision = state.CurrentRevision
-		payload, err := json.Marshal(state)
+	for groupID := range batch.PendingByGroup {
+		group, err := s.Group(ctx, groupID)
 		if err != nil {
 			return err
 		}
-		if err = s.q.UpdateNodeTelemetryState(ctx, batch.ConnectionRef, node, state.Epoch, state.Identity.LogID, state.LastSequence, state.LastPayloadDigest, state.CurrentRevision, state.ConsumedRevision, payload); err != nil {
-			return cleanError(err)
+		if group.ClusterID != batch.ClusterID {
+			return biz.Invalid("INVALID_PENDING_DEMAND")
 		}
+	}
+	if err := s.reconcileDeviceInventory(ctx, batch); err != nil {
+		return err
+	}
+	revision := row.ObservationRevision + 1
+	if batch.PodListComplete {
+		if err := s.replaceCurrentBindings(ctx, batch, revision); err != nil {
+			return err
+		}
+	}
+
+	issues := make([]string, 0, len(batch.BindingIssues))
+	for _, issue := range batch.BindingIssues {
+		if issue != "" {
+			issues = append(issues, issue)
+		}
+	}
+	if (!batch.PodListComplete || len(batch.IncompletePodUIDs) > 0) && len(issues) == 0 {
+		issues = append(issues, "SOURCE_UNKNOWN")
+	}
+	slices.Sort(issues)
+	issues = slices.Compact(issues)
+	observation := &biz.Observation{
+		Complete:   batch.PodListComplete && len(batch.IncompletePodUIDs) == 0 && len(issues) == 0,
+		ReceivedAt: batch.ReceivedAt.UTC().Format(time.RFC3339Nano), Issues: issues,
+	}
+	if batch.PodListComplete {
+		observation.ObservedAt = batch.ObservedAt.UTC().Format(time.RFC3339Nano)
+		observation.SnapshotRef = batch.SnapshotRef
+		state.PendingByGroup = make(map[string]int64, len(batch.PendingByGroup))
+		for group, count := range batch.PendingByGroup {
+			state.PendingByGroup[group] = count
+		}
+	} else if state.Observation != nil {
+		observation.ObservedAt = state.Observation.ObservedAt
+		observation.SnapshotRef = state.Observation.SnapshotRef
+	}
+	if state.PendingByGroup == nil {
+		state.PendingByGroup = map[string]int64{}
+	}
+	state.Observation = observation
+	payload, err := jsonBytes(state)
+	if err != nil {
+		return err
+	}
+	count, err := s.q.SaveCollectionStateCAS(ctx, batch.ClusterID, batch.BaseObservationRevision, payload)
+	if err != nil {
+		return cleanError(err)
+	}
+	if count != 1 {
+		return biz.Conflict("OBSERVATION_REVISION_CONFLICT")
 	}
 	return nil
 }
 
-func (s *pgStore) LockReleaseNodes(ctx context.Context, connection string, nodes []string) (map[string]biz.NodeTelemetryState, error) {
-	nodes = append([]string(nil), nodes...)
-	sort.Strings(nodes)
-	states := make(map[string]biz.NodeTelemetryState, len(nodes))
-	for _, node := range nodes {
-		payload, err := s.q.LockNodeTelemetryState(ctx, connection, node)
-		if errors.Is(err, pgx.ErrNoRows) {
-			continue
-		}
+func (s *pgStore) reconcileDeviceInventory(ctx context.Context, batch biz.ObservationBatch) error {
+	deviceIDs := make([]string, 0, len(batch.Devices))
+	for _, device := range batch.Devices {
+		payload, err := jsonBytes(device)
 		if err != nil {
-			return nil, cleanError(err)
+			return err
 		}
-		var state biz.NodeTelemetryState
-		if json.Unmarshal(payload, &state) != nil {
-			return nil, biz.Precondition("STORED_TELEMETRY_INVALID")
+		observed, _ := time.Parse(time.RFC3339Nano, device.Device.Observation.ObservedAt)
+		count, err := s.q.SaveObservationWrite2(ctx, device.Device.DeviceID, batch.ClusterID,
+			device.Device.GroupID, device.Device.Node.UID, device.Device.VendorDeviceID, observed, payload)
+		if err != nil {
+			return cleanError(err)
 		}
-		states[node] = state
+		if count != 1 {
+			return biz.Conflict("DEVICE_IDENTITY_CONFLICT")
+		}
+		deviceIDs = append(deviceIDs, device.Device.DeviceID)
 	}
-	return states, nil
+	if batch.NodeListComplete {
+		if err := s.q.RetireMissingNodeDevices(ctx, batch.ClusterID, append([]string{}, batch.LiveNodeUIDs...)); err != nil {
+			return cleanError(err)
+		}
+	}
+	if len(batch.InventoryCompleteNodeUIDs) > 0 {
+		if err := s.q.RetireMissingInventoryDevices(ctx, batch.ClusterID, batch.InventoryCompleteNodeUIDs, deviceIDs); err != nil {
+			return cleanError(err)
+		}
+	}
+	// Retained current devices have no fresh registration record this round.
+	// Their old identity/budget remains, while capacity and physical bytes are unknown.
+	return cleanError(s.q.MarkUnobservedDevicesUnknown(ctx, batch.ClusterID, deviceIDs, batch.ReceivedAt.UTC().Format(time.RFC3339Nano)))
 }
-func (s *pgStore) reconcileBinding(ctx context.Context, p biz.PodRef, device string) error {
-	if err := s.Lock(ctx, "binding:"+p.ClusterID+":"+p.UID+":"+p.ContainerName+":"+device); err != nil {
-		return err
+
+func (s *pgStore) replaceCurrentBindings(ctx context.Context, batch biz.ObservationBatch, revision uint64) error {
+	observation := biz.Observation{
+		Complete: true, ObservedAt: batch.ObservedAt.UTC().Format(time.RFC3339Nano),
+		ReceivedAt:  batch.ReceivedAt.UTC().Format(time.RFC3339Nano),
+		SnapshotRef: batch.SnapshotRef, Issues: []string{},
 	}
-	claims, err := decodeMany[biz.Claim](s.q.ReconcileBindingData1(ctx, p.ClusterID, p.UID, p.ContainerName, device))
-	if err != nil {
-		return err
-	}
-	if len(claims) == 0 {
-		return nil
-	}
-	proof, err := decodeOne[biz.ReleaseProof](s.q.ReconcileBindingData2(ctx, p.ClusterID, p.UID, p.ContainerName, device))
-	if err != nil && !biz.IsNotFound(err) {
-		return err
-	}
-	prior, err := decodeOne[biz.Binding](s.q.ReconcileBindingData3(ctx, p.ClusterID, p.UID, p.ContainerName, device))
-	if err != nil && !biz.IsNotFound(err) {
-		return err
-	}
-	id := biz.NewID()
-	if prior != nil {
-		id = prior.BindingID
-	}
-	var usage *biz.UsageProjection
-	for _, c := range claims {
-		if c.OwnerRef != nil {
-			usage, err = s.Usage(ctx, *c.OwnerRef)
+	for _, observed := range batch.Bindings {
+		prior, err := decodeOne[biz.Binding](s.q.CurrentBindingByKeyData(ctx, batch.ClusterID, observed.Pod.UID, observed.Pod.ContainerName, observed.DeviceID))
+		if err != nil && !biz.IsNotFound(err) {
+			return err
+		}
+		id := biz.NewID()
+		if prior != nil {
+			id = prior.BindingID
+		}
+		var usage *biz.UsageProjection
+		var candidate []byte
+		if observed.OwnerRef != nil {
+			usage, err = s.Usage(ctx, *observed.OwnerRef)
 			if err != nil && !biz.IsNotFound(err) {
 				return err
 			}
-			break
+			candidate, err = jsonBytes(biz.BindingOwnerCandidate{Ref: *observed.OwnerRef, ExecutionDigest: observed.ExecutionDigest})
+			if err != nil {
+				return err
+			}
+		}
+		binding, err := biz.BuildCurrentBinding(id, observed, observation, usage)
+		if err != nil {
+			return err
+		}
+		payload, err := jsonBytes(binding)
+		if err != nil {
+			return err
+		}
+		var tenant, owner, resource, create *string
+		if ref := binding.VerifiedUsageRef; ref != nil {
+			tenant, owner, resource, create = &ref.TenantID, &ref.OwnerService, &ref.ResourceID, &ref.CreateOperationID
+		}
+		if err := s.q.UpsertCurrentBindingWrite(ctx, id, batch.ClusterID, observed.Pod.UID,
+			observed.Pod.ContainerName, observed.DeviceID, tenant, owner, resource, create, payload, candidate, revision); err != nil {
+			return cleanError(err)
 		}
 	}
-	binding, err := biz.MergeBinding(id, claims, proof, usage)
-	if err != nil {
-		return err
+	if len(batch.IncompletePodUIDs) > 0 {
+		if err := s.q.MarkIncompleteCurrentBindings(ctx, batch.ClusterID, batch.IncompletePodUIDs, revision, observation.ReceivedAt); err != nil {
+			return cleanError(err)
+		}
 	}
-	if err := s.captureMetricScope(ctx, binding, usage); err != nil {
-		return err
-	}
-	if prior != nil && reflect.DeepEqual(prior, binding) {
-		return nil
-	}
-	b, err := jsonBytes(binding)
-	if err != nil {
-		return err
-	}
-	var tenant, owner, resource, create *string
-	if binding.VerifiedUsageRef != nil {
-		r := binding.VerifiedUsageRef
-		tenant = &r.TenantID
-		owner = &r.OwnerService
-		resource = &r.ResourceID
-		create = &r.CreateOperationID
-	}
-	return cleanError(s.q.ReconcileBindingWrite4(ctx, id, p.ClusterID, p.UID, p.ContainerName, device, tenant, owner, resource, create, b))
+	return cleanError(s.q.EndMissingCurrentBindings(ctx, batch.ClusterID, revision,
+		observation.ObservedAt, observation.ReceivedAt, batch.SnapshotRef))
 }

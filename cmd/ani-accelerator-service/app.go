@@ -8,7 +8,6 @@ import (
 
 	kratos "github.com/go-kratos/kratos/v3"
 
-	nodepb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/node/v1"
 	pb "github.com/zhangzhe-ctrl/ani-accelerator-service/api/gen/go/accelerator/v1"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 	conf "github.com/zhangzhe-ctrl/ani-accelerator-service/internal/conf/v1"
@@ -84,10 +83,8 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 	if err != nil {
 		return nil, err
 	}
-	telemetryServer := server.NewNodeTelemetryServer(db, reader)
-	reader.ConfigureNodeExitRecovery(telemetryServer)
 	readiness := server.NewReadiness()
-	observability, err := server.NewObservability(Name, Version, readiness)
+	observability, err := server.NewObservability(Name, Version, readiness, server.NewCurrentGpuBindingCollector(db, refs, bc.Accelerator.Freshness.AsDuration()))
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +98,6 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 	pb.RegisterAcceleratorAdminServiceServer(grpcServer, handler)
 	pb.RegisterAcceleratorCatalogServiceServer(grpcServer, handler)
 	pb.RegisterAcceleratorUsageServiceServer(grpcServer, handler)
-	nodepb.RegisterNodeTelemetryServiceServer(grpcServer, telemetryServer)
 	adminServer := server.NewAdminServer(bc.Server.Admin, readiness, observability.Gatherer(), middlewares...)
 	worker := server.NewWorker(u, db, readiness, logger, bc.Accelerator.CollectInterval.AsDuration())
 	initializationWorker := server.NewInitializationWorker(initialization, logger, time.Second)

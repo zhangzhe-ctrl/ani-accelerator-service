@@ -1,245 +1,128 @@
 package provider
 
 import (
-	"context"
 	"crypto/ed25519"
 	"crypto/rand"
 	"encoding/base64"
-	"encoding/json"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
-	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
-	pr "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
 const liveGPUUUID = "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878"
+const assignmentClusterID = "10000000-0000-4000-8000-000000000001"
 
 func liveAssignedPod() pod {
-	p := pod{Metadata: metadata{UID: "live-pod-uid", Name: "acc-plan-iris", Namespace: "acc-live", ResourceVersion: "100", Annotations: map[string]string{
-		AssignedIDs: "GPU-a86cb9fe-53ca-e474-5375-b662a54e8878,NVIDIA,4096,10:", AssignedTime: "18446744073709551615", "volcano.sh/bind-time": "1792173153", "volcano.sh/bind-phase": "success",
+	workload := pod{Metadata: metadata{UID: "live-pod-uid", Name: "acc-plan-iris", Namespace: "acc-live", ResourceVersion: "100", Annotations: map[string]string{
+		AssignedIDs: liveGPUUUID + ",NVIDIA,4096,10:",
 	}}}
-	p.Spec.NodeName = "ani-03"
-	c := container{Name: "inference"}
-	c.Resources.Limits = map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "4096"}
-	p.Spec.Containers = []container{c}
-	return p
+	workload.Spec.NodeName = "ani-03"
+	main := container{Name: "inference"}
+	main.Resources.Limits = map[string]string{"volcano.sh/vgpu-number": "1", "volcano.sh/vgpu-memory": "4096"}
+	workload.Spec.Containers = []container{main}
+	return workload
 }
 
-func assignedPodClaims(t *testing.T, pod pod, now time.Time) ([]biz.Claim, error) {
-	return assignedPodClaimsUsing(t, &Provider{}, pod, now)
-}
-
-func assignedPodClaimsUsing(t *testing.T, reader *Provider, pod pod, now time.Time) ([]biz.Claim, error) {
-	return assignedPodClaimsAtFactor(t, reader, pod, now, 1)
-}
-
-func assignedPodClaimsAtFactor(t *testing.T, reader *Provider, pod pod, now time.Time, factor uint32, environment ...string) ([]biz.Claim, error) {
-	t.Helper()
-	if environment == nil {
-		environment = []string{"NVIDIA_VISIBLE_DEVICES=" + liveGPUUUID, "CUDA_DEVICE_MEMORY_LIMIT_0=4096m", "CUDA_DEVICE_SM_LIMIT=10"}
-	}
-	info, err := json.Marshal(map[string]any{"runtimeSpec": map[string]any{"process": map[string]any{"env": environment}}})
-	if err != nil {
-		t.Fatal(err)
-	}
-	status := &cri.ContainerStatusResponse{
-		Status: &cri.ContainerStatus{Id: "live-container", Metadata: &cri.ContainerMetadata{Name: "inference"}, Labels: map[string]string{"io.kubernetes.pod.uid": pod.Metadata.UID}, State: cri.ContainerState_CONTAINER_RUNNING},
-		Info:   map[string]string{"info": string(info)},
-	}
-	snapshot := nodeSnapshot{
-		ObservedAt: now, RuntimeOK: true, ResourcesOK: true,
-		Containers: []*cri.Container{{Id: "live-container", Metadata: &cri.ContainerMetadata{Name: "inference"}, Labels: map[string]string{"io.kubernetes.pod.uid": pod.Metadata.UID}}},
-		Statuses:   map[string]*cri.ContainerStatusResponse{"live-container": status},
-		Resources:  &pr.ListPodResourcesResponse{PodResources: []*pr.PodResources{{Namespace: "acc-live", Name: "acc-plan-iris", Containers: []*pr.ContainerResources{{Name: "inference", Devices: []*pr.ContainerDevices{{ResourceName: "volcano.sh/vgpu-number", DeviceIds: []string{"NVIDIA-0"}}}}}}}},
-	}
+func assignedBindings(reader *Provider, workload pod, factor uint32) ([]biz.ObservedBinding, error) {
 	group := biz.SupplyGroup{Baseline: &biz.ProviderBaseline{MemoryBlockMiB: factor, BaselineDigest: strings.Repeat("a", 64)}}
-	if factor == 10 {
-		group.Baseline.BaselineDigest = strings.Repeat("b", 64)
-	}
-	return reader.podClaims(context.Background(), "cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
+	return reader.podBindings(assignmentClusterID, group, workload, biz.NodeRef{UID: "node-uid", Name: "ani-03"}, []RegisteredDevice{{UUID: liveGPUUUID}})
 }
 
-func TestPodClaimsRuntimeEnvironmentDuplicatesDoNotDuplicateBinding(t *testing.T) {
-	now := time.Unix(1792173213, 0).UTC()
-	for _, selected := range []string{liveGPUUUID, gpuUUID} {
-		t.Run(selected, func(t *testing.T) {
-			claims, err := assignedPodClaimsAtFactor(t, &Provider{}, liveAssignedPod(), now, 1,
-				"NVIDIA_VISIBLE_DEVICES=all", "NVIDIA_VISIBLE_DEVICES="+selected,
-				"CUDA_DEVICE_MEMORY_LIMIT_0=4096m", "CUDA_DEVICE_SM_LIMIT=10")
-			if selected != liveGPUUUID {
-				if err == nil || len(claims) != 0 {
-					t.Fatalf("effective runtime GPU disagreed with scheduler but was accepted: claims=%+v error=%v", claims, err)
-				}
-				return
+func TestPodBindingsUseCurrentAssignmentWithoutHistoricalTime(t *testing.T) {
+	for _, phase := range []string{"Pending", "Running"} {
+		t.Run(phase, func(t *testing.T) {
+			workload := liveAssignedPod()
+			workload.Status.Phase = phase
+			workload.Metadata.DeletionTimestamp = "2026-11-04T10:00:00Z"
+			workload.Metadata.Annotations["volcano.sh/vgpu-time"] = "unknown"
+			bindings, err := assignedBindings(&Provider{}, workload, 1)
+			if err != nil || len(bindings) != 1 || bindings[0].MemoryMiB != 4096 || bindings[0].CoreLimitPercent != 10 {
+				t.Fatalf("current reservation was lost: %+v, %v", bindings, err)
 			}
-			if err != nil || len(claims) != 3 {
-				t.Fatalf("effective GPU did not retain three independent sources: claims=%+v error=%v", claims, err)
-			}
-			for index, source := range []string{"scheduler", "runtime", "allocation"} {
-				if claims[index].Source != source || claims[index].DeviceID != claims[0].DeviceID || claims[index].MemoryMiB != 4096 {
-					t.Fatalf("runtime normalization changed source, device or units: %+v", claims)
-				}
-			}
-			binding, err := biz.MergeBinding("binding", claims, nil, nil)
-			if err != nil || binding.State != biz.Active || !binding.Observation.Complete || binding.MemoryMiB != 4096 {
-				t.Fatalf("three agreeing sources did not merge into one allocation: binding=%+v error=%v", binding, err)
+			if bindings[0].Pod.UID != workload.Metadata.UID || bindings[0].NodeUID != "node-uid" {
+				t.Fatalf("allocation identity changed: %+v", bindings[0])
 			}
 		})
 	}
 }
 
-func TestSchedulerClaimKeepsHistoricalFactorAcrossLiveFactorChange(t *testing.T) {
-	now := time.Unix(1792173213, 0).UTC()
-	pod := liveAssignedPod()
-	previous, err := assignedPodClaims(t, pod, now)
+func TestPodBindingsUseCurrentVerifiedUnits(t *testing.T) {
+	workload := liveAssignedPod()
+	first, err := assignedBindings(&Provider{}, workload, 1)
 	if err != nil {
 		t.Fatal(err)
 	}
-	reader := &Provider{repo: releaseRepository{reader: releaseReader{claims: previous[:1]}}}
-	current, err := assignedPodClaimsAtFactor(t, reader, pod, now.Add(time.Second), 10)
-	if err != nil || len(current) != 3 {
-		t.Fatalf("historical factor reuse failed: %+v error=%v", current, err)
+	second, err := assignedBindings(&Provider{}, workload, 10)
+	if err != nil || len(second) != 1 || second[0].MemoryMiB != 40960 || second[0].MemoryBlockMiB != 10 || first[0].DeviceID != second[0].DeviceID {
+		t.Fatalf("current block factor was not applied: %+v, %v", second, err)
 	}
-	if current[0].MemoryMiB != 4096 || current[0].MemoryBlockMiB != 1 || current[0].BaselineDigest != previous[0].BaselineDigest || current[0].Cursor != previous[0].Cursor {
-		t.Fatalf("historical allocation was reinterpreted with the new factor: %+v", current[0])
-	}
-	if current[1].MemoryMiB != 4096 || current[2].MemoryMiB != 4096 {
-		t.Fatalf("runtime MiB or historical allocation was multiplied again: %+v", current)
-	}
-	pod.Metadata.Annotations[AssignedIDs] = strings.Replace(pod.Metadata.Annotations[AssignedIDs], ",4096,10:", ",5120,10:", 1)
-	changed, err := assignedPodClaimsAtFactor(t, reader, pod, now.Add(2*time.Second), 10)
-	if err != nil || changed[0].MemoryMiB != 51200 || changed[0].Cursor == previous[0].Cursor {
-		t.Fatalf("changed raw assignment was hidden by historical reuse: %+v error=%v", changed, err)
+	workload.Metadata.Annotations["accelerator.ani.io/memory-block-mib"] = "1"
+	if bindings, err := assignedBindings(&Provider{}, workload, 10); err == nil || len(bindings) != 0 {
+		t.Fatalf("contradictory owner units accepted: %+v, %v", bindings, err)
 	}
 }
 
-func signAssignedOwner(t *testing.T, pod *pod, ref biz.UsageRef, key ed25519.PrivateKey, digest string) {
+func TestPodBindingsValidateCurrentContainerAndDeviceMapping(t *testing.T) {
+	for _, change := range []func(*pod){
+		func(workload *pod) { workload.Metadata.Annotations[AssignedIDs] = "damaged" },
+		func(workload *pod) { workload.Metadata.Annotations[AssignedIDs] = gpuUUID + ",NVIDIA,4096,10:" },
+		func(workload *pod) { workload.Metadata.Annotations[AssignedIDs] += liveGPUUUID + ",NVIDIA,4096,10:" },
+		func(workload *pod) { workload.Metadata.Annotations[AssignedIDs] += ";" },
+		func(workload *pod) { workload.Spec.NodeName = "another-node" },
+		func(workload *pod) { workload.Spec.Containers = nil },
+	} {
+		workload := liveAssignedPod()
+		change(&workload)
+		if bindings, err := assignedBindings(&Provider{}, workload, 1); err == nil || len(bindings) != 0 {
+			t.Fatalf("invalid assignment produced partial allocations: %+v, %v", bindings, err)
+		}
+	}
+	workload := liveAssignedPod()
+	workload.Spec.Containers = append([]container{{Name: "sidecar"}}, workload.Spec.Containers...)
+	bindings, err := assignedBindings(&Provider{}, workload, 1)
+	if err != nil || len(bindings) != 1 || bindings[0].Pod.ContainerName != "inference" {
+		t.Fatalf("non-GPU sidecar shifted assignment mapping: %+v, %v", bindings, err)
+	}
+	workload.Metadata.Annotations[AssignedIDs] = ""
+	if bindings, err := assignedBindings(&Provider{}, workload, 0); err != nil || len(bindings) != 0 {
+		t.Fatalf("valid empty assignment required an allocation decoder: %+v, %v", bindings, err)
+	}
+}
+
+func signAssignedOwner(t *testing.T, workload *pod, ref biz.UsageRef, key ed25519.PrivateKey, digest string) {
 	t.Helper()
-	pod.Metadata.Labels = map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}
-	pod.Metadata.Annotations["accelerator.ani.io/execution-digest"] = digest
-	podRef := biz.PodRef{ClusterID: "cluster", Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, UID: pod.Metadata.UID, ContainerName: "inference"}
+	workload.Metadata.Labels = map[string]string{"accelerator.ani.io/resource-tenant-id": ref.TenantID, "accelerator.ani.io/owner-service": ref.OwnerService, "accelerator.ani.io/resource-id": ref.ResourceID, "accelerator.ani.io/create-operation-id": ref.CreateOperationID}
+	workload.Metadata.Annotations["accelerator.ani.io/execution-digest"] = digest
+	podRef := biz.PodRef{ClusterID: assignmentClusterID, Namespace: workload.Metadata.Namespace, Name: workload.Metadata.Name, UID: workload.Metadata.UID, ContainerName: "inference"}
 	payload, err := biz.Canonical(OwnerAssertion{podRef, ref, digest})
 	if err != nil {
 		t.Fatal(err)
 	}
-	pod.Metadata.Annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v2\n"), payload...)))
+	workload.Metadata.Annotations["accelerator.ani.io/owner-signature"] = base64.StdEncoding.EncodeToString(ed25519.Sign(key, append([]byte("acc-owner-pod-v2\n"), payload...)))
 }
 
-func TestSchedulerHistoryDoesNotHideConflictingOrInvalidOwner(t *testing.T) {
-	for _, invalid := range []bool{false, true} {
-		name := "two_verified_owners_conflict"
-		if invalid {
-			name = "invalid_late_signature_is_unassociated"
-		}
-		t.Run(name, func(t *testing.T) {
-			public, key, err := ed25519.GenerateKey(rand.Reader)
-			if err != nil {
-				t.Fatal(err)
-			}
-			reader := &Provider{resourceOwnerKey: public}
-			pod := liveAssignedPod()
-			now := time.Now().UTC()
-			firstOwner := biz.UsageRef{TenantID: biz.NewID(), OwnerService: "ani-resource-service", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
-			if !invalid {
-				signAssignedOwner(t, &pod, firstOwner, key, strings.Repeat("b", 64))
-			}
-			first, err := assignedPodClaimsUsing(t, reader, pod, now)
-			if err != nil {
-				t.Fatal(err)
-			}
-			reader.repo = releaseRepository{reader: releaseReader{claims: first[:1]}}
-			lateOwner := biz.UsageRef{TenantID: firstOwner.TenantID, OwnerService: "ani-resource-service", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
-			digest := strings.Repeat("c", 64)
-			signAssignedOwner(t, &pod, lateOwner, key, digest)
-			if invalid {
-				pod.Metadata.Annotations["accelerator.ani.io/owner-signature"] = "invalid"
-			}
-			current, err := assignedPodClaimsUsing(t, reader, pod, now.Add(time.Second))
-			if err != nil || len(current) != 3 || current[0].Cursor != first[0].Cursor || current[0].EvidenceRef != first[0].EvidenceRef {
-				t.Fatalf("historical scheduler revision changed: claims=%+v error=%v", current, err)
-			}
-			for _, claim := range current[1:] {
-				if invalid && claim.OwnerRef != nil || !invalid && (claim.OwnerRef == nil || *claim.OwnerRef != lateOwner || claim.ExecutionDigest != digest) {
-					t.Fatalf("current owner signature boundary was bypassed: %+v", claim)
-				}
-			}
-			usage := &biz.UsageProjection{Ref: &lateOwner, ExecutionDigest: digest, ClusterID: "cluster", ContainerName: "inference"}
-			binding, err := biz.MergeBinding("binding", current, nil, usage)
-			if err != nil || binding.VerifiedUsageRef != nil || !invalid && !strings.Contains(strings.Join(binding.Observation.Issues, ","), "OWNERSHIP_CONFLICT") {
-				t.Fatalf("conflicting/invalid owner acquired attribution: binding=%+v error=%v", binding, err)
-			}
-		})
-	}
-}
-
-func TestPodClaimsConsumedAssignmentUsesHistoricalBindTime(t *testing.T) {
-	now := time.Unix(1792173213, 0).UTC()
-	claims, err := assignedPodClaims(t, liveAssignedPod(), now)
-	if err != nil || len(claims) != 3 {
-		t.Fatalf("claims = %+v, error = %v", claims, err)
-	}
-	if claims[0].Source != "scheduler" || !claims[0].ObservedAt.Equal(time.Unix(1792173153, 0).UTC()) || claims[0].ObservedAt.Equal(now) {
-		t.Fatalf("scheduler history was lost: %+v", claims[0])
-	}
-	for i, source := range []string{"scheduler", "runtime", "allocation"} {
-		if claims[i].Source != source || claims[i].MemoryMiB != 4096 || claims[i].CoreLimitPercent != 10 {
-			t.Fatalf("claim %d = %+v", i, claims[i])
-		}
-	}
-	for _, test := range []struct {
-		name   string
-		change func(map[string]string)
-	}{
-		{name: "failed_marker", change: func(a map[string]string) { a["volcano.sh/bind-phase"] = "failed" }},
-		{name: "allocating_marker", change: func(a map[string]string) { a["volcano.sh/bind-phase"] = "allocating" }},
-		{name: "missing_phase", change: func(a map[string]string) { delete(a, "volcano.sh/bind-phase") }},
-		{name: "missing_bind_time", change: func(a map[string]string) { delete(a, "volcano.sh/bind-time") }},
-		{name: "invalid_bind_time", change: func(a map[string]string) { a["volcano.sh/bind-time"] = "0" }},
-		{name: "nanosecond_bind_time", change: func(a map[string]string) { a["volcano.sh/bind-time"] = "1792173153000000000" }},
-		{name: "unknown_assigned_time", change: func(a map[string]string) { a[AssignedTime] = "unknown" }},
-		{name: "different_sentinel", change: func(a map[string]string) { a[AssignedTime] = "18446744073709551614" }},
-	} {
-		t.Run(test.name, func(t *testing.T) {
-			p := liveAssignedPod()
-			test.change(p.Metadata.Annotations)
-			if claims, err := assignedPodClaims(t, p, now); err == nil || len(claims) != 0 {
-				t.Fatalf("unknown assignment time accepted: %+v, %v", claims, err)
-			}
-		})
-	}
-}
-
-func TestSchedulerClaimStableAcrossPodStatusRevisions(t *testing.T) {
-	now := time.Unix(1792173213, 0).UTC()
-	p := liveAssignedPod()
-	p.Metadata.Annotations[AssignedTime] = "1792173153"
-	first, err := assignedPodClaims(t, p, now)
+func TestPodBindingsUseCurrentOwnerSignature(t *testing.T) {
+	public, key, err := ed25519.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.Metadata.ResourceVersion = "101"
-	p.Metadata.Annotations["unrelated-status-annotation"] = "new"
-	p.Status.Phase = "Running"
-	second, err := assignedPodClaims(t, p, now.Add(time.Second))
-	if err != nil {
-		t.Fatal(err)
+	reader := &Provider{resourceOwnerKey: public}
+	workload := liveAssignedPod()
+	first, err := assignedBindings(reader, workload, 1)
+	if err != nil || len(first) != 1 || first[0].OwnerRef != nil {
+		t.Fatalf("unsigned allocation changed: %+v, %v", first, err)
 	}
-	a, b := first[0], second[0]
-	a.ReceivedAt, b.ReceivedAt = time.Time{}, time.Time{}
-	firstDigest, _ := biz.Hash(a)
-	secondDigest, _ := biz.Hash(b)
-	if firstDigest != secondDigest {
-		t.Fatalf("unchanged scheduler fact changed with Pod status: first=%+v second=%+v", a, b)
+	ref := biz.UsageRef{TenantID: biz.NewID(), OwnerService: "ani-resource-service", ResourceID: biz.NewID(), CreateOperationID: biz.NewID()}
+	digest := strings.Repeat("b", 64)
+	signAssignedOwner(t, &workload, ref, key, digest)
+	current, err := assignedBindings(reader, workload, 1)
+	if err != nil || len(current) != 1 || current[0].OwnerRef == nil || *current[0].OwnerRef != ref || current[0].ExecutionDigest != digest || current[0].DeviceID != first[0].DeviceID {
+		t.Fatalf("late current signature was hidden by first observation: %+v, %v", current, err)
 	}
-	p.Metadata.Annotations[AssignedIDs] = strings.Replace(p.Metadata.Annotations[AssignedIDs], ",4096,10:", ",5120,10:", 1)
-	changed, err := assignedPodClaims(t, p, now.Add(2*time.Second))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if changed[0].Cursor == first[0].Cursor || changed[0].EvidenceRef == first[0].EvidenceRef {
-		t.Fatal("different allocation reused the same scheduler revision")
+	workload.Metadata.Annotations["accelerator.ani.io/owner-signature"] = "invalid"
+	current, err = assignedBindings(reader, workload, 1)
+	if err != nil || len(current) != 1 || current[0].OwnerRef != nil || current[0].ExecutionDigest != "" || current[0].MemoryMiB != 4096 {
+		t.Fatalf("invalid signature acquired ownership or erased capacity: %+v, %v", current, err)
 	}
 }

@@ -32,12 +32,17 @@ type Observability struct {
 	seconds        metric.Float64Histogram
 }
 
-func NewObservability(name, version string, readiness *Readiness) (*Observability, error) {
+func NewObservability(name, version string, readiness *Readiness, currentBindings prometheus.Collector) (*Observability, error) {
 	if err := kratosmetrics.EnableOTELExemplar(); err != nil {
 		return nil, fmt.Errorf("enable OpenTelemetry exemplars: %w", err)
 	}
 
 	registry := prometheus.NewRegistry()
+	if currentBindings != nil {
+		if err := registry.Register(currentBindings); err != nil {
+			return nil, fmt.Errorf("register current GPU bindings: %w", err)
+		}
+	}
 	if err := registry.Register(prometheus.NewGoCollector()); err != nil {
 		return nil, fmt.Errorf("register Go collector: %w", err)
 	}

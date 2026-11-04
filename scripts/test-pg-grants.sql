@@ -9,10 +9,6 @@ SELECT format('GRANT CONNECT ON DATABASE %I TO %I',current_database(), :'runtime
 GRANT USAGE ON SCHEMA accelerator TO :"runtime_role";
 GRANT SELECT, INSERT ON ALL TABLES IN SCHEMA accelerator TO :"runtime_role";
 REVOKE INSERT ON accelerator.schema_migrations FROM :"runtime_role";
-REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON accelerator.gpu_metric_index FROM :"runtime_role";
-REVOKE UPDATE, DELETE, TRUNCATE ON accelerator.gpu_metric_history FROM :"runtime_role";
-GRANT UPDATE ON accelerator.profiles, accelerator.supply_groups, accelerator.usages,
- accelerator.devices, accelerator.claims, accelerator.release_proofs,
- accelerator.bindings, accelerator.source_watermarks,
- accelerator.node_telemetry_state, accelerator.node_runtime_attempts,
+GRANT UPDATE ON accelerator.clusters, accelerator.profiles, accelerator.supply_groups,
+ accelerator.usages, accelerator.devices, accelerator.bindings,
  accelerator.initialization_operations, accelerator.initialization_steps TO :"runtime_role";

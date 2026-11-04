@@ -4,8 +4,6 @@ package provider
 import (
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
-	"math"
 	"regexp"
 	"strconv"
 	"strings"
@@ -17,7 +15,6 @@ import (
 const NodeRegister = "volcano.sh/node-vgpu-register"
 const NodeHandshake = "volcano.sh/node-vgpu-handshake"
 const AssignedIDs = "volcano.sh/vgpu-ids-new"
-const AssignedTime = "volcano.sh/vgpu-time"
 
 var physicalUUID = regexp.MustCompile(`^GPU-[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
@@ -105,30 +102,6 @@ func ParseHandshake(s string) (time.Time, error) {
 	}
 	return t.UTC(), nil
 }
-func ParseAssignedTime(s string) (time.Time, error) {
-	n, err := strconv.ParseInt(s, 10, 64)
-	// Volcano writes time.Now().Unix(), including both reviewed scheduler
-	// releases. Reject nanosecond-shaped values instead of guessing the unit.
-	if err != nil || n <= 0 || n > 253402300799 || strconv.FormatInt(n, 10) != s {
-		return time.Time{}, biz.Invalid("PROVIDER_TIME_INVALID")
-	}
-	return time.Unix(n, 0).UTC(), nil
-}
-
-func podAssignedTime(annotations map[string]string) (time.Time, error) {
-	value := annotations[AssignedTime]
-	// Device plugin v1.12.0 replaces vgpu-time with MaxUint64 on both
-	// success and failure. Only its success marker permits using the
-	// scheduler's original bind-time; the marker itself is never a time.
-	if value == "18446744073709551615" {
-		if annotations["volcano.sh/bind-phase"] != "success" {
-			return time.Time{}, biz.Invalid("PROVIDER_TIME_INVALID")
-		}
-		value = annotations["volcano.sh/bind-time"]
-	}
-	return ParseAssignedTime(value)
-}
-
 func PhysicalID(cluster, node, uuid string) string {
 	// Deterministic UUIDv8 bound to cluster, Node UID and actual NVIDIA UUID.
 	h := sha256.Sum256([]byte("acc-physical-v1\x00" + cluster + "\x00" + node + "\x00" + uuid))
@@ -136,74 +109,4 @@ func PhysicalID(cluster, node, uuid string) string {
 	h[8] = (h[8] & 63) | 128
 	s := hex.EncodeToString(h[:16])
 	return s[:8] + "-" + s[8:12] + "-" + s[12:16] + "-" + s[16:20] + "-" + s[20:]
-}
-
-type RuntimeAllocation struct {
-	UUID        string
-	MemoryMiB   int64
-	CorePercent uint32
-}
-
-// ParseContainerdInfo consumes ContainerStatus(verbose=true).Info["info"]
-// from the supported containerd CRI implementation, specifically the OCI
-// runtimeSpec.process.env passed to the container. It is not GPU utilization.
-func ParseContainerdInfo(raw string) (RuntimeAllocation, error) {
-	if len(raw) == 0 || len(raw) > 4<<20 {
-		return RuntimeAllocation{}, biz.Invalid("RUNTIME_INFO_UNAVAILABLE")
-	}
-	var info struct {
-		RuntimeSpec struct {
-			Process struct {
-				Env []string `json:"env"`
-			} `json:"process"`
-		} `json:"runtimeSpec"`
-	}
-	if json.Unmarshal([]byte(raw), &info) != nil {
-		return RuntimeAllocation{}, biz.Invalid("RUNTIME_INFO_INVALID")
-	}
-	entries := make([]biz.GPUEnvironmentEntry, 0, len(info.RuntimeSpec.Process.Env))
-	for _, entry := range info.RuntimeSpec.Process.Env {
-		k, v, ok := strings.Cut(entry, "=")
-		if !ok {
-			continue
-		}
-		if k == "NVIDIA_VISIBLE_DEVICES" || strings.HasPrefix(k, "CUDA_DEVICE_MEMORY_LIMIT_") || k == "CUDA_DEVICE_SM_LIMIT" {
-			entries = append(entries, biz.GPUEnvironmentEntry{Name: k, Value: v})
-		}
-	}
-	return ParseGPUEnvironment(entries)
-}
-
-func ParseGPUEnvironment(entries []biz.GPUEnvironmentEntry) (RuntimeAllocation, error) {
-	env := map[string]string{}
-	for _, entry := range entries {
-		k, v := entry.Name, entry.Value
-		if k == "NVIDIA_VISIBLE_DEVICES" || strings.HasPrefix(k, "CUDA_DEVICE_MEMORY_LIMIT_") || k == "CUDA_DEVICE_SM_LIMIT" {
-			// The supported CRI source preserves OCI env order. Both runc and
-			// NVIDIA's runtime use the last value of a repeated key. Validate
-			// that effective value below; never fall back to a shadowed value.
-			env[k] = v
-		} else {
-			return RuntimeAllocation{}, biz.Invalid("GPU_ENVIRONMENT_INVALID")
-		}
-	}
-	id := env["NVIDIA_VISIBLE_DEVICES"]
-	if !physicalUUID.MatchString(id) {
-		return RuntimeAllocation{}, biz.Invalid("PROVIDER_DEVICE_IDENTITY")
-	}
-	for k := range env {
-		if strings.HasPrefix(k, "CUDA_DEVICE_MEMORY_LIMIT_") && k != "CUDA_DEVICE_MEMORY_LIMIT_0" {
-			return RuntimeAllocation{}, biz.Invalid("SHAPE_UNSUPPORTED")
-		}
-	}
-	text := env["CUDA_DEVICE_MEMORY_LIMIT_0"]
-	if !strings.HasSuffix(text, "m") {
-		return RuntimeAllocation{}, biz.Invalid("MEMORY_UNIT_MISMATCH")
-	}
-	m, e1 := strconv.ParseInt(strings.TrimSuffix(text, "m"), 10, 64)
-	cores, e2 := strconv.ParseUint(env["CUDA_DEVICE_SM_LIMIT"], 10, 32)
-	if e1 != nil || e2 != nil || m <= 0 || m > math.MaxInt32 || cores > 100 {
-		return RuntimeAllocation{}, biz.Invalid("RUNTIME_LIMIT_INVALID")
-	}
-	return RuntimeAllocation{id, m, uint32(cores)}, nil
 }

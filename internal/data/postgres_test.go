@@ -25,7 +25,7 @@ func (testProvider) Inspect(_ context.Context, _ biz.Cluster, g biz.SupplyGroup)
 	return i, nil
 }
 func (testProvider) Collect(_ context.Context, c biz.Cluster, _ []biz.SupplyGroup) (biz.ObservationBatch, error) {
-	return biz.ObservationBatch{ClusterID: c.ClusterID}, nil
+	return biz.ObservationBatch{ClusterID: c.ClusterID, ReceivedAt: time.Now().UTC(), BindingIssues: []string{"SOURCE_UNKNOWN"}}, nil
 }
 
 type pgFixture struct {
@@ -233,12 +233,12 @@ func TestPostgresProjectionOrderConflictAndRestart(t *testing.T) {
 	}
 	t.Log("SYNC-RX-01/02/03: parallel terminal-first delivery, stale revision and create-operation resurrection; DB persistence across connections")
 }
-func TestPostgresBindingsBeforeProjectionAndScopedRelease(t *testing.T) {
+func TestPostgresBindingsBeforeProjectionAndCurrentRetirement(t *testing.T) {
 	for _, owner := range []string{"ani-inference", "ani-resource-service"} {
-		t.Run(owner, func(t *testing.T) { testOwnerBindingsBeforeProjectionAndScopedRelease(t, owner) })
+		t.Run(owner, func(t *testing.T) { testOwnerBindingsBeforeProjectionAndCurrentRetirement(t, owner) })
 	}
 }
-func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerService string) {
+func testOwnerBindingsBeforeProjectionAndCurrentRetirement(t *testing.T, ownerService string) {
 	f := pgSetup(t)
 	p := f.projection(1)
 	p.Ref.OwnerService = ownerService
@@ -250,15 +250,26 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 	device := biz.NewID()
 	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "pod", UID: "pod-" + biz.NewID(), ContainerName: p.ContainerName}
 	d := biz.DeviceRecord{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &f.group.Nodes[0], VendorDeviceID: "GPU-test", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest}
-	batch := biz.ObservationBatch{ClusterID: f.cluster.ClusterID, Devices: []biz.DeviceRecord{d}}
-	for _, source := range []string{"scheduler", "allocation", "runtime"} {
-		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "test:" + source, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest})
-	}
-	for _, source := range []string{"kubernetes", "podresources", "cri"} {
-		batch.Watermarks = append(batch.Watermarks, biz.SourceWatermark{ClusterID: f.cluster.ClusterID, NodeUID: f.group.Nodes[0].UID, Source: source, Cursor: "1", ObservedAt: now, ReceivedAt: now, Complete: true})
+	batch := biz.ObservationBatch{
+		ClusterID: f.cluster.ClusterID, Devices: []biz.DeviceRecord{d},
+		ObservedAt: now, ReceivedAt: now, SnapshotRef: "pod-list-1", PodListComplete: true,
+		LivePodUIDs: []string{pod.UID}, NodeListComplete: true,
+		LiveNodeUIDs: []string{f.group.Nodes[0].UID}, InventoryCompleteNodeUIDs: []string{f.group.Nodes[0].UID},
+		Bindings: []biz.ObservedBinding{{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID,
+			MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest,
+			MemoryBlockMiB: 1, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest}},
 	}
 	store := func(b biz.ObservationBatch) {
 		t.Helper()
+		if err := f.db.View(context.Background(), func(reader biz.Reader) error {
+			state, err := reader.CollectionState(context.Background(), b.ClusterID)
+			if err == nil {
+				b.BaseObservationRevision = state.Revision
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
 		if err := f.db.Transact(context.Background(), func(tx biz.Transaction) error { return tx.SaveObservation(context.Background(), b) }); err != nil {
 			t.Fatal(err)
 		}
@@ -267,7 +278,7 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 	check := func(state biz.AllocationState, linked bool) {
 		t.Helper()
 		err := f.db.View(context.Background(), func(r biz.Reader) error {
-			bs, e := r.DeviceBindings(context.Background(), device)
+			bs, e := r.Bindings(context.Background(), biz.BindingFilter{ClusterID: f.cluster.ClusterID, DeviceID: device}, "", 2)
 			if e != nil {
 				return e
 			}
@@ -285,11 +296,6 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 	if err != nil || capacity.KnownCommittedUnits != 1 || capacity.KnownFreeUnits != 3 {
 		t.Fatal(capacity, err)
 	}
-	owner := biz.WithCaller(context.Background(), biz.Caller{Service: ownerService, Action: "ObserveRelease", TenantID: p.Ref.TenantID})
-	obs, err := f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), f.cluster.ClusterID, now.Add(-time.Second).Format(time.RFC3339Nano), []biz.PodRef{pod})
-	if err != nil || obs.Finding != biz.StillPresent {
-		t.Fatal(obs, err)
-	}
 	ctx := biz.WithCaller(context.Background(), biz.Caller{Service: "ani-governance", Action: "SyncGpuUsage"})
 	if _, err = f.u.SyncUsage(ctx, "test", p); err != nil {
 		t.Fatal(err)
@@ -304,21 +310,18 @@ func testOwnerBindingsBeforeProjectionAndScopedRelease(t *testing.T, ownerServic
 		t.Fatal(err)
 	}
 	check(biz.Active, true)
-	store(biz.ObservationBatch{ClusterID: batch.ClusterID})
+	store(biz.ObservationBatch{ClusterID: batch.ClusterID, ReceivedAt: now.Add(time.Millisecond), BindingIssues: []string{"SOURCE_UNKNOWN"}})
 	check(biz.Active, true)
-	later := now.Add(time.Millisecond)
-	proof := biz.ReleaseProof{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, ObservedAt: later, ReceivedAt: later, EvidenceRef: "test:positive-release", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest}
-	store(biz.ObservationBatch{ClusterID: batch.ClusterID, Releases: []biz.ReleaseProof{proof}})
+	batch.Bindings, batch.LivePodUIDs = nil, nil
+	batch.ObservedAt, batch.ReceivedAt = now.Add(2*time.Millisecond), now.Add(2*time.Millisecond)
+	batch.SnapshotRef = "pod-list-empty"
+	store(batch)
 	check(biz.ReleaseConfirmed, true)
-	obs, err = f.u.ObserveRelease(owner, "test", p.Ref, biz.NewID(), f.cluster.ClusterID, now.Add(-time.Second).Format(time.RFC3339Nano), []biz.PodRef{pod})
-	if err != nil || obs.Finding != biz.AllocationReleased {
-		t.Fatal(obs, err)
-	}
 	capacity, err = f.u.AdminGetCapacity(adminContext("AdminGetCapacity"), adminMutation().Context, f.profile.ProfileID, 1, true)
 	if err != nil || capacity.KnownFreeUnits != 4 {
 		t.Fatal(capacity, err)
 	}
-	t.Log("CAP-01/03/04, REL-01/02: three sources count once; ENDED and missing poll preserve allocation; positive exact-scope proof retires older evidence")
+	t.Log("CAP-01/03/04: current assignment counts once; ENDED and failed list preserve allocation; complete empty Pod list ends occupancy")
 }
 
 func TestPostgresConstraintsVersionRaceAndConcurrentAssociation(t *testing.T) {
@@ -384,9 +387,13 @@ func TestPostgresConstraintsVersionRaceAndConcurrentAssociation(t *testing.T) {
 	now := time.Now().UTC()
 	pod := biz.PodRef{ClusterID: f.cluster.ClusterID, Namespace: "test", Name: "race", UID: biz.NewID(), ContainerName: "inference"}
 	batch := biz.ObservationBatch{ClusterID: f.cluster.ClusterID, Devices: []biz.DeviceRecord{{Device: biz.PhysicalDevice{DeviceID: device, ClusterID: f.cluster.ClusterID, GroupID: f.group.GroupID, Node: &f.group.Nodes[0], VendorDeviceID: "GPU-race", ModelKey: f.group.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &biz.Observation{ObservedAt: now.Format(time.RFC3339Nano), ReceivedAt: now.Format(time.RFC3339Nano), Complete: true}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: f.group.Baseline.BaselineDigest}}}
-	for _, source := range []string{"scheduler", "allocation", "runtime"} {
-		batch.Claims = append(batch.Claims, biz.Claim{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID, Source: source, ObservedAt: now, ReceivedAt: now, State: biz.Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest, MemoryBlockMiB: 1, EvidenceRef: "race:" + source, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest})
-	}
+	batch.ObservedAt, batch.ReceivedAt, batch.SnapshotRef, batch.PodListComplete = now, now, "race-pods", true
+	batch.LivePodUIDs = []string{pod.UID}
+	batch.NodeListComplete = true
+	batch.LiveNodeUIDs, batch.InventoryCompleteNodeUIDs = []string{f.group.Nodes[0].UID}, []string{f.group.Nodes[0].UID}
+	batch.Bindings = []biz.ObservedBinding{{Pod: pod, DeviceID: device, NodeUID: f.group.Nodes[0].UID,
+		MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: f.group.Baseline.BaselineDigest,
+		MemoryBlockMiB: 1, OwnerRef: p.Ref, ExecutionDigest: p.ExecutionDigest}}
 	syncCtx := biz.WithCaller(ctx, biz.Caller{Service: "ani-governance", Action: "SyncGpuUsage"})
 	concurrentErrors := make(chan error, 10)
 	for range 5 {
@@ -397,13 +404,20 @@ func TestPostgresConstraintsVersionRaceAndConcurrentAssociation(t *testing.T) {
 	}
 	wg.Wait()
 	close(concurrentErrors)
+	observationConflicts := 0
 	for err := range concurrentErrors {
 		if err != nil {
-			t.Fatal(err)
+			if err.Error() != "OBSERVATION_REVISION_CONFLICT" {
+				t.Fatal(err)
+			}
+			observationConflicts++
 		}
 	}
+	if observationConflicts != 4 {
+		t.Fatalf("same base revision produced %d conflicts; want 4", observationConflicts)
+	}
 	err = f.db.View(ctx, func(r biz.Reader) error {
-		bs, e := r.DeviceBindings(ctx, device)
+		bs, e := r.CurrentDeviceBindings(ctx, device)
 		if e != nil {
 			return e
 		}
