@@ -156,7 +156,7 @@ func TestPostgresNodeReportReadsOnlyAffectedAttemptHistory(t *testing.T) {
 		t.Fatal("ACK replay rewrote facts")
 	}
 	// A gap-only record has no affected attempt IDs; it still changes its durable
-	// gap, revision and receipt while retaining all 1337 history rows.
+	// gap and receipt while retaining all 1337 history rows.
 	gap := biz.NodeReport{Epoch: state.Epoch, Sequence: 3, LogID: identity.LogID, PayloadDigest: "gap-only", Gap: &biz.TelemetryGap{Sources: []string{"cri"}, Reason: "CURSOR_GAP", Start: now, End: now.Add(time.Second)}}
 	compare(gap, now.Add(2*time.Second), 0)
 	// Retain per-ID input order, identity-conflict handling and the Running→Exit

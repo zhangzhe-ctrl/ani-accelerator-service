@@ -11,6 +11,7 @@ Go module：`github.com/zhangzhe-ctrl/ani-accelerator-service`，Go 版本以 `g
 - [运行、显式迁移、恢复与门禁](docs/runbooks/accelerator-runtime.md)
 - [统一生产镜像构建入口与结果 JSON](docs/runbooks/production-image.md)
 - [provider 版本、来源、配置与限制](docs/runbooks/provider-sources.md)
+- [当前状态对账与历史释放依赖简化](docs/releases/2026-11-04-current-state-reconciliation.md)
 - [实施计划](docs/plans/accelerator-v1.2-implementation.md)及[原始设计快照](docs/design/v1.2/README.md)
 
 活跃 API 在 `api/protos/accelerator/`，生成 Go 在 `api/gen/go/`，通过固定 `make api` 生成，不手改。正式迁移在 `migrations/`，启动不迁移、不播种；设计树 SQL 仍只是历史提案。

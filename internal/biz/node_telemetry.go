@@ -75,6 +75,9 @@ type TelemetryGap struct {
 }
 
 type NodeTelemetryState struct {
+	// Complete CRI captures supersede cached observations before CaptureStart.
+	// Nil distinguishes legacy state until its first current baseline.
+	RuntimeUpdates                    map[string]RuntimeAttempt
 	RecoveryRequests                  map[string]NodeRecoveryRequest
 	Identity                          NodeIdentity
 	Epoch                             uint64
@@ -139,17 +142,22 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 	if report.Sequence != state.LastSequence+1 {
 		return nil, Conflict("OUT_OF_ORDER")
 	}
+	initialRuntimeBaseline := state.Snapshot != nil && state.RuntimeUpdates == nil
 	before, err := telemetryMeaning(*state, attempts)
 	if err != nil {
 		return nil, err
 	}
 	incoming := append([]RuntimeAttempt(nil), report.Attempts...)
+	completeRuntimeSnapshot := false
 	if report.Snapshot != nil {
 		incoming = append(incoming, report.Snapshot.Containers...)
 		if report.Snapshot.CaptureEpoch == state.Epoch && (state.Snapshot == nil || !report.Snapshot.CaptureEnd.Before(state.Snapshot.CaptureEnd)) {
 			state.Snapshot = report.Snapshot
 			for sourceIndex := range state.Snapshot.Sources {
 				state.Snapshot.Sources[sourceIndex].ReceivedAt = now
+				if state.Snapshot.Sources[sourceIndex].Name == "cri" {
+					completeRuntimeSnapshot = state.Snapshot.Sources[sourceIndex].Complete
+				}
 			}
 		}
 	}
@@ -157,7 +165,7 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 	for _, attempt := range attempts {
 		byID[attempt.ContainerID] = attempt
 	}
-	for _, attempt := range incoming {
+	for index, attempt := range incoming {
 		if attempt.ContainerID == "" {
 			return nil, Invalid("RUNTIME_CONTAINER_ID_REQUIRED")
 		}
@@ -166,7 +174,11 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 			byID[attempt.ContainerID] = attempt
 			continue
 		}
-		if attempt.ObservedAt.Before(previous.ObservedAt) {
+		fromSnapshot := report.Snapshot != nil && index >= len(report.Attempts)
+		// A delayed event inside the current capture window must not be
+		// discarded solely because the snapshot was stamped at CaptureEnd.
+		overlappingUpdate := !fromSnapshot && state.Snapshot != nil && previous.State == 3 && attempt.State != 3 && !attempt.ObservedAt.Before(state.Snapshot.CaptureStart) && !previous.ObservedAt.After(state.Snapshot.CaptureEnd)
+		if attempt.ObservedAt.Before(previous.ObservedAt) && !overlappingUpdate {
 			continue
 		}
 		if (previous.PodUID != "" && attempt.PodUID != "" && previous.PodUID != attempt.PodUID) || (previous.ContainerName != "" && attempt.ContainerName != "" && previous.ContainerName != attempt.ContainerName) {
@@ -195,7 +207,14 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 		if attempt.EventType == nil {
 			attempt.EventType = previous.EventType
 		}
-		if attempt.State == 3 && (attempt.FinishedAt.IsZero() || (previous.State == 2 && attempt.FinishedAt.Before(previous.ObservedAt))) {
+		// A snapshot is collected over an interval. An event observed inside
+		// that interval may be newer than the container status it sampled,
+		// even when the snapshot is stamped with a later CaptureEnd. Keep
+		// positive or unknown occupancy until a later capture covers it.
+		if fromSnapshot && !previous.ObservedAt.Before(report.Snapshot.CaptureStart) && previous.State != 3 && attempt.State == 3 {
+			continue
+		}
+		if attempt.State == 3 && !(fromSnapshot && completeRuntimeSnapshot) && (attempt.FinishedAt.IsZero() || (previous.State == 2 && attempt.FinishedAt.Before(previous.ObservedAt))) {
 			previous.State = 4
 			previous.Issues = []string{"RUNTIME_EXIT_ORDER_UNKNOWN"}
 			previous.ObservedAt = attempt.ObservedAt
@@ -214,6 +233,37 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 		attempts = append(attempts, attempt)
 	}
 	sort.Slice(attempts, func(left, right int) bool { return attempts[left].ContainerID < attempts[right].ContainerID })
+	// Keep only the current capture window in the node state. SaveNodeReport
+	// reads history for the IDs in this report, so the state must retain
+	// unmentioned updates for both projection and revision comparison.
+	if state.RuntimeUpdates == nil && (completeRuntimeSnapshot || (state.Snapshot == nil && len(incoming) > 0)) {
+		baseline := CurrentRuntimeAttempts(*state, attempts)
+		state.RuntimeUpdates = map[string]RuntimeAttempt{}
+		for _, attempt := range baseline {
+			state.RuntimeUpdates[attempt.ContainerID] = attempt
+		}
+	}
+	if state.RuntimeUpdates != nil {
+		if completeRuntimeSnapshot {
+			for id, attempt := range state.RuntimeUpdates {
+				if attempt.ObservedAt.Before(state.Snapshot.CaptureStart) {
+					delete(state.RuntimeUpdates, id)
+				}
+			}
+		}
+		members := map[string]bool{}
+		if state.Snapshot != nil {
+			for _, attempt := range state.Snapshot.Containers {
+				members[attempt.ContainerID] = true
+			}
+		}
+		for _, observation := range incoming {
+			attempt := byID[observation.ContainerID]
+			if state.Snapshot == nil || members[attempt.ContainerID] || !attempt.ObservedAt.Before(state.Snapshot.CaptureStart) {
+				state.RuntimeUpdates[attempt.ContainerID] = attempt
+			}
+		}
+	}
 	if report.Gap != nil {
 		if state.Gaps == nil {
 			state.Gaps = map[string]TelemetryGap{}
@@ -226,11 +276,51 @@ func MergeNodeReport(state *NodeTelemetryState, attempts []RuntimeAttempt, repor
 	if err != nil {
 		return nil, err
 	}
-	if before != after {
+	if before != after || initialRuntimeBaseline && completeRuntimeSnapshot {
 		state.CurrentRevision++
 	}
 	state.LastSequence, state.LastPayloadDigest = report.Sequence, report.PayloadDigest
 	return attempts, nil
+}
+
+// CurrentRuntimeAttempts projects the latest snapshot together with its bounded
+// runtime updates. Historical attempts are consulted only for an older state
+// that has not established this baseline yet, and only from CaptureStart on.
+// Callers must check source completeness before treating absence as evidence.
+func CurrentRuntimeAttempts(state NodeTelemetryState, attempts []RuntimeAttempt) []RuntimeAttempt {
+	snapshot := state.Snapshot
+	current := map[string]RuntimeAttempt{}
+	if snapshot != nil {
+		for _, attempt := range snapshot.Containers {
+			current[attempt.ContainerID] = attempt
+		}
+	}
+	updates := state.RuntimeUpdates
+	if updates == nil {
+		updates = map[string]RuntimeAttempt{}
+		for _, attempt := range attempts {
+			if snapshot == nil || !attempt.ObservedAt.Before(snapshot.CaptureStart) {
+				updates[attempt.ContainerID] = attempt
+			}
+		}
+	}
+	for _, attempt := range updates {
+		previous, found := current[attempt.ContainerID]
+		if found && attempt.ObservedAt.Before(previous.ObservedAt) {
+			// Keep a nonterminal update overlapping an EXITED snapshot;
+			// MergeNodeReport preserves this same sampling-window conflict.
+			if previous.State != 3 || attempt.State == 3 {
+				continue
+			}
+		}
+		current[attempt.ContainerID] = attempt
+	}
+	result := make([]RuntimeAttempt, 0, len(current))
+	for _, attempt := range current {
+		result = append(result, attempt)
+	}
+	sort.Slice(result, func(left, right int) bool { return result[left].ContainerID < result[right].ContainerID })
+	return result
 }
 
 func telemetryMeaning(state NodeTelemetryState, attempts []RuntimeAttempt) (string, error) {
@@ -261,8 +351,9 @@ func telemetryMeaning(state NodeTelemetryState, attempts []RuntimeAttempt) (stri
 	}
 	sort.Slice(devices, func(left, right int) bool { return devices[left].UUID < devices[right].UUID })
 	sort.Slice(sources, func(left, right int) bool { return sources[left].Name < sources[right].Name })
-	meaning := make([]attemptMeaning, 0, len(attempts))
-	for _, attempt := range attempts {
+	current := CurrentRuntimeAttempts(state, attempts)
+	meaning := make([]attemptMeaning, 0, len(current))
+	for _, attempt := range current {
 		meaning = append(meaning, attemptMeaning{attempt.ContainerID, attempt.SandboxID, attempt.PodUID, attempt.PodNamespace, attempt.PodName, attempt.ContainerName, attempt.Attempt, attempt.State, attempt.EventType, attempt.CreatedAt, attempt.StartedAt, attempt.FinishedAt, attempt.GPUEnvironment, attempt.Issues, attempt.JournalProvenance, attempt.JournalObservedAt})
 	}
 	sort.Slice(meaning, func(left, right int) bool { return meaning[left].ContainerID < meaning[right].ContainerID })
@@ -271,9 +362,8 @@ func telemetryMeaning(state NodeTelemetryState, attempts []RuntimeAttempt) (stri
 		Devices           []TelemetryDevice
 		Allocations       []TelemetryAllocation
 		Attempts          []attemptMeaning
-		Gaps              map[string]TelemetryGap
 		Revoked, Degraded bool
-	}{sources, devices, allocations, meaning, state.Gaps, state.Revoked, state.Degraded})
+	}{sources, devices, allocations, meaning, state.Revoked, state.Degraded})
 }
 
 func canonicalTelemetryAllocations(input []TelemetryAllocation) []TelemetryAllocation {

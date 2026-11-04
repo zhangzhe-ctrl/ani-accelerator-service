@@ -39,6 +39,7 @@ type nodeSnapshot struct {
 	Statuses               map[string]*cri.ContainerStatusResponse
 	HistoricalStatuses     map[string]bool
 	UnknownPodContainers   map[string][]string
+	CaptureStart           time.Time
 	ObservedAt             time.Time
 	ResourcesOK, RuntimeOK bool
 }
@@ -100,14 +101,23 @@ func resourcesFor(s nodeSnapshot, namespace, name, container string) ([]*pr.Cont
 	return nil, true
 }
 func runtimeFor(s nodeSnapshot, uid, container string) ([]*cri.ContainerStatusResponse, bool) {
-	if !s.RuntimeOK {
+	if !s.RuntimeOK || len(s.UnknownPodContainers[uid]) != 0 {
 		return nil, false
 	}
 	var out []*cri.ContainerStatusResponse
 	for _, c := range s.Containers {
+		if c == nil {
+			return nil, false
+		}
+		if s.HistoricalStatuses[c.Id] {
+			continue
+		}
+		if c.Labels["io.kubernetes.pod.uid"] == uid && c.Metadata == nil {
+			return nil, false
+		}
 		if c.Labels["io.kubernetes.pod.uid"] == uid && c.Metadata != nil && c.Metadata.Name == container {
 			st := s.Statuses[c.Id]
-			if st == nil || st.Status.Labels["io.kubernetes.pod.uid"] != uid || st.Status.Metadata == nil || st.Status.Metadata.Name != container {
+			if st == nil || st.Status == nil || st.Status.Labels["io.kubernetes.pod.uid"] != uid || st.Status.Metadata == nil || st.Status.Metadata.Name != container {
 				return nil, false
 			}
 			out = append(out, st)

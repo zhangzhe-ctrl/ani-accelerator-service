@@ -15,9 +15,7 @@ func MergeBinding(id string, claims []Claim, proof *ReleaseProof, usage *UsagePr
 		if c.Pod != first.Pod || c.DeviceID != first.DeviceID {
 			return nil, Invalid("BINDING_SCOPE_MISMATCH")
 		}
-		// A rejected admission retires scheduler intent only. It must never
-		// erase a runtime/allocation fact, including one received later.
-		if proof != nil && proof.Pod == c.Pod && proof.DeviceID == c.DeviceID && proof.NodeUID == c.NodeUID && (proof.RuntimeExited || (proof.AdmissionRejected && c.Source == "scheduler")) && proof.AllocationAbsent && proof.NodeOnline && !c.ObservedAt.After(proof.ObservedAt) {
+		if proof != nil && releaseCoversClaim(*proof, c) {
 			continue
 		}
 		current = append(current, c)
@@ -97,6 +95,28 @@ func MergeBinding(id string, claims []Claim, proof *ReleaseProof, usage *UsagePr
 	b.Observation.SnapshotRef = b.EvidenceRef
 	return b, nil
 }
+
+func validRetirementMode(proof ReleaseProof) bool {
+	switch proof.Retirement {
+	case "":
+		// Preserve the two mutually exclusive legacy proof modes.
+		return proof.RuntimeExited != proof.AdmissionRejected
+	case RetirementCurrentState:
+		return !proof.RuntimeExited && !proof.AdmissionRejected
+	default:
+		return false
+	}
+}
+
+func releaseCoversClaim(proof ReleaseProof, claim Claim) bool {
+	if !validRetirementMode(proof) || proof.Pod != claim.Pod || proof.DeviceID != claim.DeviceID || proof.NodeUID != claim.NodeUID || !proof.AllocationAbsent || !proof.NodeOnline || claim.ObservedAt.After(proof.ObservedAt) {
+		return false
+	}
+	// A legacy rejected admission retires scheduler intent only. It must never
+	// erase a runtime/allocation fact, even one received with an older time.
+	return !proof.AdmissionRejected || claim.Source == "scheduler"
+}
+
 func ValidateObservationBatch(batch ObservationBatch) error {
 	if !UUID(batch.ClusterID) {
 		return Invalid("INVALID_CLUSTER")
@@ -126,7 +146,10 @@ func ValidateObservationBatch(batch ObservationBatch) error {
 		if err := ValidatePod(p.Pod); err != nil {
 			return err
 		}
-		if p.Pod.ClusterID != batch.ClusterID || !UUID(p.DeviceID) || !Ref(p.NodeUID) || !Ref(p.EvidenceRef) || p.ObservedAt.IsZero() || p.RuntimeExited == p.AdmissionRejected || !p.AllocationAbsent || !p.NodeOnline {
+		if p.Pod.ClusterID != batch.ClusterID || !UUID(p.DeviceID) || !Ref(p.NodeUID) || !Ref(p.EvidenceRef) || p.ObservedAt.IsZero() || !validRetirementMode(p) || !p.AllocationAbsent || !p.NodeOnline {
+			return Invalid("INVALID_RELEASE_PROOF")
+		}
+		if p.Retirement == RetirementCurrentState && (batch.ConnectionRef == "" || p.CheckedNodeRevision == 0 || batch.NodeRevisions[p.NodeUID] != p.CheckedNodeRevision) {
 			return Invalid("INVALID_RELEASE_PROOF")
 		}
 	}

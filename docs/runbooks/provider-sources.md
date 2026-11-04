@@ -14,8 +14,8 @@
 | Volcano scheduler v1.15.2 + independent device plugin v1.12.0 | 上述默认注册/分配格式；额外读取三个默认 vgpu Allocatable 资源键 | [固定源码比较及真实 Queue 缺陷](volcano-v1.15.2-compatibility.md)。Allocatable 必须为正整数；原版 Whole 百分比计划被 Queue 拒绝，派生修复镜像须独立冻结 digest、baseline 和硬件证明。不能以版本相同沿用原证明；其他组合拒绝 |
 | Kubernetes PodResources v1（Go 模块 v0.35.3） | List 的 namespace/Pod name/container/resource/device_ids | 仅显式配置的 Unix socket；设备伪 ID 只证明分配存在，不能当物理 UUID；由同 Pod UID 的 CRI 事实桥接 |
 | containerd / CRI v1（Go 模块 v0.35.3） | Version 必须报告 containerd、非空 runtime 版本和 API v1；ListContainers、verbose ContainerStatus，返回容器 ID 必须一致；GPU 容器继续核对 reserved Pod UID/container metadata 与 Info[info].runtimeSpec.process.env | 按实际能力和字段校验，不锁定 containerd 小版本。`NVIDIA_VISIBLE_DEVICES=GPU-...`、`CUDA_DEVICE_MEMORY_LIMIT_0=<MiB>m`、`CUDA_DEVICE_SM_LIMIT` 仍须完整有效，MiB 不能再乘 F；其他 runtime/API、RPC 失败或状态身份不明保留未知。无 GPU 容器和 EXITED 状态不要求 GPU env；仅 Unix socket |
-| CRI v1 容器事件 | GetContainerEvents 的 sandbox metadata、container ID/name/state、FinishedAt | 连续订阅并持久保存全部已见 attempt；仅正向 EXITED 补充解除事实，当前 Running/Unknown 优先阻断 |
-| containerd 原始 system journal | 固定 journalctl 查询、trusted machine/boot/unit/uid 元数据与完整创建、退出链 | 只读实际节点 journal；用明确 TaskExit 时间恢复错过的事件，不从缺失推断，不改写运行分配或配额 |
+| CRI v1 容器事件 | GetContainerEvents 的 sandbox metadata、container ID/name/state、FinishedAt | 尚未被完整快照覆盖的增量参与当前判断；旧 attempt 保留用于诊断，不再逐条要求退出证明 |
+| containerd 原始 system journal | 固定 journalctl 查询、trusted machine/boot/unit/uid 元数据与完整创建、退出链 | 保留既有诊断协议与历史记录；普通 Collector 不再下发补证请求，容量恢复不依赖 journal |
 | NVML（Go binding v0.13.0-1） | GetUUID/GetName/GetMemoryInfo.Total | 实际本节点物理 bytes；平台 device UUID 由 cluster+Node UID+vendor UUID 派生 UUIDv8，不使用 index |
 | 硬件验收资格 | `gpu-hardware-qualification-v2` Ed25519 签名 JSON | 独立受控实验 manifest 摘要、cluster/group/baseline/spec、完整 Node UID/物理 UUID、物理 bytes/安全 MiB；绑定 baseline，无时间自动失效。旧 `gpu-hardware-consumption-v1` 保留原到期语义，须显式迁移。RPC 不能自报 VERIFIED |
 | owner 归属证明 | `acc-owner-pod-v1` Ed25519 | 签名绑定实际 Pod UID/container、原资源 ref、冻结 plan digest；普通标签不获得租户归属 |
@@ -92,17 +92,17 @@ v1 仍使用 `acc-hardware-attestation-v1` 签名域及其原有效期，不会�
 
 安全预算不得超过物理 bytes 与逐卡量化预算；份数受 K、MiB、可加核心预算约束。逐卡 floor 后求和，不能跨卡拼余量。配置/F 漂移先拒绝新解析和新解释，历史样本保留原 factor。来源失败保留最后可信时间，落库失败水位；接收时间不伪造观察时间。
 
-验收资格与运行源健康分开判断。资格缺失/损坏/旧 v1 过期，或调度镜像、配置偏离准入 baseline，不停止 Kubernetes、PodResources、CRI 的事实采集和正向释放证明。此时库存/可售容量保持保守不完整，不凭健康水位宣称可以新增分配；单位 F 或注册格式无法核对时不重新解释分配块数。来源水位表达实际连接、节点与读取健康，不把准入配置不匹配伪装为来源失联。真实来源失联、容器未退出或仍有设备分配时仍不能确认释放。
+验收资格与运行源健康分开判断。资格缺失/损坏/旧 v1 过期，或调度镜像、配置偏离准入 baseline，不停止 Kubernetes、PodResources、CRI 的事实采集和当前状态对账。此时库存/可售容量保持保守不完整，不凭健康水位宣称可以新增分配；单位 F 或注册格式无法核对时不重新解释分配块数。来源水位表达实际连接、节点与读取健康，不把准入配置不匹配伪装为来源失联。真实来源失联、容器未退出或仍有设备分配时仍不能确认释放。
 
 调度分配按原始 assigned 时间记录历史事实。owner 签名晚于首次采集到达时，同 Pod/container/device/node/assigned 时间的已有 scheduler 记录保留原归属及版本；不把后来到达的归属回填为同一历史版本的新报文。当前 runtime/allocation 事实继续独立严格验签并关联 usage；两个有效归属相异仍产生 ownership conflict，同时间的真实分配字段变化仍拒绝为 source revision conflict。
 
-解除证明只退休被覆盖 Pod/container/device 在该时间之前的旧事实。节点在线、PodResources 无 GPU 分配、同 UID 所有已知 CRI 容器具有正向 EXITED/finished_at 是必要条件；CRI 单次空列表或 API 强删不够。新于解除证明的分配重新计占用。内部归并继续校验 current/consumed/证明 revision，冲突或证据不足保持 UNKNOWN；它不删除 workload、不结束 usage、不发配额释放。对外 `ObserveRelease` RPC 已[下线](../releases/2026-10-27-observe-release-retirement.md)，旧路径返回 gRPC `Unimplemented`，不能再以 owner RPC 触发释放观察。
+当前状态对账只退休被覆盖 Pod/container/device/node 在观测边界之前的旧事实。节点必须在线，认证会话和当前 CRI、PodResources 必须完整、新鲜。当前旧 UID 下不存在 CREATED/RUNNING/UNKNOWN 容器、没有对应设备分配，且没有仍有效的调度意图时，可以停止计占；当前 EXITED 不要求历史 finished_at 完整。API 强删本身不构成对账依据。非终态、未删除的 Pending/Running Pod 仍持有预留，避免创建或重启空窗误释放。终态或删除中的 Pod 不再从旧注解产生新的 scheduler 意图，其仍存在的 runtime/allocation 继续计占。同名新 UID 只有在当前新容器明确运行且可以解释无 UID 的 PodResources 条目时，才能退休旧 UID 的绑定。
 
-Agent 连续读取 CRI `GetContainerEvents`，保存 CREATED/RUNNING/EXITED/UNKNOWN、独立原 event_type 与未解释尝试。记录先 append/fsync；每节点仅一条 Report 在途，中心事务提交后 ACK，Agent 持久 ACK 后发下一条。网络断线而日志连续不制造来源缺口；真实缺口不被重连、ACK 或空快照清除。普通同内容快照和心跳不推进领域 revision；新占用、UNKNOWN、缺口及有效性变化仍使旧判断失效。
+当前运行视图由完整快照及其 CaptureStart 之后尚未覆盖的增量组成；更早的历史 attempt、历史缺身份及事件采集缺口不污染当前完整性。新完整快照能覆盖旧的不确定性。当前仍存在的身份不明记录继续阻止相应范围的判断。修订摘要包含这份当前视图；仅刷新观测时间不会推进修订，当前成员、状态或来源有效性变化会使旧判断失效。退休时间不晚于采集起点及所用来源的最早观测时间；更晚的 claim 继续计占。
 
-中心只向认证节点下发有界的已知 Pod/container RecoverExitRequest，并持久保存其范围以支持跨 epoch 重放。Agent 用固定本机 journal 配置验证 machine/boot/root/containerd 来源和 sandbox→create→exit 正向链，最多十六次尝试、四 MiB 输出。结果经中心校验和持久归并后补充历史退出；当前 Running/UNKNOWN 不会被旧退出覆盖，局部补证不清除全局 SourceGap。
+新退休记录使用 `retirement=CURRENT_STATE_RECONCILED`，不设置旧 `runtime_exited` 或 `admission_rejected`。新模式要求非空 connection_ref、非零 CheckedNodeRevision，且必须出现在同批 NodeRevisions 中，由现有节点事务锁验证。既存旧退出和准入失败证明仍能读取；旧准入失败证明仍只覆盖 scheduler。没有数据库迁移或公开 Proto 改动。
 
-journal 路径与超时是手动安装参数，RPC 不接收任意命令或路径。中心等待继续服从整体采集/释放期限，超时保留 UNKNOWN。证据来源时间与传输 receipt 分离，重放不刷新采样时间。
+Agent 原有 append/fsync、事务提交后 ACK、会话身份与报文顺序保持现有协议。历史事件和 journal 结果可继续留作诊断，但普通 Collector 已移除 RecoverExitRequest 接线，不会再等待最多十六次 attempt 或 journal 输出。缺失历史退出记录不会阻止一个完整当前快照收敛；当前源失败仍保持未知。对外 `ObserveRelease` RPC 仍[下线](../releases/2026-10-27-observe-release-retirement.md)，不提供替代退款入口；ACC 不删除 workload、不结束 usage、不发配额释放。
 
 完整有效的 `RELEASE_CONFIRMED` 是已持久化的历史事实，绑定列表及其聚合不能因 120 秒采样窗口过去或当前来源失联而将其降为 UNKNOWN；返回原始 observed_at、received_at 和 release 引用，不刷新证明时间。ACTIVE 仍要求来源健康及实时新鲜度；不完整、未知或时间无效的历史记录仍保守返回不完整。该规则及新分配重新计占用的合并逻辑在 RPC 下线后保留，不能用这些容量观测宣称 owner 完成删除或 Governance 完成退款。
 

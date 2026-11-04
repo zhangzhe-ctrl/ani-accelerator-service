@@ -71,7 +71,9 @@ func TestPostgresNodeTelemetrySkipsUnchangedAttemptWrites(testContext *testing.T
 	}
 	updated := append([]biz.RuntimeAttempt(nil), history[:200]...)
 	for index := range updated {
-		updated[index].ObservedAt = now.Add(2 * time.Second)
+		// Advance diagnostic history without introducing current increments;
+		// their observation times remain before the current capture boundary.
+		updated[index].ObservedAt = now.Add(-30 * time.Minute)
 	}
 	report.Sequence, report.PayloadDigest, report.Attempts = 4, "multiple-observations", updated
 	state, err = database.SaveNodeReport(ctx, identity.ConnectionRef, identity.NodeUID, report, now.Add(2*time.Second))

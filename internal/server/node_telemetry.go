@@ -525,6 +525,10 @@ func sourceName(source nodepb.Source) (string, error) {
 }
 
 func decodeRuntimeFact(fact *nodepb.RuntimeFact, now time.Time) (biz.RuntimeAttempt, error) {
+	return decodeRuntimeFactWithContext(fact, now, false)
+}
+
+func decodeRuntimeFactWithContext(fact *nodepb.RuntimeFact, now time.Time, completeCurrentSnapshot bool) (biz.RuntimeAttempt, error) {
 	var result biz.RuntimeAttempt
 	if fact == nil || len(fact.ContainerId) > 1024 || fact.State < nodepb.ContainerState_CONTAINER_STATE_CREATED || fact.State > nodepb.ContainerState_CONTAINER_STATE_UNKNOWN || len(fact.Issues) > 32 {
 		return result, biz.Invalid("RUNTIME_FACT_INVALID")
@@ -554,7 +558,10 @@ func decodeRuntimeFact(fact *nodepb.RuntimeFact, now time.Time) (biz.RuntimeAtte
 		}
 		result.EventType = &value
 	}
-	if result.PodUID == "" || result.ContainerName == "" || result.ContainerID == "" || (result.State == 3 && result.FinishedAt.IsZero()) {
+	// A complete current CRI snapshot establishes the current EXITED state
+	// without reconstructing its historical exit time. Events and journal
+	// results retain their existing timestamp requirement.
+	if result.PodUID == "" || result.ContainerName == "" || result.ContainerID == "" || (result.State == 3 && result.FinishedAt.IsZero() && !completeCurrentSnapshot) {
 		result.State = 4
 		result.Issues = append(result.Issues, "RUNTIME_METADATA_UNKNOWN")
 	}
@@ -602,6 +609,7 @@ func decodeNodeReport(report *nodepb.AgentReport, now time.Time) (biz.NodeReport
 			return result, biz.Invalid("NODE_SNAPSHOT_INVALID")
 		}
 		seen := map[string]bool{}
+		completeCurrentRuntime := false
 		for _, health := range snapshot.Sources {
 			if health == nil {
 				return result, biz.Invalid("NODE_SOURCE_INVALID")
@@ -618,6 +626,9 @@ func decodeNodeReport(report *nodepb.AgentReport, now time.Time) (biz.NodeReport
 				return result, biz.Invalid("NODE_SOURCE_INVALID")
 			}
 			seen[name] = true
+			if name == "cri" {
+				completeCurrentRuntime = health.Complete && snapshot.CaptureEpoch == report.Epoch
+			}
 			converted.Sources = append(converted.Sources, biz.TelemetrySource{Name: name, ObservedAt: observed, Complete: health.Complete, Issues: health.Issues})
 		}
 		for _, name := range []string{"nvml", "podresources", "cri"} {
@@ -638,7 +649,7 @@ func decodeNodeReport(report *nodepb.AgentReport, now time.Time) (biz.NodeReport
 			converted.Allocations = append(converted.Allocations, biz.TelemetryAllocation{Namespace: allocation.Namespace, PodName: allocation.PodName, ContainerName: allocation.ContainerName, ResourceName: allocation.ResourceName, DeviceIDs: allocation.DeviceIds})
 		}
 		for _, fact := range snapshot.Containers {
-			attempt, decodeErr := decodeRuntimeFact(fact, now)
+			attempt, decodeErr := decodeRuntimeFactWithContext(fact, now, completeCurrentRuntime)
 			if decodeErr != nil {
 				return result, decodeErr
 			}

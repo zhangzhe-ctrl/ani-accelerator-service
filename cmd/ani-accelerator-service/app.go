@@ -85,7 +85,6 @@ func buildApp(bc *conf.Bootstrap, logger *slog.Logger) (*kratos.App, error) {
 		return nil, err
 	}
 	telemetryServer := server.NewNodeTelemetryServer(db, reader)
-	reader.ConfigureNodeExitRecovery(telemetryServer)
 	readiness := server.NewReadiness()
 	observability, err := server.NewObservability(Name, Version, readiness)
 	if err != nil {

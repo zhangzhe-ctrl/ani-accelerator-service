@@ -124,7 +124,8 @@ type Claim struct {
 }
 
 // ReleaseProof covers one actual Pod/container/device and retires only claims
-// at or before the proven observation time. A missing API object is not proof.
+// at or before its observation time. Current-state reconciliation is distinct
+// from observing a runtime exit; a missing API object alone is insufficient.
 type ReleaseProof struct {
 	CheckedNodeRevision uint64    `json:"checked_node_revision,omitempty"`
 	Pod                 PodRef    `json:"pod"`
@@ -139,6 +140,10 @@ type ReleaseProof struct {
 	NodeOnline          bool      `json:"node_online"`
 	OwnerRef            *UsageRef `json:"owner_ref"`
 	ExecutionDigest     string    `json:"execution_digest"`
+
+	// Current reconciliation sets Retirement and leaves RuntimeExited and
+	// AdmissionRejected false. An empty mode retains their legacy meanings.
+	Retirement BindingRetirement `json:"retirement,omitempty"`
 }
 type ObservationBatch struct {
 	ConnectionRef string

@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/ed25519"
-	"encoding/json"
 	"fmt"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,7 +17,6 @@ import (
 
 type Provider struct {
 	telemetry        biz.NodeTelemetryStore
-	exitRecovery     NodeExitRecovery
 	connections      map[string]*kubeReader
 	ownerKey         ed25519.PublicKey
 	resourceOwnerKey ed25519.PublicKey
@@ -347,7 +344,6 @@ func (p *Provider) collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 		}
 		nodeOK := ne == nil && pe == nil && n != nil && k.nodeOnline(ctx, *n, now, p.freshness)
 		snapshot := telemetryNodeSnapshot(view, now, p.freshness)
-		releaseSnapshot := snapshot
 		for _, health := range []struct {
 			name string
 			ok   bool
@@ -368,14 +364,15 @@ func (p *Provider) collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 				batch.Watermarks[len(batch.Watermarks)-1].PendingByGroup = pending
 			}
 		}
-		// Positive release evidence needs current Node UID + healthy CRI and
-		// PodResources only. Registration, F/K, and configuration identity do not
-		// participate in determining that an old allocation has disappeared.
-		proofs, err := p.releaseProofsScoped(ctx, c.ConnectionRef, c.ClusterID, source, releaseSnapshot, nodeOK, now, scope, pods)
+		// Reconcile current lifecycle, runtime and allocation facts. Device
+		// registration and memory-unit configuration govern supply health,
+		// independently of retiring an old workload's occupancy.
+		proofs, orphanClaims, err := p.reconcileBindingsScoped(ctx, c.ConnectionRef, c.ClusterID, source, snapshot, nodeOK, now, scope, pods)
 		if err != nil {
 			return batch, err
 		}
 		batch.Releases = append(batch.Releases, proofs...)
+		batch.Claims = append(batch.Claims, orphanClaims...)
 		if !nodeOK {
 			continue
 		}
@@ -477,13 +474,6 @@ func (p *Provider) collect(ctx context.Context, c biz.Cluster, groups []biz.Supp
 				continue
 			}
 			batch.Claims = append(batch.Claims, claims...)
-			// Persist rejected scheduler intent and its release together, even
-			// when the failed Pod disappears before the next collection.
-			for _, claim := range claims {
-				if proof := admissionReleaseProof(claim, claims, source, snapshot, pods, now); proof != nil {
-					batch.Releases = append(batch.Releases, *proof)
-				}
-			}
 		}
 	}
 	return batch, nil
@@ -686,9 +676,15 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 				return nil, err
 			}
 			c.EvidenceRef = "scheduler:" + pod.Metadata.UID + ":" + c.Cursor
-			claims = append(claims, c)
+			// Terminal/deleting Pods no longer reserve capacity through an old
+			// scheduling annotation. Their current runtime/allocation facts below
+			// remain counted until the node reports them inactive.
+			if allocationIntentActive(pod) {
+				claims = append(claims, c)
+			}
 			resources, resourcesOK := resourcesFor(snapshot, podRef.Namespace, podRef.Name, podRef.ContainerName)
 			runtime, runtimeOK := runtimeFor(snapshot, podRef.UID, podRef.ContainerName)
+			running := false
 			for _, status := range runtime {
 				if !runtimeOK || status.Status.State != cri.ContainerState_CONTAINER_RUNNING {
 					continue
@@ -700,6 +696,7 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 				if alloc.UUID != a.UUID {
 					return nil, biz.Invalid("PROVIDER_DEVICE_CONFLICT")
 				}
+				running = true
 				c.OwnerRef, c.ExecutionDigest = ref, execution
 				c.Source = "runtime"
 				c.ObservedAt = runtimeObservation(snapshot, status)
@@ -714,6 +711,49 @@ func (p *Provider) podClaims(ctx context.Context, cluster string, g biz.SupplyGr
 					c.CoreLimitPercent = a.CorePercent
 					c.EvidenceRef = "podresources:" + podRef.UID + ":" + podRef.ContainerName
 					claims = append(claims, c)
+				}
+			}
+			if !running {
+				// A terminal/deleting Pod may be observed for the first time
+				// while kubelet still holds its allocation. Keep that current
+				// occupancy even without a running container or an old binding.
+				c.OwnerRef, c.ExecutionDigest = ref, execution
+				c.State = biz.AllocationUnknown
+				if resourcesOK && hasGPUResources(resources) {
+					c.Source = "allocation"
+					c.ObservedAt = currentSourceTime(snapshot, "podresources")
+					c.Cursor, _ = biz.Hash(resources)
+					c.EvidenceRef = "podresources:" + podRef.UID + ":" + podRef.ContainerName
+					if newerSourceClaim(c, previous) {
+						claims = append(claims, c)
+					}
+				}
+				if !runtimeOK && snapshot.RuntimeOK {
+					c.Source = "runtime"
+					c.ObservedAt = currentSourceTime(snapshot, "cri")
+					for _, id := range snapshot.UnknownPodContainers[podRef.UID] {
+						if at := snapshot.FactObservedAt[id]; at.After(c.ObservedAt) {
+							c.ObservedAt = at
+						}
+					}
+					c.Cursor = "runtime-scope-unknown"
+					c.EvidenceRef = "cri-unknown:" + podRef.UID + ":" + podRef.ContainerName
+					if newerSourceClaim(c, previous) {
+						claims = append(claims, c)
+					}
+				} else {
+					for _, status := range runtime {
+						if status.Status.State == cri.ContainerState_CONTAINER_EXITED {
+							continue
+						}
+						c.Source = "runtime"
+						c.ObservedAt = runtimeObservation(snapshot, status)
+						c.Cursor = status.Status.Id
+						c.EvidenceRef = "cri:" + status.Status.Id
+						if newerSourceClaim(c, previous) {
+							claims = append(claims, c)
+						}
+					}
 				}
 			}
 		}
@@ -739,7 +779,16 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 	if !nodeOnline || !snapshot.ResourcesOK || !snapshot.RuntimeOK {
 		return nil, nil
 	}
+	proofs, _, err := p.reconcileBindingsScoped(ctx, connection, cluster, node, snapshot, nodeOnline, now, scope, currentPods)
+	return proofs, err
+}
+
+func (p *Provider) reconcileBindingsScoped(ctx context.Context, connection, cluster string, node NodeSource, snapshot nodeSnapshot, nodeOnline bool, now time.Time, scope *biz.ReleaseRecheckScope, currentPods []pod) ([]biz.ReleaseProof, []biz.Claim, error) {
+	if !nodeOnline {
+		return nil, nil, nil
+	}
 	var result []biz.ReleaseProof
+	var currentClaims []biz.Claim
 	err := p.repo.View(ctx, func(r biz.Reader) error {
 		after := ""
 		for {
@@ -748,7 +797,13 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 				return err
 			}
 			for _, binding := range bindings {
-				if binding.Pod == nil || (binding.State == biz.ReleaseConfirmed && scope == nil) {
+				if binding.Pod == nil {
+					continue
+				}
+				orphan := observeOrphanBinding(*binding.Pod, node, snapshot, currentPods)
+				// Most retired bindings have no current signal. Keep their normal
+				// fast path without loading historical evidence for each poll.
+				if binding.State == biz.ReleaseConfirmed && scope == nil && orphan == nil {
 					continue
 				}
 				claims, previousProofs, err := r.PodEvidence(ctx, *binding.Pod)
@@ -757,10 +812,8 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 				}
 				var claim *biz.Claim
 				for i := range claims {
-					// Historical assignment can remain unknown when a running
-					// container's GPU env was invalid. Current positive CRI exit
-					// and allocation absence can still retire that exact claim;
-					// a previous valid runtime allocation is not required.
+					// Historical claim quality does not prevent a complete current
+					// observation from retiring that exact workload/device scope.
 					if claims[i].Pod == *binding.Pod && claims[i].DeviceID == binding.PhysicalDeviceID && claims[i].NodeUID == node.UID {
 						claim = &claims[i]
 						break
@@ -768,6 +821,13 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 				}
 				if claim == nil {
 					continue
+				}
+				if orphan != nil {
+					for _, current := range orphan.claims(*claim, snapshot, now) {
+						if newerSourceClaim(current, claims) {
+							currentClaims = append(currentClaims, current)
+						}
+					}
 				}
 				if binding.State == biz.ReleaseConfirmed {
 					if scope == nil || claim.OwnerRef == nil || *claim.OwnerRef != scope.Owner {
@@ -783,81 +843,9 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 						continue
 					}
 				}
-				resources, ok := resourcesFor(snapshot, binding.Pod.Namespace, binding.Pod.Name, binding.Pod.ContainerName)
-				if !ok {
-					continue
-				}
-				allocationPresent := hasGPUResources(resources)
-				if allocationPresent && !replacementAllocationObserved(snapshot, *binding.Pod, node, currentPods) {
-					continue
-				}
-				statuses, ok := runtimeFor(snapshot, binding.Pod.UID, binding.Pod.ContainerName)
-				if !ok {
-					continue
-				}
-				if proof := admissionReleaseProof(*claim, claims, node, snapshot, currentPods, now); proof != nil {
+				if proof := currentReleaseProof(*claim, node, snapshot, currentPods, now); proof != nil {
 					result = append(result, *proof)
-					continue
 				}
-				unmapped := unexplainedJournalSandboxes(snapshot, statuses, *binding.Pod)
-				gap, hasEventGap := snapshot.SourceGaps["cri_events"]
-				eventGap := hasEventGap && !closedJournalGapCovered(statuses, *binding.Pod, gap)
-				if p.exitRecovery != nil && (needsJournalExit(statuses) || len(unmapped) > 0 || eventGap) {
-					knownIDs := []string{}
-					for _, state := range statuses {
-						knownIDs = append(knownIDs, state.Status.Id)
-					}
-					recoveredAttempts, complete, err := p.exitRecovery.RecoverNodeExit(ctx, connection, node.UID, *binding.Pod, knownIDs)
-					if err != nil {
-						continue
-					}
-					if complete {
-						recovered := make([]*cri.ContainerStatusResponse, 0, len(recoveredAttempts))
-						explainedSandboxes := map[string]bool{}
-						for _, attempt := range recoveredAttempts {
-							labels := map[string]string{"io.kubernetes.pod.uid": attempt.PodUID, "io.kubernetes.pod.namespace": attempt.PodNamespace, "io.kubernetes.pod.name": attempt.PodName}
-							recovered = append(recovered, &cri.ContainerStatusResponse{Status: &cri.ContainerStatus{Id: attempt.ContainerID, Metadata: &cri.ContainerMetadata{Name: attempt.ContainerName, Attempt: attempt.Attempt}, Labels: labels, State: cri.ContainerState(attempt.State - 1), FinishedAt: telemetryNanos(attempt.FinishedAt)}, Info: runtimeAttemptInfo(attempt)})
-							if sandbox := positiveJournalSandbox(attempt, *binding.Pod); sandbox != "" {
-								explainedSandboxes[sandbox] = true
-							}
-						}
-						statuses = mergeJournalExits(statuses, recovered, snapshot.HistoricalStatuses, *binding.Pod)
-						covered := map[string]bool{}
-						for _, status := range statuses {
-							if status.Status.State == cri.ContainerState_CONTAINER_EXITED && status.Status.FinishedAt > 0 {
-								covered[status.Status.Id] = true
-							}
-						}
-						remaining := []string{}
-						for _, id := range unmapped {
-							if !covered[id] && !explainedSandboxes[id] {
-								remaining = append(remaining, id)
-							}
-						}
-						unmapped = remaining
-						eventGap = hasEventGap && !closedJournalGapCovered(statuses, *binding.Pod, gap)
-					}
-				}
-				if len(statuses) == 0 || len(unmapped) > 0 || eventGap {
-					continue
-				}
-				exited := true
-				var ids []string
-				for _, status := range statuses {
-					if status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
-						exited = false
-					}
-					if allocationPresent && snapshot.SourceObservedAt["podresources"].Before(time.Unix(0, status.Status.FinishedAt)) {
-						exited = false
-					}
-					ids = append(ids, status.Status.Id+":"+strconv.FormatInt(status.Status.FinishedAt, 10)+":"+status.Info["journal_evidence"])
-				}
-				if !exited {
-					continue
-				}
-				sort.Strings(ids)
-				digest, _ := biz.Hash(ids)
-				result = append(result, biz.ReleaseProof{Pod: *binding.Pod, DeviceID: binding.PhysicalDeviceID, NodeUID: node.UID, ObservedAt: snapshot.ObservedAt, ReceivedAt: now, EvidenceRef: "release:" + digest, RuntimeExited: true, AllocationAbsent: true, NodeOnline: true, OwnerRef: claim.OwnerRef, ExecutionDigest: claim.ExecutionDigest, CheckedNodeRevision: snapshot.NodeRevision})
 			}
 			if len(bindings) < 201 {
 				return nil
@@ -865,7 +853,7 @@ func (p *Provider) releaseProofsScoped(ctx context.Context, connection, cluster 
 			after = bindings[len(bindings)-1].BindingID
 		}
 	})
-	return result, err
+	return result, currentClaims, err
 }
 
 func replacementAllocationObserved(snapshot nodeSnapshot, previous biz.PodRef, node NodeSource, currentPods []pod) bool {
@@ -874,7 +862,7 @@ func replacementAllocationObserved(snapshot nodeSnapshot, previous biz.PodRef, n
 		if current.Metadata.Namespace != previous.Namespace || current.Metadata.Name != previous.Name {
 			continue
 		}
-		if replacementUID != "" || !biz.UUID(current.Metadata.UID) || current.Metadata.UID == previous.UID || current.Metadata.DeletionTimestamp != "" || current.Spec.NodeName != node.Name {
+		if replacementUID != "" || !biz.UUID(current.Metadata.UID) || current.Metadata.UID == previous.UID || !allocationIntentActive(current) || current.Spec.NodeName != node.Name {
 			return false
 		}
 		replacementUID = current.Metadata.UID
@@ -899,108 +887,13 @@ func replacementAllocationObserved(snapshot nodeSnapshot, previous biz.PodRef, n
 				return false
 			}
 			running++
-		} else if status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
+		} else if status.Status.State != cri.ContainerState_CONTAINER_EXITED {
 			return false
 		}
 	}
 	return running == 1
 }
 
-func positiveJournalSandbox(attempt biz.RuntimeAttempt, pod biz.PodRef) string {
-	if attempt.PodUID != pod.UID || attempt.PodNamespace != pod.Namespace || attempt.PodName != pod.Name || attempt.ContainerName != pod.ContainerName || attempt.State != 3 || attempt.FinishedAt.IsZero() || len(attempt.JournalProvenance) == 0 {
-		return ""
-	}
-	var provenance struct {
-		MachineID        string `json:"machine_id"`
-		BootID           string `json:"boot_id"`
-		Unit             string `json:"unit"`
-		Comm             string `json:"comm"`
-		UID              string `json:"uid"`
-		Exe              string `json:"exe"`
-		Transport        string `json:"transport"`
-		SandboxID        string `json:"sandbox_id"`
-		SandboxCursor    string `json:"sandbox_cursor"`
-		CreateCursor     string `json:"create_cursor"`
-		Cursor           string `json:"cursor"`
-		SandboxMonotonic uint64 `json:"sandbox_monotonic"`
-		CreateMonotonic  uint64 `json:"create_monotonic"`
-		ExitMonotonic    uint64 `json:"exit_monotonic"`
-	}
-	if json.Unmarshal(attempt.JournalProvenance, &provenance) != nil || provenance.SandboxID != attempt.SandboxID || len(provenance.SandboxID) != 64 || strings.Trim(provenance.SandboxID, "0123456789abcdef") != "" || len(provenance.MachineID) != 32 || strings.Trim(provenance.MachineID, "0123456789abcdef") != "" || len(provenance.BootID) != 32 || strings.Trim(provenance.BootID, "0123456789abcdef") != "" || provenance.Unit != "containerd.service" || provenance.Comm != "containerd" || provenance.UID != "0" || provenance.Transport != "stdout" || !filepath.IsAbs(provenance.Exe) || filepath.Clean(provenance.Exe) != provenance.Exe || filepath.Base(provenance.Exe) != "containerd" || provenance.SandboxCursor == "" || provenance.CreateCursor == "" || provenance.Cursor == "" || provenance.SandboxCursor == provenance.CreateCursor || provenance.SandboxCursor == provenance.Cursor || provenance.CreateCursor == provenance.Cursor || provenance.SandboxMonotonic == 0 || provenance.CreateMonotonic < provenance.SandboxMonotonic || provenance.ExitMonotonic < provenance.CreateMonotonic {
-		return ""
-	}
-	return provenance.SandboxID
-}
-
-func unexplainedJournalSandboxes(snapshot nodeSnapshot, statuses []*cri.ContainerStatusResponse, pod biz.PodRef) []string {
-	explained := map[string]bool{}
-	for _, status := range statuses {
-		if sandbox := positiveJournalSandbox(journalStatusAttempt(status), pod); sandbox != "" {
-			explained[sandbox] = true
-		}
-	}
-	remaining := []string{}
-	for _, id := range snapshot.UnknownPodContainers[pod.UID] {
-		if !explained[id] {
-			remaining = append(remaining, id)
-		}
-	}
-	return remaining
-}
-
-func journalStatusAttempt(status *cri.ContainerStatusResponse) biz.RuntimeAttempt {
-	if status == nil || status.Status == nil || status.Status.Metadata == nil || status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
-		return biz.RuntimeAttempt{}
-	}
-	observedAt, _ := time.Parse(time.RFC3339Nano, status.Info["journal_observed_at"])
-	return biz.RuntimeAttempt{ContainerID: status.Status.Id, SandboxID: status.Info["journal_sandbox_id"], PodUID: status.Status.Labels["io.kubernetes.pod.uid"], PodNamespace: status.Status.Labels["io.kubernetes.pod.namespace"], PodName: status.Status.Labels["io.kubernetes.pod.name"], ContainerName: status.Status.Metadata.Name, State: 3, FinishedAt: time.Unix(0, status.Status.FinishedAt), JournalProvenance: json.RawMessage(status.Info["journal_evidence"]), JournalObservedAt: observedAt}
-}
-
-func closedJournalGapCovered(statuses []*cri.ContainerStatusResponse, pod biz.PodRef, gap biz.TelemetryGap) bool {
-	if len(statuses) == 0 || gap.End.IsZero() || gap.End.Before(gap.Start) {
-		return false
-	}
-	for _, status := range statuses {
-		attempt := journalStatusAttempt(status)
-		if positiveJournalSandbox(attempt, pod) == "" || !attempt.JournalObservedAt.After(gap.End) {
-			return false
-		}
-	}
-	return true
-}
-
-func needsJournalExit(statuses []*cri.ContainerStatusResponse) bool {
-	if len(statuses) == 0 {
-		return true
-	}
-	for _, status := range statuses {
-		if status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
-			return true
-		}
-	}
-	return false
-}
-
-func mergeJournalExits(current, recovered []*cri.ContainerStatusResponse, historical map[string]bool, pod biz.PodRef) []*cri.ContainerStatusResponse {
-	byID := map[string]*cri.ContainerStatusResponse{}
-	for _, status := range current {
-		byID[status.Status.Id] = status
-	}
-	for _, status := range recovered {
-		if status == nil || status.Status == nil || status.Status.Id == "" || status.Status.Metadata == nil || status.Status.Metadata.Name != pod.ContainerName || status.Status.Labels["io.kubernetes.pod.uid"] != pod.UID || status.Status.Labels["io.kubernetes.pod.namespace"] != pod.Namespace || status.Status.Labels["io.kubernetes.pod.name"] != pod.Name || status.Status.State != cri.ContainerState_CONTAINER_EXITED || status.Status.FinishedAt <= 0 {
-			return current
-		}
-		id := status.Status.Id
-		if _, exists := byID[id]; !exists || historical[id] {
-			byID[id] = status // Never replace a currently observed running attempt.
-		}
-	}
-	result := make([]*cri.ContainerStatusResponse, 0, len(byID))
-	for _, status := range byID {
-		result = append(result, status)
-	}
-	return result
-}
 func (p *Provider) String() string {
 	return fmt.Sprintf("volcano-hami-mib-v1 (%d managed connections)", len(p.connections))
 }

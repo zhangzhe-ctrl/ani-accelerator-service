@@ -312,7 +312,7 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 					return Denied()
 				}
 				currentRevision := !nodeFacts || (proof.CheckedNodeRevision > 0 && proof.CheckedNodeRevision == telemetry[proof.NodeUID].CurrentRevision)
-				if currentRevision && proof.OwnerRef != nil && *proof.OwnerRef == *ref && (proof.RuntimeExited || proof.AdmissionRejected) && proof.AllocationAbsent && proof.NodeOnline {
+				if currentRevision && proof.OwnerRef != nil && *proof.OwnerRef == *ref && validRetirementMode(proof) && proof.AllocationAbsent && proof.NodeOnline {
 					proofs[proof.DeviceID] = proof
 				}
 			}
@@ -346,7 +346,7 @@ func (u *Usecase) ObserveRelease(ctx context.Context, requestID string, ref *Usa
 					}
 					evidence = append(evidence, digest)
 				}
-				// A positive exit fact is durable. Fresh complete source watermarks
+				// An accepted retirement is durable. Fresh complete source watermarks
 				// cover the seal; a later claim below still invalidates this proof.
 				released := hasProof && merged.State == ReleaseConfirmed && nodeSourcesHealthy(watermarks, proof.NodeUID, u.now(), u.freshness)
 				active := false

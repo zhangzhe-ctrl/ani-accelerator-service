@@ -289,35 +289,3 @@ func writeRuntimeEvents(directory, key string, record runtimeEventFile) error {
 	defer dir.Close()
 	return dir.Sync()
 }
-
-func (e *runtimeEvents) releaseSnapshot(node NodeSource, snapshot nodeSnapshot) nodeSnapshot {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-	key := runtimeNodeKey(node)
-	if e.failed[key] {
-		snapshot.RuntimeOK = false
-		return snapshot
-	}
-	statuses := make(map[string]*cri.ContainerStatusResponse, len(snapshot.Statuses))
-	for id, status := range snapshot.Statuses {
-		statuses[id] = status
-	}
-	snapshot.Statuses = statuses
-	snapshot.HistoricalStatuses = map[string]bool{}
-	snapshot.UnknownPodContainers = map[string][]string{}
-	snapshot.Containers = append([]*cri.Container(nil), snapshot.Containers...)
-	for id, state := range e.nodes[key].States {
-		if _, exists := statuses[id]; exists {
-			continue // A currently observed running/unknown attempt always blocks.
-		}
-		if state.ContainerName == "" {
-			snapshot.UnknownPodContainers[state.PodUID] = append(snapshot.UnknownPodContainers[state.PodUID], id)
-			continue
-		}
-		labels := map[string]string{"io.kubernetes.pod.uid": state.PodUID, "io.kubernetes.pod.namespace": state.Namespace, "io.kubernetes.pod.name": state.PodName}
-		snapshot.Containers = append(snapshot.Containers, &cri.Container{Id: id, Metadata: &cri.ContainerMetadata{Name: state.ContainerName}, Labels: labels})
-		statuses[id] = &cri.ContainerStatusResponse{Status: &cri.ContainerStatus{Id: id, Metadata: &cri.ContainerMetadata{Name: state.ContainerName}, Labels: labels, State: state.State, FinishedAt: state.FinishedAt}}
-		snapshot.HistoricalStatuses[id] = true
-	}
-	return snapshot
-}

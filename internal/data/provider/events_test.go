@@ -79,10 +79,16 @@ func TestRuntimeEventsCaptureExitBeforeCRICollectionAndSurviveRestart(t *testing
 	raw.Containers, raw.Statuses = nil, map[string]*cri.ContainerStatusResponse{}
 	raw.ObservedAt = now.Add(time.Second)
 	provider.repo = releaseRepository{reader: reader}
-	snapshot := provider.runtimeEvents.releaseSnapshot(node, raw)
-	proofs, err := provider.releaseProofs(context.Background(), "cluster", node, snapshot, true, raw.ObservedAt)
-	if err != nil || len(proofs) != 1 {
-		t.Fatalf("persisted exact exit was lost after GC/restart: proofs=%+v error=%v", proofs, err)
+	provider.runtimeEvents.mu.Lock()
+	persisted := provider.runtimeEvents.nodes[runtimeNodeKey(node)].States["exited-container"]
+	provider.runtimeEvents.mu.Unlock()
+	if persisted.State != cri.ContainerState_CONTAINER_EXITED || persisted.FinishedAt == 0 {
+		t.Fatal("event history was lost after restart")
+	}
+	raw.SourceObservedAt = map[string]time.Time{"cri": raw.ObservedAt, "podresources": raw.ObservedAt}
+	proofs, err := provider.releaseProofs(context.Background(), "cluster", node, raw, true, raw.ObservedAt)
+	if err != nil || len(proofs) != 1 || proofs[0].Retirement != biz.RetirementCurrentState {
+		t.Fatalf("complete current snapshot did not reconcile after GC/restart: proofs=%+v error=%v", proofs, err)
 	}
 	if len(raw.Containers) != 0 || len(raw.Statuses) != 0 {
 		t.Fatal("release evidence leaked into live allocation observations")
@@ -100,31 +106,28 @@ func eventStoreFixture(t *testing.T, node NodeSource) *runtimeEvents {
 	return store
 }
 
-func TestRuntimeEventsRetainEveryKnownAttemptUntilPositiveExit(t *testing.T) {
+func TestRuntimeEventHistoryDoesNotBlockCurrentReconciliation(t *testing.T) {
 	reader, snapshot, node, _ := releaseFixture("scheduler")
 	now := time.Now().UTC()
 	snapshot.Containers, snapshot.Statuses = nil, map[string]*cri.ContainerStatusResponse{}
 	snapshot.ObservedAt = now
+	snapshot.SourceObservedAt = map[string]time.Time{"cri": now, "podresources": now}
 	store := eventStoreFixture(t, node)
-	store.observeEvent(node, runtimeEventFixture("old-attempt", cri.ContainerState_CONTAINER_EXITED, now.Add(-time.Second)), now)
-	store.observeEvent(node, runtimeEventFixture("new-attempt", cri.ContainerState_CONTAINER_RUNNING, now), now)
-	provider := &Provider{repo: releaseRepository{reader: reader}}
-	proofs, err := provider.releaseProofs(context.Background(), "cluster", node, store.releaseSnapshot(node, snapshot), true, now)
-	if err != nil || len(proofs) != 0 {
-		t.Fatal("missing new attempt was treated as exited", proofs, err)
-	}
-	store.observeEvent(node, runtimeEventFixture("new-attempt", cri.ContainerState_CONTAINER_EXITED, now.Add(time.Second)), now.Add(time.Second))
-	proofs, err = provider.releaseProofs(context.Background(), "cluster", node, store.releaseSnapshot(node, snapshot), true, now.Add(time.Second))
-	if err != nil || len(proofs) != 1 {
-		t.Fatal("all known attempts positively exited but occupancy remained", proofs, err)
-	}
-	unknown := runtimeEventFixture("unknown-attempt", cri.ContainerState_CONTAINER_CREATED, now.Add(2*time.Second))
+	store.observeEvent(node, runtimeEventFixture("old-attempt", cri.ContainerState_CONTAINER_EXITED, now.Add(-3*time.Second)), now)
+	store.observeEvent(node, runtimeEventFixture("new-attempt", cri.ContainerState_CONTAINER_RUNNING, now.Add(-2*time.Second)), now)
+	unknown := runtimeEventFixture("unknown-attempt", cri.ContainerState_CONTAINER_CREATED, now.Add(-time.Second))
 	unknown.ContainerEventType = cri.ContainerEventType_CONTAINER_CREATED_EVENT
 	unknown.ContainersStatuses = nil
-	store.observeEvent(node, unknown, now.Add(2*time.Second))
-	proofs, err = provider.releaseProofs(context.Background(), "cluster", node, store.releaseSnapshot(node, snapshot), true, now.Add(2*time.Second))
-	if err != nil || len(proofs) != 0 {
-		t.Fatal("created attempt with missing container identity was forgotten", proofs, err)
+	store.observeEvent(node, unknown, now)
+
+	provider := &Provider{repo: releaseRepository{reader: reader}, runtimeEvents: store}
+	proofs, err := provider.releaseProofs(context.Background(), "cluster", node, snapshot, true, now)
+	if err != nil || len(proofs) != 1 || proofs[0].Retirement != biz.RetirementCurrentState {
+		t.Fatalf("retained diagnostic events blocked a newer complete current snapshot: proofs=%+v error=%v", proofs, err)
+	}
+	history := store.nodes[runtimeNodeKey(node)].States
+	if history["new-attempt"].State != cri.ContainerState_CONTAINER_RUNNING || history["unknown-attempt"].State != cri.ContainerState_CONTAINER_UNKNOWN || history["unknown-attempt"].ContainerName != "" {
+		t.Fatal("current reconciliation rewrote or erased diagnostic history")
 	}
 }
 
@@ -152,60 +155,42 @@ func TestRuntimeEventsRejectIncompleteOrConflictingExit(t *testing.T) {
 		}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			reader, snapshot, node, _ := releaseFixture("scheduler")
-			snapshot.Containers, snapshot.Statuses = nil, map[string]*cri.ContainerStatusResponse{}
+			_, _, node, _ := releaseFixture("scheduler")
 			now := time.Now().UTC()
-			snapshot.ObservedAt = now
 			store := eventStoreFixture(t, node)
 			event := runtimeEventFixture("exited-container", cri.ContainerState_CONTAINER_EXITED, now)
 			test.change(event)
 			store.observeEvent(node, event, now)
-			provider := &Provider{repo: releaseRepository{reader: reader}}
-			proofs, err := provider.releaseProofs(context.Background(), "cluster", node, store.releaseSnapshot(node, snapshot), true, now)
-			if err != nil || len(proofs) != 0 {
-				t.Fatalf("incomplete exit became a release: %+v %v", proofs, err)
+			record, found := store.nodes[runtimeNodeKey(node)].States["exited-container"]
+			if found && record.State == cri.ContainerState_CONTAINER_EXITED {
+				t.Fatalf("invalid event fabricated an exit in diagnostic history: %+v", record)
 			}
 		})
 	}
 }
 
-func TestRuntimeEventsCurrentRunningAndFailedPersistenceBlockRelease(t *testing.T) {
+func TestCurrentRunningWinsAndDiagnosticPersistenceDoesNotInvalidateSnapshot(t *testing.T) {
 	reader, snapshot, node, _ := releaseFixture("scheduler")
 	now := time.Now().UTC()
 	store := eventStoreFixture(t, node)
 	store.observeEvent(node, runtimeEventFixture("exited-container", cri.ContainerState_CONTAINER_EXITED, now), now)
 	snapshot.Statuses["exited-container"].Status.State = cri.ContainerState_CONTAINER_RUNNING
-	provider := &Provider{repo: releaseRepository{reader: reader}}
-	proofs, err := provider.releaseProofs(context.Background(), "cluster", node, store.releaseSnapshot(node, snapshot), true, now)
+	provider := &Provider{repo: releaseRepository{reader: reader}, runtimeEvents: store}
+	proofs, err := provider.releaseProofs(context.Background(), "cluster", node, snapshot, true, now)
 	if err != nil || len(proofs) != 0 {
 		t.Fatal("historical exit replaced current running state", proofs, err)
 	}
 	store.directory = filepath.Join(t.TempDir(), "missing-directory")
 	store.observeEvent(node, runtimeEventFixture("another-attempt", cri.ContainerState_CONTAINER_EXITED, now.Add(time.Second)), now.Add(time.Second))
-	if store.releaseSnapshot(node, snapshot).RuntimeOK {
-		t.Fatal("failed durable write left release source complete")
+	if !store.failed[runtimeNodeKey(node)] {
+		t.Fatal("diagnostic persistence failure was not recorded")
 	}
-}
-
-func TestMergeJournalExitsCannotHideKnownOrCurrentAttempts(t *testing.T) {
-	_, snapshot, _, _ := releaseFixture("scheduler")
-	pod := biz.PodRef{UID: "pod-uid", ContainerName: "workspace", Namespace: "tenant", Name: "instance-0"}
-	live := snapshot.Statuses["exited-container"]
-	live.Status.State = cri.ContainerState_CONTAINER_RUNNING
-	positive := runtimeEventFixture("exited-container", cri.ContainerState_CONTAINER_EXITED, time.Now().UTC()).ContainersStatuses[0]
-	recovered := []*cri.ContainerStatusResponse{{Status: positive}}
-	result := mergeJournalExits([]*cri.ContainerStatusResponse{live}, recovered, nil, pod)
-	if len(result) != 1 || result[0].Status.State != cri.ContainerState_CONTAINER_RUNNING {
-		t.Fatal("journal replaced a live running container")
-	}
-	result = mergeJournalExits([]*cri.ContainerStatusResponse{live}, recovered, map[string]bool{"exited-container": true}, pod)
-	if len(result) != 1 || result[0].Status.State != cri.ContainerState_CONTAINER_EXITED {
-		t.Fatal("authoritative same-ID exit failed to complete cached attempt")
-	}
-	missing := &cri.ContainerStatusResponse{Status: &cri.ContainerStatus{Id: "missing-attempt", State: cri.ContainerState_CONTAINER_UNKNOWN}}
-	result = mergeJournalExits([]*cri.ContainerStatusResponse{live, missing}, recovered, map[string]bool{"exited-container": true}, pod)
-	if len(result) != 2 || !needsJournalExit(result) {
-		t.Fatal("journal omitted a previously observed attempt")
+	snapshot.Containers, snapshot.Statuses = nil, nil
+	snapshot.ObservedAt = now.Add(2 * time.Second)
+	snapshot.SourceObservedAt = map[string]time.Time{"cri": snapshot.ObservedAt, "podresources": snapshot.ObservedAt}
+	proofs, err = provider.releaseProofs(context.Background(), "cluster", node, snapshot, true, snapshot.ObservedAt)
+	if err != nil || len(proofs) != 1 || !snapshot.RuntimeOK {
+		t.Fatalf("diagnostic persistence failure invalidated complete current state: proofs=%+v error=%v", proofs, err)
 	}
 }
 

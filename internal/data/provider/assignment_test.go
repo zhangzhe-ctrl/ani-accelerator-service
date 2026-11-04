@@ -62,6 +62,70 @@ func assignedPodClaimsAtFactor(t *testing.T, reader *Provider, pod pod, now time
 	return reader.podClaims(context.Background(), "cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
 }
 
+func TestTerminalPodClaimsKeepCurrentOccupancyWithoutSchedulingIntent(t *testing.T) {
+	for _, test := range []struct {
+		name       string
+		deleting   bool
+		allocation bool
+		current    bool
+		state      cri.ContainerState
+		source     string
+	}{
+		{name: "failed_still_allocated", allocation: true, source: "allocation"},
+		{name: "deleting_still_allocated", deleting: true, allocation: true, source: "allocation"},
+		{name: "failed_absent"},
+		{name: "deleting_absent", deleting: true},
+		{name: "failed_exited", current: true, state: cri.ContainerState_CONTAINER_EXITED},
+		{name: "failed_created", current: true, state: cri.ContainerState_CONTAINER_CREATED, source: "runtime"},
+		{name: "failed_unknown", current: true, state: cri.ContainerState_CONTAINER_UNKNOWN, source: "runtime"},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			now := time.Unix(1792173213, 0).UTC()
+			pod := liveAssignedPod()
+			pod.Status.Phase = "Failed"
+			if test.deleting {
+				pod.Status.Phase = "Pending"
+				pod.Metadata.DeletionTimestamp = now.Add(-time.Second).Format(time.RFC3339Nano)
+			}
+			snapshot := nodeSnapshot{ObservedAt: now, RuntimeOK: true, ResourcesOK: true, Resources: &pr.ListPodResourcesResponse{}}
+			snapshot.SourceObservedAt = map[string]time.Time{"cri": now.Add(-time.Second), "podresources": now.Add(-2 * time.Second)}
+			if test.allocation {
+				snapshot.Resources.PodResources = []*pr.PodResources{{Namespace: pod.Metadata.Namespace, Name: pod.Metadata.Name, Containers: []*pr.ContainerResources{{Name: "inference", Devices: []*pr.ContainerDevices{{ResourceName: "volcano.sh/vgpu-number", DeviceIds: []string{"NVIDIA-0"}}}}}}}
+			}
+			if test.current {
+				labels := map[string]string{"io.kubernetes.pod.uid": pod.Metadata.UID}
+				snapshot.Containers = []*cri.Container{{Id: "current-container", Metadata: &cri.ContainerMetadata{Name: "inference"}, Labels: labels}}
+				snapshot.Statuses = map[string]*cri.ContainerStatusResponse{"current-container": {Status: &cri.ContainerStatus{Id: "current-container", Metadata: &cri.ContainerMetadata{Name: "inference"}, Labels: labels, State: test.state}}}
+			}
+			group := biz.SupplyGroup{Baseline: &biz.ProviderBaseline{MemoryBlockMiB: 1, BaselineDigest: strings.Repeat("a", 64)}}
+			claims, err := (&Provider{}).podClaims(context.Background(), "cluster", group, pod, NodeSource{UID: "node-uid", Name: "ani-03"}, snapshot, []RegisteredDevice{{UUID: liveGPUUUID}}, now)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.source == "" {
+				if len(claims) != 0 {
+					t.Fatalf("terminal Pod without current occupancy retained its scheduler reservation: %+v", claims)
+				}
+				return
+			}
+			if len(claims) != 1 {
+				t.Fatalf("current occupancy should produce one unresolved source, without scheduler intent: %+v", claims)
+			}
+			claim := claims[0]
+			if claim.Source != test.source || claim.State != biz.AllocationUnknown || claim.Pod.UID != pod.Metadata.UID || claim.Pod.ContainerName != "inference" || claim.NodeUID != "node-uid" || claim.DeviceID != PhysicalID("cluster", "node-uid", liveGPUUUID) || claim.MemoryMiB != 4096 {
+				t.Fatalf("current occupancy lost source, identity or quantity: %+v", claim)
+			}
+			if test.source == "allocation" && !claim.ObservedAt.Equal(snapshot.SourceObservedAt["podresources"]) {
+				t.Fatalf("allocation used an old scheduler time instead of current source time: %+v", claim)
+			}
+			binding, err := biz.MergeBinding("binding", claims, nil, nil)
+			if err != nil || binding.State != biz.AllocationUnknown || binding.Observation.Complete {
+				t.Fatalf("unresolved current occupancy became available: binding=%+v error=%v", binding, err)
+			}
+		})
+	}
+}
+
 func TestPodClaimsRuntimeEnvironmentDuplicatesDoNotDuplicateBinding(t *testing.T) {
 	now := time.Unix(1792173213, 0).UTC()
 	for _, selected := range []string{liveGPUUUID, gpuUUID} {

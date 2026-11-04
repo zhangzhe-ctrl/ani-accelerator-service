@@ -10,12 +10,6 @@ import (
 	pr "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
-type NodeExitRecovery interface {
-	RecoverNodeExit(context.Context, string, string, biz.PodRef, []string) ([]biz.RuntimeAttempt, bool, error)
-}
-
-func (p *Provider) ConfigureNodeExitRecovery(recovery NodeExitRecovery) { p.exitRecovery = recovery }
-
 func (p *Provider) loadTelemetry(ctx context.Context, connection string) (map[string]biz.NodeTelemetryView, error) {
 	if p.telemetry == nil {
 		return nil, biz.Precondition("NODE_TELEMETRY_REQUIRED")
@@ -64,6 +58,7 @@ func telemetryNodeSnapshot(view biz.NodeTelemetryView, now time.Time, freshness 
 	if view.State.Snapshot == nil {
 		return result
 	}
+	result.CaptureStart = view.State.Snapshot.CaptureStart
 	result.ObservedAt = view.State.Snapshot.CaptureEnd
 	for _, name := range []string{"nvml", "podresources", "cri"} {
 		source, complete := telemetrySource(view, name, now, freshness)
@@ -97,12 +92,9 @@ func telemetryNodeSnapshot(view biz.NodeTelemetryView, now time.Time, freshness 
 		}
 		containerResources.Devices = append(containerResources.Devices, &pr.ContainerDevices{ResourceName: allocation.ResourceName, DeviceIds: allocation.DeviceIDs})
 	}
-	current := map[string]bool{}
-	for _, attempt := range view.State.Snapshot.Containers {
-		current[attempt.ContainerID] = true
-	}
-	for _, attempt := range view.Attempts {
-		if attempt.PodUID == "" {
+	for _, attempt := range biz.CurrentRuntimeAttempts(view.State, view.Attempts) {
+		result.FactObservedAt[attempt.ContainerID] = attempt.ObservedAt
+		if attempt.ContainerID == "" || attempt.PodUID == "" {
 			result.RuntimeOK = false
 		}
 		if attempt.ContainerName == "" {
@@ -122,8 +114,6 @@ func telemetryNodeSnapshot(view biz.NodeTelemetryView, now time.Time, freshness 
 		}
 		result.Containers = append(result.Containers, &cri.Container{Id: attempt.ContainerID, PodSandboxId: attempt.SandboxID, Metadata: metadata, Labels: labels, State: state})
 		result.Statuses[attempt.ContainerID] = &cri.ContainerStatusResponse{Status: &cri.ContainerStatus{Id: attempt.ContainerID, Metadata: metadata, Labels: labels, State: state, CreatedAt: telemetryNanos(attempt.CreatedAt), StartedAt: telemetryNanos(attempt.StartedAt), FinishedAt: telemetryNanos(attempt.FinishedAt)}, Info: runtimeAttemptInfo(attempt)}
-		result.HistoricalStatuses[attempt.ContainerID] = !current[attempt.ContainerID]
-		result.FactObservedAt[attempt.ContainerID] = attempt.ObservedAt
 	}
 	result.SourceGaps = view.State.Gaps
 	result.NodeRevision = view.State.CurrentRevision

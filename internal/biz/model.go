@@ -38,6 +38,15 @@ const (
 	AllocationUnknown AllocationState = 3
 )
 
+type BindingRetirement string
+
+const (
+	// RetirementCurrentState retires historical claims after complete current
+	// observations exclude their runtime occupation and effective allocation.
+	// It does not assert that every historical container exit was observed.
+	RetirementCurrentState BindingRetirement = "CURRENT_STATE_RECONCILED"
+)
+
 type FitStatus int32
 
 const (

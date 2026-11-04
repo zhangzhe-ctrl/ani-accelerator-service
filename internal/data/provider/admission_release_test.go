@@ -2,48 +2,47 @@ package provider
 
 import (
 	"context"
-	"encoding/json"
 	"testing"
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
 )
 
-// The kubelet rejected this Pod before creating a container. There is a
-// scheduler claim, but consequently no container exit to recover from CRI.
-func TestReleaseRejectedAdmissionWithoutContainer(t *testing.T) {
+func TestReleaseTerminalOrDeletedPodWithoutRuntime(t *testing.T) {
 	reader, snapshot, node, now := releaseFixture("scheduler")
 	snapshot.Containers, snapshot.Statuses = nil, nil
-	snapshot.NodeRevision = 7
-	var rejected pod
-	if err := json.Unmarshal([]byte(`{"metadata":{"uid":"pod-uid","name":"instance-0","namespace":"tenant","resourceVersion":"10","creationTimestamp":"2026-10-17T02:58:00Z"},"spec":{"nodeName":"ani-03"},"status":{"phase":"Failed","reason":"UnexpectedAdmissionError"}}`), &rejected); err != nil {
-		t.Fatal(err)
-	}
+	rejected := pod{Metadata: metadata{UID: "pod-uid", Name: "instance-0", Namespace: "tenant", ResourceVersion: "10", CreationTimestamp: now.Add(-2 * time.Minute).Format(time.RFC3339Nano)}}
+	rejected.Spec.NodeName = node.Name
+	rejected.Status.Phase, rejected.Status.Reason = "Failed", "UnexpectedAdmissionError"
 	for _, test := range []struct {
 		name   string
 		change func(*releaseReader, *nodeSnapshot, *[]pod)
 		want   bool
 	}{
 		{"rejected_before_runtime", func(*releaseReader, *nodeSnapshot, *[]pod) {}, true},
-		{"deleted_without_rejection", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { *pods = nil }, false},
-		{"different_pod_uid", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Metadata.UID = "replacement" }, false},
-		{"different_node", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Spec.NodeName = "other-node" }, false},
-		{"not_terminal", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Status.Phase = "Pending" }, false},
-		{"container_failed_after_start", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Status.Reason = "Error" }, false},
-		{"missing_creation_time", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Metadata.CreationTimestamp = "" }, false},
-		{"open_runtime_gap", func(_ *releaseReader, s *nodeSnapshot, _ *[]pod) {
-			s.SourceGaps = map[string]biz.TelemetryGap{"cri_events": {Start: now.Add(-time.Hour)}}
-		}, false},
-		{"old_runtime_gap", func(_ *releaseReader, s *nodeSnapshot, _ *[]pod) {
-			s.SourceGaps = map[string]biz.TelemetryGap{"cri_events": {End: now.Add(-time.Hour)}}
+		{"pod_gone_without_exit_event", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { *pods = nil }, true},
+		{"same_name_new_uid_without_old_allocation", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Metadata.UID = biz.NewID() }, true},
+		{"same_uid_wrong_node", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Spec.NodeName = "other-node" }, false},
+		{"same_uid_wrong_name", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Metadata.Name = "another-workload" }, false},
+		{"pending_reservation", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Status.Phase = "Pending" }, false},
+		{"running_restart_gap", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Status.Phase = "Running" }, false},
+		{"ordinary_failure", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Status.Reason = "Error" }, true},
+		{"succeeded", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Status.Phase = "Succeeded" }, true},
+		{"deleted_pending", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) {
+			(*pods)[0].Status.Phase = "Pending"
+			(*pods)[0].Metadata.DeletionTimestamp = now.Add(-time.Second).Format(time.RFC3339Nano)
 		}, true},
-		{"previous_runtime_claim", func(r *releaseReader, _ *nodeSnapshot, _ *[]pod) { r.claims[0].Source = "runtime" }, false},
-		{"previous_allocation_claim", func(r *releaseReader, _ *nodeSnapshot, _ *[]pod) { r.claims[0].Source = "allocation" }, false},
+		{"no_historical_creation_time", func(_ *releaseReader, _ *nodeSnapshot, pods *[]pod) { (*pods)[0].Metadata.CreationTimestamp = "" }, true},
+		{"historical_open_event_gap", func(_ *releaseReader, s *nodeSnapshot, _ *[]pod) {
+			s.SourceGaps = map[string]biz.TelemetryGap{"cri_events": {Start: now.Add(-time.Hour)}}
+		}, true},
+		{"historical_closed_event_gap", func(_ *releaseReader, s *nodeSnapshot, _ *[]pod) {
+			s.SourceGaps = map[string]biz.TelemetryGap{"cri_events": {Start: now.Add(-time.Minute), End: now.Add(-time.Second)}}
+		}, true},
+		{"previous_runtime_claim", func(r *releaseReader, _ *nodeSnapshot, _ *[]pod) { r.claims[0].Source = "runtime" }, true},
+		{"previous_allocation_claim", func(r *releaseReader, _ *nodeSnapshot, _ *[]pod) { r.claims[0].Source = "allocation" }, true},
 		{"runtime_unavailable", func(_ *releaseReader, s *nodeSnapshot, _ *[]pod) { s.RuntimeOK = false }, false},
 		{"allocation_unavailable", func(_ *releaseReader, s *nodeSnapshot, _ *[]pod) { s.ResourcesOK = false }, false},
-		{"uncovered_runtime_gap", func(_ *releaseReader, s *nodeSnapshot, _ *[]pod) {
-			s.SourceGaps = map[string]biz.TelemetryGap{"cri_events": {Start: now.Add(-time.Minute), End: now.Add(-time.Second)}}
-		}, false},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			r, s, pods := reader, snapshot, []pod{rejected}
@@ -57,12 +56,12 @@ func TestReleaseRejectedAdmissionWithoutContainer(t *testing.T) {
 			if !test.want {
 				return
 			}
-			if proofs[0].RuntimeExited || !proofs[0].AllocationAbsent || proofs[0].CheckedNodeRevision != 7 {
-				t.Fatalf("admission rejection must not fabricate a container exit: %+v", proofs[0])
+			if proofs[0].Retirement != biz.RetirementCurrentState || proofs[0].RuntimeExited || proofs[0].AdmissionRejected || !proofs[0].AllocationAbsent || proofs[0].CheckedNodeRevision != 7 {
+				t.Fatalf("current absence must not fabricate an exit or admission rejection: %+v", proofs[0])
 			}
 			binding, err := biz.MergeBinding(r.bindings[0].BindingID, r.claims, &proofs[0], nil)
 			if err != nil || binding.State != biz.ReleaseConfirmed {
-				t.Fatalf("rejected admission remained allocated: %+v, %v", binding, err)
+				t.Fatalf("complete current absence remained allocated: %+v, %v", binding, err)
 			}
 		})
 	}

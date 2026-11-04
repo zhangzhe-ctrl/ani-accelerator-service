@@ -85,6 +85,7 @@ func (p *Postgres) OpenNodeSession(ctx context.Context, identity biz.NodeIdentit
 		// A capture belongs to one stream epoch. Keep durable receipts and
 		// runtime history, but require new source evidence in the new session.
 		state.Snapshot = nil
+		state.RuntimeUpdates = map[string]biz.RuntimeAttempt{}
 		state.Identity, state.LeaseExpiresAt, state.Revoked = identity, lease, false
 		state.Epoch++
 		return nil
@@ -136,10 +137,19 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 				slog.InfoContext(ctx, "node_telemetry_attempt_duration", "list_ms", listDuration.Milliseconds(), "decode_ms", decodeDuration.Milliseconds(), "merge_ms", mergeDuration.Milliseconds(), "encode_ms", encodeDuration.Milliseconds(), "write_ms", writeDuration.Milliseconds(), "existing_count", existingCount, "changed_count", changedCount, "total_ms", time.Since(started).Milliseconds())
 			}
 		}()
-		// MergeNodeReport merges each ContainerID independently. Unmentioned
-		// history is unchanged on both sides of its semantic revision comparison;
-		// leave those rows in place instead of loading all historical attempts.
-		rows, err := queries.ListNodeRuntimeAttemptsByContainerIDs(ctx, connection, node, nodeReportContainerIDs(report))
+		// The state carries the bounded runtime increments not yet covered by
+		// its complete snapshot. Revision comparison sees them even when this
+		// report does not mention their IDs; history reads stay per affected ID.
+		var rows [][]byte
+		var err error
+		if nodeRuntimeBootstrapRequired(*state, report) {
+			// Older state has no bounded cache. Seed it once from the existing
+			// history so an unmentioned update inside this capture window is
+			// not lost. MergeNodeReport retains only the current window.
+			rows, err = queries.ListNodeRuntimeAttempts(ctx, connection, node)
+		} else {
+			rows, err = queries.ListNodeRuntimeAttemptsByContainerIDs(ctx, connection, node, nodeReportContainerIDs(report))
+		}
 		listDuration = time.Since(started)
 		phaseStarted := time.Now()
 		attempts, err := decodeMany[biz.RuntimeAttempt](rows, err)
@@ -201,6 +211,18 @@ func (p *Postgres) SaveNodeReport(ctx context.Context, connection, node string, 
 		writeDuration = time.Since(phaseStarted)
 		return cleanError(err)
 	})
+}
+
+func nodeRuntimeBootstrapRequired(state biz.NodeTelemetryState, report biz.NodeReport) bool {
+	if state.RuntimeUpdates != nil || state.LastSequence == 0 || report.Epoch != state.Epoch || report.Sequence != state.LastSequence+1 || report.Snapshot == nil || report.Snapshot.CaptureEpoch != state.Epoch || (state.Snapshot != nil && report.Snapshot.CaptureEnd.Before(state.Snapshot.CaptureEnd)) {
+		return false
+	}
+	for _, source := range report.Snapshot.Sources {
+		if source.Name == "cri" {
+			return source.Complete
+		}
+	}
+	return false
 }
 
 func nodeReportContainerIDs(report biz.NodeReport) []string {

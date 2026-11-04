@@ -507,6 +507,13 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 	}
 	collect()
 	if configurationFault == "admission_rejected" {
+		codec, _ := biz.NewCursorCodec([]byte(strings.Repeat("k", 32)))
+		u, err := biz.NewUsecase(db, adapter, codec, []string{cluster.ConnectionRef}, 16, time.Minute)
+		if err != nil {
+			t.Fatal(err)
+		}
+		actor := biz.Actor{Type: "user", ID: "rejected-pod-replay"}
+		admin := biz.WithCaller(ctx, biz.Caller{Service: "ani-governance", Actor: actor, Action: "AdminGetCapacity"})
 		check := func() {
 			t.Helper()
 			if err := db.View(ctx, func(reader biz.Reader) error {
@@ -514,12 +521,21 @@ func providerControlledSources(t *testing.T, schedulerVersion, configurationFaul
 				if err != nil {
 					return err
 				}
-				if len(bindings) != 1 || bindings[0].State != biz.ReleaseConfirmed {
-					t.Fatalf("first observation of rejected Pod left occupancy: %+v", bindings)
+				for _, binding := range bindings {
+					if binding.State != biz.ReleaseConfirmed {
+						t.Fatalf("first observation of rejected Pod left occupancy: %+v", binding)
+					}
 				}
 				return nil
 			}); err != nil {
 				t.Fatal(err)
+			}
+			capacity, err := u.AdminGetCapacity(admin, &biz.AdminRead{RequestID: "rejected-pod-replay", Actor: &actor}, profile.ProfileID, 1, true)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !capacity.Observation.Complete || capacity.KnownCommittedUnits != 0 || capacity.KnownFreeUnits != 8 {
+				t.Fatalf("rejected Pod without current allocation did not leave full capacity: %+v", capacity)
 			}
 		}
 		check()
