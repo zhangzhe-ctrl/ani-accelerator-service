@@ -25,7 +25,7 @@ func (invalidRequest) Validate() error { return errors.New("invalid test request
 
 func TestAdminServerRunsKratosMiddlewareChain(t *testing.T) {
 	readiness := NewReadiness()
-	observability, err := NewObservability("ani-accelerator-service-test", "test", readiness)
+	observability, err := NewObservability("ani-accelerator-service-test", "test", readiness, nil)
 	if err != nil {
 		t.Fatalf("NewObservability() error = %v", err)
 	}

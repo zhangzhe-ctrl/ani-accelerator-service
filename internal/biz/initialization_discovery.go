@@ -3,7 +3,6 @@ package biz
 import (
 	"context"
 	"sort"
-	"time"
 )
 
 type InitializationCheck struct {
@@ -39,15 +38,12 @@ type DiscoveredBaseline struct {
 }
 
 type DiscoveredNode struct {
-	Node                NodeRef
-	GroupID             string
-	GPUs                []DiscoveredGPU
-	Baselines           []DiscoveredBaseline
-	AgentOnline         bool
-	AgentLeaseExpiresAt time.Time
-	Sources             []TelemetrySource
-	Selectable          bool
-	BlockingReasons     []string
+	Node            NodeRef
+	GroupID         string
+	GPUs            []DiscoveredGPU
+	Baselines       []DiscoveredBaseline
+	Selectable      bool
+	BlockingReasons []string
 }
 
 type DiscoveredNodes struct {

@@ -17,66 +17,39 @@ type AcceleratorAdminIdempotency struct {
 }
 
 type AcceleratorBinding struct {
-	BindingID         string
-	ClusterID         string
-	PodUid            string
-	ContainerName     string
-	DeviceID          string
-	TenantID          *string
-	OwnerService      *string
-	ResourceID        *string
-	CreateOperationID *string
-	Payload           []byte
-}
-
-type AcceleratorClaim struct {
-	ClusterID         string
-	PodUid            string
-	ContainerName     string
-	DeviceID          string
-	Source            string
-	ObservedAt        time.Time
-	Payload           []byte
-	TenantID          *string
-	OwnerService      *string
-	ResourceID        *string
-	CreateOperationID *string
+	BindingID               string
+	ClusterID               string
+	PodUid                  string
+	ContainerName           string
+	DeviceID                string
+	TenantID                *string
+	OwnerService            *string
+	ResourceID              *string
+	CreateOperationID       *string
+	Payload                 []byte
+	LastObservationRevision uint64
+	AllocationState         int32
+	OwnerCandidate          []byte
 }
 
 type AcceleratorCluster struct {
-	ClusterID     string
-	ConnectionRef string
-	Version       uint64
-	Payload       []byte
+	ClusterID           string
+	ConnectionRef       string
+	Version             uint64
+	Payload             []byte
+	ObservationRevision uint64
+	CurrentObservation  []byte
 }
 
 type AcceleratorDevice struct {
-	DeviceID       string
-	ClusterID      string
-	GroupID        *string
-	NodeUid        string
-	VendorDeviceID string
-	ObservedAt     time.Time
-	Payload        []byte
-}
-
-type AcceleratorGpuMetricHistory struct {
-	Revision          uint64
-	EventID           string
-	BindingID         string
-	SourceKey         string
-	Signature         string
-	RecordedAt        time.Time
-	Payload           []byte
-	TenantID          *string
-	OwnerService      *string
-	ResourceID        *string
-	CreateOperationID *string
-}
-
-type AcceleratorGpuMetricIndex struct {
-	Singleton bool
-	StartedAt time.Time
+	DeviceID         string
+	ClusterID        string
+	GroupID          *string
+	NodeUid          string
+	VendorDeviceID   string
+	ObservedAt       time.Time
+	Payload          []byte
+	InventoryPresent bool
 }
 
 type AcceleratorGroupNode struct {
@@ -107,25 +80,6 @@ type AcceleratorInitializationStep struct {
 	Payload     []byte
 }
 
-type AcceleratorNodeRuntimeAttempt struct {
-	ConnectionRef string
-	NodeUid       string
-	ContainerID   string
-	Payload       []byte
-}
-
-type AcceleratorNodeTelemetryState struct {
-	ConnectionRef        string
-	NodeUid              string
-	Epoch                uint64
-	ActiveLogID          string
-	LastSequence         uint64
-	LastPayloadDigest    string
-	CurrentNodeRevision  uint64
-	ConsumedNodeRevision uint64
-	Payload              []byte
-}
-
 type AcceleratorPool struct {
 	PoolID    string
 	ClusterID string
@@ -141,30 +95,9 @@ type AcceleratorProfile struct {
 	Payload        []byte
 }
 
-type AcceleratorReleaseProof struct {
-	ClusterID         string
-	PodUid            string
-	ContainerName     string
-	DeviceID          string
-	ObservedAt        time.Time
-	Payload           []byte
-	TenantID          *string
-	OwnerService      *string
-	ResourceID        *string
-	CreateOperationID *string
-}
-
 type AcceleratorSchemaMigration struct {
 	Version   int32
 	AppliedAt time.Time
-}
-
-type AcceleratorSourceWatermark struct {
-	ClusterID  string
-	NodeUid    string
-	Source     string
-	ObservedAt time.Time
-	Payload    []byte
 }
 
 type AcceleratorSupplyGroup struct {

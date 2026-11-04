@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"regexp"
 	"sort"
 	"time"
 
@@ -14,7 +13,23 @@ type InstallationBaseline struct {
 	Baseline *biz.ProviderBaseline `json:"baseline"`
 }
 
-var discoveryIssueCode = regexp.MustCompile(`^[A-Z][A-Z0-9_]{0,95}$`)
+// Only stable supply structure participates in the initialization revision.
+// Optional monitoring metadata remains outside the frozen initialization plan.
+type structuralGPU struct {
+	UUID         string
+	ModelKey     string
+	MemoryBlocks int64
+	SplitCount   uint32
+	Healthy      bool
+}
+
+type structuralNode struct {
+	Node      biz.NodeRef
+	GPUs      []structuralGPU
+	Baselines []biz.DiscoveredBaseline
+	GroupID   string
+	Labels    map[string]string
+}
 
 func (p *Provider) InitializationEnvironment(ctx context.Context) (biz.InitializationEnvironment, error) {
 	discovery, err := p.DiscoverInitialization(ctx)
@@ -45,14 +60,11 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 	if err := reader.validatePluginConfigNodes(nodes); err != nil {
 		return result, err
 	}
-	views, err := p.loadTelemetry(ctx, result.Environment.ConnectionRef)
+	groups, clusters, err := p.initializationMembership(ctx, result.Environment.ConnectionRef)
 	if err != nil {
 		return result, err
 	}
-	groups, err := p.initializationMembership(ctx, result.Environment.ConnectionRef)
-	if err != nil {
-		return result, err
-	}
+	physicalMemory := p.initializationPhysicalMemory(ctx, clusters)
 	for _, installed := range reader.config.InstallationBaselines {
 		if err := biz.ValidateBaseline(installed.Baseline, installed.Mode); err != nil {
 			return result, err
@@ -89,13 +101,6 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 			}
 		}
 	}
-	type structuralNode struct {
-		Node      biz.NodeRef
-		GPUs      []biz.DiscoveredGPU
-		Baselines []biz.DiscoveredBaseline
-		GroupID   string
-		Labels    map[string]string
-	}
 	structure := []structuralNode{}
 	now := time.Now().UTC()
 	sort.Slice(nodes, func(left, right int) bool {
@@ -107,8 +112,7 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 	for _, actual := range nodes {
 		configMap, overridden := reader.config.pluginConfigMap(actual.Metadata.UID, actual.Metadata.Name)
 		nodeDigest, nodeConfigError := reader.pluginConfigDigest(ctx, configMap, overridden)
-		view, found := views[actual.Metadata.UID]
-		item := biz.DiscoveredNode{Node: biz.NodeRef{UID: actual.Metadata.UID, Name: actual.Metadata.Name}, GroupID: groups[actual.Metadata.UID]}
+		item := biz.DiscoveredNode{Node: biz.NodeRef{UID: actual.Metadata.UID, Name: actual.Metadata.Name}, GroupID: groups[actual.Metadata.UID], Baselines: []biz.DiscoveredBaseline{}}
 		block := func(reason string) {
 			for _, existing := range item.BlockingReasons {
 				if existing == reason {
@@ -116,45 +120,6 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 				}
 			}
 			item.BlockingReasons = append(item.BlockingReasons, reason)
-		}
-		if !found || view.State.Identity.NodeName != actual.Metadata.Name {
-			block("AGENT_UNOBSERVED")
-		} else {
-			item.AgentLeaseExpiresAt = view.State.LeaseExpiresAt
-			item.AgentOnline = !view.State.Revoked && !view.State.Degraded && now.Before(view.State.LeaseExpiresAt)
-			if !item.AgentOnline {
-				block("AGENT_OFFLINE")
-			}
-			for _, sourceName := range []string{"nvml", "podresources", "cri"} {
-				source, complete := telemetrySource(view, sourceName, now, p.freshness)
-				if source.ObservedAt.IsZero() && view.State.Snapshot != nil {
-					for _, raw := range view.State.Snapshot.Sources {
-						if raw.Name == sourceName {
-							source = raw
-							break
-						}
-					}
-				}
-				source.Name = sourceName
-				source.Complete = complete
-				source.Issues = append([]string(nil), source.Issues...)
-				for index, issue := range source.Issues {
-					if !discoveryIssueCode.MatchString(issue) {
-						source.Issues[index] = "SOURCE_UNKNOWN"
-					}
-				}
-				if gap, found := view.State.Gaps[sourceName]; found {
-					if gap.End.IsZero() || gap.End.After(source.ObservedAt) {
-						source.Complete = false
-					}
-					source.Issues = append(source.Issues, "SOURCE_GAP")
-				}
-				if !source.Complete {
-					source.Issues = append(source.Issues, "SOURCE_UNKNOWN")
-					block("SOURCE_UNKNOWN")
-				}
-				item.Sources = append(item.Sources, source)
-			}
 		}
 		if !reader.nodeOnline(ctx, actual, now, p.freshness) || actual.Metadata.DeletionTimestamp != "" {
 			block("NODE_NOT_READY")
@@ -167,19 +132,25 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 		}
 		registered, registrationError := ParseNodeDevices(actual.Metadata.Annotations[NodeRegister])
 		models := map[string]bool{}
-		physical := map[string]biz.TelemetryDevice{}
-		inventoryConflict := false
-		if view.State.Snapshot != nil {
-			for _, device := range view.State.Snapshot.Devices {
-				if physicalUUID.MatchString(device.UUID) && device.PhysicalMemoryBytes > 0 {
-					if _, duplicate := physical[device.UUID]; duplicate {
-						inventoryConflict = true
-						block("NVML_DEVICE_CONFLICT")
-					}
-					physical[device.UUID] = device
-					models[modelKey(device.Model)] = true
-					item.GPUs = append(item.GPUs, biz.DiscoveredGPU{UUID: device.UUID, ModelKey: modelKey(device.Model), PhysicalMemoryBytes: device.PhysicalMemoryBytes, BudgetReason: "SAFE_BUDGET_UNKNOWN"})
-				}
+		structuralGPUs := make([]structuralGPU, 0, len(registered))
+		if registrationError != nil {
+			block("SOURCE_UNKNOWN")
+		}
+		handshake, handshakeErr := ParseHandshake(actual.Metadata.Annotations[NodeHandshake])
+		if handshakeErr != nil || !sourceFresh(now, handshake, p.freshness) {
+			block("SOURCE_STALE")
+		}
+		for _, device := range registered {
+			model := modelKey(device.Model)
+			models[model] = true
+			item.GPUs = append(item.GPUs, biz.DiscoveredGPU{
+				UUID: device.UUID, ModelKey: model,
+				PhysicalMemoryBytes: physicalMemory[item.Node.UID+"\x00"+biz.NormalizeGPUUUID(device.UUID)],
+				BudgetReason:        "SAFE_BUDGET_UNKNOWN",
+			})
+			structuralGPUs = append(structuralGPUs, structuralGPU{UUID: device.UUID, ModelKey: model, MemoryBlocks: device.MemoryBlocks, SplitCount: device.SplitCount, Healthy: device.Healthy})
+			if !device.Healthy {
+				block("DEVICE_UNHEALTHY")
 			}
 		}
 		model := ""
@@ -194,24 +165,23 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 			block("NODE_LABEL_CONFLICT")
 		}
 		budgetByDevice := map[string]int64{}
-		if !inventoryConflict && registrationError == nil && pluginError == nil && schedulerError == nil && nodeConfigError == nil && model != "" && len(physical) == len(registered) && len(physical) > 0 {
+		if registrationError == nil && pluginError == nil && schedulerError == nil && nodeConfigError == nil && model != "" && len(registered) > 0 {
 			for reference, baseline := range result.Environment.Baselines {
 				if label := actual.Metadata.Labels[biz.BaselineLabel]; label != "" && label != baseline.Baseline.BaselineID {
 					continue
 				}
 				probe := biz.SupplyGroup{Mode: baseline.Mode, ModelKey: model, Baseline: baseline.Baseline}
-				if nodeDigest != baseline.Baseline.NodeConfigDigest || schedulerDigests[baseline.Baseline.VolcanoVersion] != baseline.Baseline.SchedulerConfigDigest || !collectionUnitsMatch(probe, NodeSource{UID: item.Node.UID, Name: item.Node.Name}, registered, plugins, schedulers, reader.config) {
+				if nodeDigest != baseline.Baseline.NodeConfigDigest || schedulerDigests[baseline.Baseline.VolcanoVersion] != baseline.Baseline.SchedulerConfigDigest || !collectionUnitsMatch(probe, item.Node, registered, plugins, schedulers, reader.config) {
 					continue
 				}
 				budgets := map[string]int64{}
 				valid := true
 				for _, device := range registered {
-					inventory, ok := physical[device.UUID]
-					if !ok || !device.Healthy || modelKey(inventory.Model) != modelKey(device.Model) {
+					if !device.Healthy {
 						valid = false
 						break
 					}
-					budget, err := deviceMemoryBudget(device.MemoryBlocks, baseline.Baseline.MemoryBlockMiB, inventory.PhysicalMemoryBytes)
+					budget, err := deviceMemoryBudget(device.MemoryBlocks, baseline.Baseline.MemoryBlockMiB)
 					if err != nil || budget <= 0 {
 						valid = false
 						break
@@ -227,7 +197,7 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 			}
 		}
 		if len(item.GPUs) == 0 {
-			block("NVML_UNAVAILABLE")
+			block("SOURCE_UNKNOWN")
 		}
 		if len(item.Baselines) == 0 {
 			block("INSTALLATION_UNVERIFIED")
@@ -259,7 +229,8 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 				labels[key] = value
 			}
 		}
-		structure = append(structure, structuralNode{Node: item.Node, GPUs: item.GPUs, Baselines: item.Baselines, GroupID: item.GroupID, Labels: labels})
+		sort.Slice(structuralGPUs, func(left, right int) bool { return structuralGPUs[left].UUID < structuralGPUs[right].UUID })
+		structure = append(structure, structuralNode{Node: item.Node, GPUs: structuralGPUs, Baselines: item.Baselines, GroupID: item.GroupID, Labels: labels})
 		result.Nodes = append(result.Nodes, item)
 	}
 	revision, err := biz.Hash(struct {
@@ -274,10 +245,11 @@ func (p *Provider) DiscoverInitialization(ctx context.Context) (biz.Initializati
 	return result, nil
 }
 
-func (p *Provider) initializationMembership(ctx context.Context, connection string) (map[string]string, error) {
+func (p *Provider) initializationMembership(ctx context.Context, connection string) (map[string]string, []string, error) {
 	membership := map[string]string{}
+	var clusterIDs []string
 	if p.repo == nil {
-		return membership, biz.Unavailable()
+		return membership, clusterIDs, biz.Unavailable()
 	}
 	err := p.repo.View(ctx, func(reader biz.Reader) error {
 		clusters, err := reader.Clusters(ctx, []string{connection}, "", 2)
@@ -285,6 +257,7 @@ func (p *Provider) initializationMembership(ctx context.Context, connection stri
 			return err
 		}
 		for _, cluster := range clusters {
+			clusterIDs = append(clusterIDs, cluster.ClusterID)
 			for poolAfter := ""; ; {
 				pools, err := reader.Pools(ctx, cluster.ClusterID, poolAfter, 201)
 				if err != nil {
@@ -315,5 +288,39 @@ func (p *Provider) initializationMembership(ctx context.Context, connection stri
 		}
 		return nil
 	})
-	return membership, err
+	return membership, clusterIDs, err
+}
+
+// A display metadata read cannot make initialization unavailable. Membership
+// is read first, then optional current bytes are loaded in an independent View.
+func (p *Provider) initializationPhysicalMemory(ctx context.Context, clusters []string) map[string]uint64 {
+	physicalMemory := map[string]uint64{}
+	if len(clusters) == 0 {
+		return physicalMemory
+	}
+	err := p.repo.View(ctx, func(reader biz.Reader) error {
+		for _, clusterID := range clusters {
+			for after := ""; ; {
+				devices, err := reader.Devices(ctx, clusterID, "", after, 201)
+				if err != nil {
+					return err
+				}
+				for _, record := range devices {
+					device := record.Device
+					if device.Node != nil {
+						physicalMemory[device.Node.UID+"\x00"+biz.NormalizeGPUUUID(device.VendorDeviceID)] = device.PhysicalMemoryBytes
+					}
+				}
+				if len(devices) < 201 {
+					break
+				}
+				after = devices[len(devices)-1].Device.DeviceID
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		return map[string]uint64{}
+	}
+	return physicalMemory
 }

@@ -65,16 +65,10 @@ func (s *pgStore) SaveUsage(ctx context.Context, p biz.UsageProjection) (*biz.Sy
 	if err = cleanError(s.q.SaveUsageWrite4(ctx, r.TenantID, r.OwnerService, r.ResourceID, r.CreateOperationID, int32(p.Revision), p.PayloadDigest)); err != nil {
 		return nil, err
 	}
-	// A binding that arrived first becomes tenant-visible only after both the
-	// signed owner assertion and the persisted immutable plan match.
-	claims, err := decodeMany[biz.Claim](s.q.SaveUsageData5(ctx, &r.TenantID, &r.OwnerService, &r.ResourceID, &r.CreateOperationID, p.ClusterID))
-	if err != nil {
+	// Both new projections and replays only link still-unassociated candidates.
+	// State, quantities and observation timestamps are never reconstructed here.
+	if err := s.linkPendingBindings(ctx, p); err != nil {
 		return nil, err
-	}
-	for _, c := range claims {
-		if err = s.reconcileBinding(ctx, c.Pod, c.DeviceID); err != nil {
-			return nil, err
-		}
 	}
 	return result, nil
 }
@@ -97,25 +91,13 @@ func (s *pgStore) Bindings(ctx context.Context, f biz.BindingFilter, after strin
 	}
 	return decodeMany[biz.Binding](s.q.BindingsData2(ctx, f.ClusterID, f.DeviceID, after, int32(n)))
 }
-func (s *pgStore) DeviceBindings(ctx context.Context, id string) ([]biz.Binding, error) {
-	return decodeMany[biz.Binding](s.q.DeviceBindingsData1(ctx, id))
-}
-func (s *pgStore) SourceHealth(ctx context.Context, cluster string) ([]biz.SourceWatermark, error) {
-	return decodeMany[biz.SourceWatermark](s.q.SourceHealthData1(ctx, cluster))
-}
-func (s *pgStore) OwnerClaims(ctx context.Context, ref biz.UsageRef) ([]biz.Claim, error) {
-	return decodeMany[biz.Claim](s.q.ReleaseOwnerClaimsData(ctx, &ref.TenantID, &ref.OwnerService, &ref.ResourceID, &ref.CreateOperationID))
-}
-func (s *pgStore) PodEvidence(ctx context.Context, p biz.PodRef) ([]biz.Claim, []biz.ReleaseProof, error) {
-	cs, err := decodeMany[biz.Claim](s.q.PodEvidenceData1(ctx, p.ClusterID, p.UID, p.ContainerName))
+func (s *pgStore) linkPendingBindings(ctx context.Context, usage biz.UsageProjection) error {
+	ref := usage.Ref
+	payload, err := jsonBytes(ref)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
-	ps, err := decodeMany[biz.ReleaseProof](s.q.PodEvidenceData2(ctx, p.ClusterID, p.UID, p.ContainerName))
-	for _, c := range cs {
-		if c.Pod != p {
-			return nil, nil, biz.Invalid("POD_SCOPE_MISMATCH")
-		}
-	}
-	return cs, ps, err
+	return cleanError(s.q.LinkPendingBindingOwners(ctx, ref.TenantID, ref.OwnerService,
+		ref.ResourceID, ref.CreateOperationID, usage.ClusterID, usage.ContainerName,
+		usage.ExecutionDigest, payload))
 }

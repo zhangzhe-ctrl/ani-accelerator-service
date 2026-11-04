@@ -31,15 +31,9 @@ func (r *bindingQueryReader) Bindings(context.Context, BindingFilter, string, in
 	}
 	return result, nil
 }
-func (r *bindingQueryReader) PodEvidence(_ context.Context, pod PodRef) ([]Claim, []ReleaseProof, error) {
-	return []Claim{{Pod: pod, DeviceID: testID, NodeUID: "node-1"}}, nil, nil
-}
-func (r *bindingQueryReader) SourceHealth(context.Context, string) ([]SourceWatermark, error) {
-	var result []SourceWatermark
-	for _, source := range []string{"kubernetes", "podresources", "cri"} {
-		result = append(result, SourceWatermark{ClusterID: testID, NodeUID: "node-1", Source: source, ObservedAt: r.now, Complete: r.healthy})
-	}
-	return result, nil
+func (r *bindingQueryReader) CollectionState(context.Context, string) (*CollectionState, error) {
+	stamp := r.now.UTC().Format(time.RFC3339Nano)
+	return &CollectionState{Observation: &Observation{Complete: r.healthy, ObservedAt: stamp, ReceivedAt: stamp, SnapshotRef: "pod-list-current"}}, nil
 }
 
 type bindingQueryRepo struct{ reader Reader }
@@ -70,7 +64,7 @@ func readBindingQuery(t *testing.T, now time.Time, healthy bool, bindings ...Bin
 
 func queryBinding(state AllocationState, observed time.Time) Binding {
 	stamp := observed.UTC().Format(time.RFC3339Nano)
-	return Binding{BindingID: testID, Pod: &PodRef{ClusterID: testID, Namespace: "test", Name: "workload", UID: "pod-1", ContainerName: "inference"}, PhysicalDeviceID: testID, State: state, EvidenceRef: "release:historical-proof", Observation: &Observation{Complete: true, ObservedAt: stamp, ReceivedAt: stamp, SnapshotRef: "release:historical-proof"}}
+	return Binding{BindingID: testID, Pod: &PodRef{ClusterID: testID, Namespace: "test", Name: "workload", UID: "pod-1", ContainerName: "inference"}, PhysicalDeviceID: testID, State: state, EvidenceRef: "pod-list-previous", Observation: &Observation{Complete: true, ObservedAt: stamp, ReceivedAt: stamp, SnapshotRef: "pod-list-previous"}}
 }
 
 func TestBindingQueryHistoricalReleaseRemainsKnown(t *testing.T) {
@@ -92,12 +86,12 @@ func TestBindingQueryHistoricalReleaseRemainsKnown(t *testing.T) {
 		{name: "active_sources_offline", state: Active, age: time.Second, want: AllocationUnknown},
 		{name: "unknown_stays_incomplete", state: AllocationUnknown, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.Complete = false }, want: AllocationUnknown},
 		{name: "unknown_cannot_become_complete", state: AllocationUnknown, age: time.Second, healthy: true, want: AllocationUnknown},
-		{name: "released_incomplete", state: ReleaseConfirmed, age: 4 * time.Minute, change: func(b *Binding) { b.Observation.Complete = false }, want: AllocationUnknown},
-		{name: "released_missing_observation", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation = nil }, want: AllocationUnknown},
-		{name: "released_bad_observed_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ObservedAt = "invalid" }, want: AllocationUnknown},
-		{name: "released_zero_observed_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ObservedAt = time.Time{}.Format(time.RFC3339Nano) }, want: AllocationUnknown},
-		{name: "released_future_observed_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ObservedAt = now.Add(time.Minute).Format(time.RFC3339Nano) }, want: AllocationUnknown},
-		{name: "released_bad_received_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ReceivedAt = "invalid" }, want: AllocationUnknown},
+		{name: "released_incomplete", state: ReleaseConfirmed, age: 4 * time.Minute, change: func(b *Binding) { b.Observation.Complete = false }, want: ReleaseConfirmed},
+		{name: "released_missing_observation", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation = nil }, want: ReleaseConfirmed},
+		{name: "released_bad_observed_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ObservedAt = "invalid" }, want: ReleaseConfirmed},
+		{name: "released_zero_observed_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ObservedAt = time.Time{}.Format(time.RFC3339Nano) }, want: ReleaseConfirmed},
+		{name: "released_future_observed_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ObservedAt = now.Add(time.Minute).Format(time.RFC3339Nano) }, want: ReleaseConfirmed},
+		{name: "released_bad_received_time", state: ReleaseConfirmed, age: time.Second, healthy: true, change: func(b *Binding) { b.Observation.ReceivedAt = "invalid" }, want: ReleaseConfirmed},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			binding := queryBinding(test.state, now.Add(-test.age))
@@ -105,7 +99,7 @@ func TestBindingQueryHistoricalReleaseRemainsKnown(t *testing.T) {
 				test.change(&binding)
 			}
 			result := readBindingQuery(t, now, test.healthy, binding)
-			if len(result.Items) != 1 || result.Items[0].State != test.want || result.Items[0].Observation == nil || result.Items[0].Observation.Complete != test.complete || result.Observation.Complete != test.complete {
+			if len(result.Items) != 1 || result.Items[0].State != test.want || result.Observation.Complete != test.complete {
 				t.Fatalf("item/aggregate disagreed with historical fact: %+v aggregate=%+v", result.Items, result.Observation)
 			}
 			if test.want == ReleaseConfirmed && !reflect.DeepEqual(result.Items[0], binding) {
@@ -127,26 +121,5 @@ func TestBindingQueryAggregatesOldReleaseWithCurrentActive(t *testing.T) {
 	}
 	if result.Observation.ObservedAt != released.Observation.ObservedAt || result.Observation.ReceivedAt != released.Observation.ReceivedAt {
 		t.Fatalf("aggregate fabricated current time for historical release: %+v", result.Observation)
-	}
-}
-
-func TestBindingReleaseHistoryDoesNotRetireNewerClaims(t *testing.T) {
-	now := time.Date(2026, 10, 16, 19, 16, 48, 0, time.UTC)
-	baseline := baselineForTest(1, Shared)
-	pod := PodRef{ClusterID: testID, Namespace: "test", Name: "workload", UID: "pod-1", ContainerName: "inference"}
-	proof := &ReleaseProof{Pod: pod, DeviceID: testID, NodeUID: "node-1", ObservedAt: now.Add(-4 * time.Minute), ReceivedAt: now.Add(-4 * time.Minute), EvidenceRef: "release:old", RuntimeExited: true, AllocationAbsent: true, NodeOnline: true}
-	var claims []Claim
-	for _, source := range []string{"runtime", "allocation"} {
-		claims = append(claims, Claim{Pod: pod, DeviceID: testID, NodeUID: "node-1", Source: source, State: Active, MemoryMiB: 6144, CoreLimitPercent: 25, BaselineDigest: baseline.BaselineDigest, MemoryBlockMiB: 1, ObservedAt: now, ReceivedAt: now, EvidenceRef: source + ":new"})
-	}
-	binding, err := MergeBinding(testID, claims, proof, nil)
-	if err != nil || binding.State != Active || !binding.Observation.Complete {
-		t.Fatal(binding, err)
-	}
-	spec := testSpec(Shared)
-	device := DeviceRecord{Device: PhysicalDevice{DeviceID: testID, Node: &NodeRef{UID: "node-1", Name: "node"}, ModelKey: spec.ModelKey, PhysicalMemoryBytes: 24576 << 20, Health: "HEALTHY", Observation: &Observation{Complete: true, ObservedAt: now.Format(time.RFC3339Nano)}}, ProviderMemoryBlocks: 24576, MemoryBlockMiB: 1, SafeMemoryBudgetMiB: 24576, BaselineDigest: baseline.BaselineDigest}
-	capacity, err := ComputeDeviceCapacity(device, *spec, *baseline, []Binding{*binding}, now, 120*time.Second, true)
-	if err != nil || !capacity.Complete || capacity.KnownCommittedUnits != 1 || capacity.KnownFreeUnits != 3 {
-		t.Fatal(capacity, err)
 	}
 }

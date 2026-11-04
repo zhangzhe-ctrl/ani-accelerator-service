@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -16,12 +15,8 @@ import (
 	"time"
 
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/biz"
-	"github.com/zhangzhe-ctrl/ani-accelerator-service/internal/data"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/pkg/schedulerconfig"
 	"github.com/zhangzhe-ctrl/ani-accelerator-service/tests/testkit"
-	"google.golang.org/grpc"
-	cri "k8s.io/cri-api/pkg/apis/runtime/v1"
-	pr "k8s.io/kubelet/pkg/apis/podresources/v1"
 )
 
 func TestNodePluginConfigMapsKeepIndependentGroups(t *testing.T) {
@@ -129,13 +124,8 @@ func (f *nodePluginFixture) assertSharedUnavailable(t *testing.T, adapter *Provi
 		if observed.Node.UID != f.groups[1].Nodes[0].UID {
 			continue
 		}
-		if len(observed.Baselines) != 0 || observed.Selectable || len(observed.Sources) != 3 {
+		if len(observed.Baselines) != 0 || observed.Selectable {
 			t.Fatalf("unbound configuration produced usable supply: %+v", observed)
-		}
-		for _, source := range observed.Sources {
-			if !source.Complete {
-				t.Fatalf("configuration failure corrupted independent Agent source health: %+v", source)
-			}
 		}
 	}
 }
@@ -174,7 +164,7 @@ func TestNodePluginConfigMapsStrictManagedConfiguration(t *testing.T) {
 			if (err == nil) != test.valid {
 				t.Fatalf("unexpected managed configuration result: %v", err)
 			}
-			if test.legacy != "" && err.Error() != "PROVIDER_LOCAL_COLLECTION_REMOVED" {
+			if test.legacy != "" && err.Error() != "PROVIDER_CONFIG_INVALID" {
 				t.Fatalf("legacy collector rejection changed: %v", err)
 			}
 		})
@@ -188,22 +178,16 @@ type nodePluginFixture struct {
 	references []map[string]string
 	cluster    biz.Cluster
 	groups     []biz.SupplyGroup
-	database   *data.Postgres
+	workloads  []pod
+	adopted    bool
+	repo       biz.Repository
 }
 
-// Only external Kubernetes, NVML and node socket boundaries are constructed.
-// Inspection and discovery read production PostgreSQL-backed node telemetry.
+// Kubernetes is the only allocation/configuration boundary. No node daemon,
+// runtime socket or telemetry database is needed for inspection and discovery.
 func newNodePluginFixture(t *testing.T) *nodePluginFixture {
 	t.Helper()
-	if os.Getenv("ACC_TEST_DSN_FILE") == "" {
-		t.Skip("requires isolated PostgreSQL")
-	}
-	database, err := data.OpenPostgres(context.Background(), os.Getenv("ACC_TEST_DSN_FILE"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	t.Cleanup(database.Close)
-	f := &nodePluginFixture{database: database, cluster: biz.Cluster{ClusterID: biz.NewID(), ConnectionRef: "node-config:" + biz.NewID()}}
+	f := &nodePluginFixture{repo: providerRepository{reader: &providerReader{}}, workloads: []pod{}, cluster: biz.Cluster{ClusterID: biz.NewID(), ConnectionRef: "node-config:" + biz.NewID()}}
 	configs := []map[string]string{{"config.json": "{\"deviceSplitCount\":1}"}, {"config.json": "{\"deviceSplitCount\":2}"}}
 	schedulerData := map[string]string{schedulerconfig.DataKey: "actions: enqueue,allocate\ntiers:\n- plugins:\n  - name: deviceshare\n    arguments:\n      deviceshare.VGPUEnable: true\n"}
 	schedulerDigest, err := schedulerconfig.ConfigMapDigest("v1.15.2", schedulerData, nil)
@@ -227,14 +211,49 @@ func newNodePluginFixture(t *testing.T) *nodePluginFixture {
 		var response any
 		switch r.URL.Path {
 		case "/api/v1/nodes":
+			if fault == "node_list" {
+				http.Error(w, "unavailable nodes", http.StatusServiceUnavailable)
+				return
+			}
 			items := []any{}
 			for index, group := range f.groups {
 				node := group.Nodes[0]
 				uuid := []string{gpuUUID, gpuUUID2}[index]
 				now := time.Now().UTC()
-				items = append(items, map[string]any{"metadata": map[string]any{"uid": node.UID, "name": node.Name, "annotations": map[string]string{NodeRegister: fmt.Sprintf("%s,%d,2457,NVIDIA-Test,true,hami-core:", uuid, group.Baseline.SplitCount), NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"allocatable": map[string]string{"volcano.sh/vgpu-number": "2", "volcano.sh/vgpu-memory": "2457", "volcano.sh/vgpu-cores": "100"}, "conditions": []any{map[string]any{"type": "Ready", "status": "True", "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}})
+				labels := map[string]string{}
+				if f.adopted {
+					labels = map[string]string{biz.GroupLabel: group.GroupID, biz.ModelLabel: group.ModelKey, biz.BaselineLabel: group.Baseline.BaselineID}
+				}
+				registration := fmt.Sprintf("%s,%d,2457,NVIDIA-Test,true,hami-core:", uuid, group.Baseline.SplitCount)
+				if fault == "bad_registration" {
+					registration = "malformed"
+				}
+				if fault == "unhealthy" {
+					registration = strings.Replace(registration, ",true,", ",false,", 1)
+				}
+				ready := "True"
+				if fault == "node_offline" {
+					ready = "False"
+				}
+				items = append(items, map[string]any{"metadata": map[string]any{"uid": node.UID, "name": node.Name, "resourceVersion": "node-rv-1", "labels": labels, "annotations": map[string]string{NodeRegister: registration, NodeHandshake: "Reported " + now.Format("2006-01-02 15:04:05.999999999 -0700 MST")}}, "status": map[string]any{"allocatable": map[string]string{"volcano.sh/vgpu-number": "2", "volcano.sh/vgpu-memory": "2457", "volcano.sh/vgpu-cores": "100"}, "conditions": []any{map[string]any{"type": "Ready", "status": ready, "lastHeartbeatTime": now.Format(time.RFC3339Nano)}}}})
+			}
+			if fault == "empty_nodes" {
+				items = nil
 			}
 			response = map[string]any{"items": items}
+		case "/api/v1/pods":
+			if fault == "pod_list" {
+				http.Error(w, "unavailable pods", http.StatusServiceUnavailable)
+				return
+			}
+			metadata := map[string]string{"resourceVersion": "pods-rv-1"}
+			if fault == "pod_page" {
+				metadata["continue"] = "unfinished"
+			}
+			if fault == "pod_revision" {
+				delete(metadata, "resourceVersion")
+			}
+			response = map[string]any{"metadata": metadata, "items": f.workloads}
 		case "/api/v1/namespaces/system/configmaps/plugin-whole", "/api/v1/namespaces/system/configmaps/plugin-shared":
 			index := 0
 			if strings.HasSuffix(r.URL.Path, "plugin-shared") {
@@ -263,6 +282,10 @@ func newNodePluginFixture(t *testing.T) *nodePluginFixture {
 						cm = "plugin-whole"
 					}
 					items = append(items, map[string]any{"metadata": map[string]any{"name": "plugin-" + group.Nodes[0].Name}, "spec": map[string]any{"nodeName": group.Nodes[0].Name, "volumes": []any{map[string]any{"name": "node-config", "configMap": map[string]any{"name": cm}}}, "containers": []any{map[string]any{"name": "plugin", "args": []string{"--gpu-memory-factor=10", fmt.Sprintf("--device-split-count=%d", group.Baseline.SplitCount)}, "volumeMounts": []any{map[string]any{"name": "node-config", "mountPath": "/config", "readOnly": true}}}}}, "status": map[string]any{"phase": "Running", "containerStatuses": []any{map[string]any{"name": "plugin", "ready": true, "imageID": group.Baseline.DevicePluginImageDigest}}}})
+					if fault == "factor_drift" {
+						spec := items[len(items)-1].(map[string]any)["spec"].(map[string]any)
+						spec["containers"].([]any)[0].(map[string]any)["args"] = []string{"--gpu-memory-factor=256", fmt.Sprintf("--device-split-count=%d", group.Baseline.SplitCount)}
+					}
 					if index == 1 {
 						spec := items[len(items)-1].(map[string]any)["spec"].(map[string]any)
 						main := spec["containers"].([]any)[0].(map[string]any)
@@ -298,7 +321,11 @@ func newNodePluginFixture(t *testing.T) *nodePluginFixture {
 		case "/apis/scheduling.volcano.sh/v1beta1/queues/gpu":
 			response = map[string]any{"metadata": map[string]any{"name": "gpu"}, "status": map[string]any{"state": "Open"}}
 		case "/apis/node.k8s.io/v1/runtimeclasses/nvidia":
-			response = map[string]any{"metadata": map[string]any{"name": "nvidia", "uid": "10000000-0000-4000-8000-000000000099", "resourceVersion": "1"}, "handler": "nvidia"}
+			runtimeClass := map[string]any{"metadata": map[string]any{"name": "nvidia", "uid": "10000000-0000-4000-8000-000000000099", "resourceVersion": "1"}, "handler": "nvidia"}
+			if fault == "runtimeclass_selector" {
+				runtimeClass["scheduling"] = map[string]any{"nodeSelector": map[string]string{"kubernetes.io/hostname": "different-node"}}
+			}
+			response = runtimeClass
 		default:
 			http.NotFound(w, r)
 			return
@@ -316,13 +343,9 @@ func newNodePluginFixture(t *testing.T) *nodePluginFixture {
 	api.StartTLS()
 	t.Cleanup(api.Close)
 	f.connection = Connection{Ref: f.cluster.ConnectionRef, APIServer: api.URL, ServerName: "accelerator.test", CAFile: pki.CAFile, CertFile: clientCert, KeyFile: clientKey, PluginNamespace: "system", PluginSelector: "app=plugin", PluginContainer: "plugin", PluginConfigMap: "plugin-whole", SchedulerNamespace: "system", SchedulerSelector: "app=scheduler", SchedulerContainer: "scheduler", SchedulerConfigMap: "scheduler"}
-	for index, group := range f.groups {
+	for _, group := range f.groups {
 		f.connection.InstallationBaselines = append(f.connection.InstallationBaselines, InstallationBaseline{Mode: group.Mode, Baseline: group.Baseline})
-		state := &replayState{absent: true, exited: true}
-		resources := unixServer(t, "node-config-pr", func(s *grpc.Server) { pr.RegisterPodResourcesListerServer(s, &replayResources{state: state}) })
-		runtime := unixServer(t, "node-config-cri", func(s *grpc.Server) { cri.RegisterRuntimeServiceServer(s, &replayRuntime{state: state}) })
-		fixture := newNodeTelemetryFixture(t, database, f.cluster.ConnectionRef, NodeSource{UID: group.Nodes[0].UID, Name: group.Nodes[0].Name, PodResourcesSocket: resources, CRISocket: runtime}, fixedTelemetryInventory{{UUID: []string{gpuUUID, gpuUUID2}[index], Model: "NVIDIA-Test", Bytes: 24576 << 20}})
-		fixture.refresh(t)
+
 	}
 	return f
 }
@@ -340,7 +363,7 @@ func (f *nodePluginFixture) provider(t *testing.T, references []map[string]strin
 	if err := json.Unmarshal(payload, &connection); err != nil {
 		t.Fatal(err)
 	}
-	adapter, err := New(Config{Connections: []Connection{connection}}, nil, f.database, time.Minute)
+	adapter, err := New(Config{Connections: []Connection{connection}}, nil, f.repo, time.Minute)
 	if err != nil {
 		t.Fatal(err)
 	}

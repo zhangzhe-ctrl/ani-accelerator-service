@@ -28,7 +28,8 @@ message Security {
   string governance_dns_name = 9;
   string inference_dns_name = 10;
   string resource_dns_name = 11;
-  string node_agent_dns_name = 12;
+  reserved 12;
+  reserved "node_agent_dns_name";
   string modeldev_dns_name = 13;
 }
 

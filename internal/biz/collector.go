@@ -3,8 +3,8 @@ package biz
 import "context"
 
 // Collect is invoked by the application lifecycle worker, never by a query.
-// Watermark failure preserves facts. The adapter returns failed source health
-// as data so one failed node does not discard the other nodes' observations.
+// Failed lists remain explicit observations; successful Pod and device
+// observations can be applied independently within the same batch.
 func (u *Usecase) Collect(ctx context.Context) error {
 	var clusters []Cluster
 	err := u.repo.View(ctx, func(r Reader) error {
@@ -25,16 +25,22 @@ func (u *Usecase) Collect(ctx context.Context) error {
 		return err
 	}
 	for _, cluster := range clusters {
-		if err = u.collectCluster(ctx, cluster, nil); err != nil {
+		if err = u.collectCluster(ctx, cluster); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (u *Usecase) collectCluster(ctx context.Context, cluster Cluster, scope *ReleaseRecheckScope) error {
+func (u *Usecase) collectCluster(ctx context.Context, cluster Cluster) error {
 	var groups []SupplyGroup
+	var baseRevision uint64
 	err := u.repo.View(ctx, func(r Reader) error {
+		state, err := r.CollectionState(ctx, cluster.ClusterID)
+		if err != nil {
+			return err
+		}
+		baseRevision = state.Revision
 		pAfter := ""
 		for {
 			pools, err := r.Pools(ctx, cluster.ClusterID, pAfter, 201)
@@ -64,22 +70,11 @@ func (u *Usecase) collectCluster(ctx context.Context, cluster Cluster, scope *Re
 	if err != nil {
 		return err
 	}
-	var batch ObservationBatch
-	if provider, ok := u.provider.(NodeFactProvider); ok && scope != nil {
-		batch, err = provider.CollectRelease(ctx, cluster, groups, scope)
-	} else {
-		batch, err = u.provider.Collect(ctx, cluster, groups)
-	}
+	batch, err := u.provider.Collect(ctx, cluster, groups)
 	if err != nil {
-		batch = ObservationBatch{ClusterID: cluster.ClusterID}
-		for _, group := range groups {
-			for _, node := range group.Nodes {
-				for _, source := range []string{"kubernetes", "podresources", "cri"} {
-					batch.Watermarks = append(batch.Watermarks, SourceWatermark{ClusterID: cluster.ClusterID, NodeUID: node.UID, Source: source, ReceivedAt: u.now(), Complete: false, Issue: "SOURCE_UNKNOWN"})
-				}
-			}
-		}
+		batch = ObservationBatch{ClusterID: cluster.ClusterID, ReceivedAt: u.now(), BindingIssues: []string{"SOURCE_UNKNOWN"}}
 	}
+	batch.BaseObservationRevision = baseRevision
 	if batch.ClusterID != cluster.ClusterID {
 		return Invalid("PROVIDER_SCOPE_MISMATCH")
 	}

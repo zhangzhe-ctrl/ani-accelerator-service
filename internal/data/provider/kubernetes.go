@@ -19,39 +19,27 @@ import (
 )
 
 type Connection struct {
-	InstallationBaselines []InstallationBaseline   `json:"installation_baselines"`
-	NodeAgentIdentity     *NodeAgentIdentityConfig `json:"node_agent_identity"`
-	Ref                   string                   `json:"ref"`
-	APIServer             string                   `json:"api_server"`
-	ServerName            string                   `json:"server_name"`
-	CAFile                string                   `json:"ca_file"`
-	CertFile              string                   `json:"cert_file"`
-	KeyFile               string                   `json:"key_file"`
-	TokenFile             string                   `json:"token_file"`
-	PluginNamespace       string                   `json:"plugin_namespace"`
-	PluginSelector        string                   `json:"plugin_selector"`
-	PluginContainer       string                   `json:"plugin_container"`
-	PluginConfigMap       string                   `json:"plugin_config_map"`
-	NodePluginConfigMaps  []NodePluginConfigMap    `json:"node_plugin_config_maps,omitempty"`
-	SchedulerNamespace    string                   `json:"scheduler_namespace"`
-	SchedulerSelector     string                   `json:"scheduler_selector"`
-	SchedulerContainer    string                   `json:"scheduler_container"`
-	SchedulerConfigMap    string                   `json:"scheduler_config_map"`
-	// Exactly one node may use the process-local NVML library. Other nodes
-	// retain inventory/occupancy but cannot claim complete local telemetry.
-	LocalNodeUID string       `json:"local_node_uid"`
-	Nodes        []NodeSource `json:"nodes"`
-}
-type NodeSource struct {
-	UID                string `json:"uid"`
-	Name               string `json:"name"`
-	PodResourcesSocket string `json:"podresources_socket"`
-	CRISocket          string `json:"cri_socket"`
+	InstallationBaselines []InstallationBaseline     `json:"installation_baselines"`
+	PrometheusInventory   *PrometheusInventoryConfig `json:"prometheus_inventory,omitempty"`
+	Ref                   string                     `json:"ref"`
+	APIServer             string                     `json:"api_server"`
+	ServerName            string                     `json:"server_name"`
+	CAFile                string                     `json:"ca_file"`
+	CertFile              string                     `json:"cert_file"`
+	KeyFile               string                     `json:"key_file"`
+	TokenFile             string                     `json:"token_file"`
+	PluginNamespace       string                     `json:"plugin_namespace"`
+	PluginSelector        string                     `json:"plugin_selector"`
+	PluginContainer       string                     `json:"plugin_container"`
+	PluginConfigMap       string                     `json:"plugin_config_map"`
+	NodePluginConfigMaps  []NodePluginConfigMap      `json:"node_plugin_config_maps,omitempty"`
+	SchedulerNamespace    string                     `json:"scheduler_namespace"`
+	SchedulerSelector     string                     `json:"scheduler_selector"`
+	SchedulerContainer    string                     `json:"scheduler_container"`
+	SchedulerConfigMap    string                     `json:"scheduler_config_map"`
 }
 type Config struct {
-	Connections            []Connection           `json:"connections"`
-	RuntimeEventsDirectory string                 `json:"runtime_events_directory"`
-	RuntimeJournal         *journalRecoveryConfig `json:"runtime_journal"`
+	Connections []Connection `json:"connections"`
 }
 
 func LoadConfig(path string) (Config, error) {
@@ -64,14 +52,8 @@ func LoadConfig(path string) (Config, error) {
 	if decodeStrict(f, &c) != nil {
 		return c, biz.Invalid("PROVIDER_CONFIG_INVALID")
 	}
-	if c.RuntimeEventsDirectory != "" || c.RuntimeJournal != nil {
-		return c, biz.Invalid("PROVIDER_LOCAL_COLLECTION_REMOVED")
-	}
 	seen := map[string]bool{}
 	for _, x := range c.Connections {
-		if x.LocalNodeUID != "" || len(x.Nodes) > 0 {
-			return c, biz.Invalid("PROVIDER_LOCAL_COLLECTION_REMOVED")
-		}
 		if err := validateNodePluginConfigMaps(x.NodePluginConfigMaps); err != nil {
 			return c, err
 		}
@@ -85,7 +67,7 @@ func LoadConfig(path string) (Config, error) {
 			}
 			baselineIDs[installed.Baseline.BaselineID] = true
 		}
-		if err := validateNodeAgentIdentityConfig(x.NodeAgentIdentity); err != nil {
+		if err := validatePrometheusInventoryConfig(x.PrometheusInventory); err != nil {
 			return c, err
 		}
 		u, err := url.Parse(x.APIServer)
@@ -101,9 +83,10 @@ func LoadConfig(path string) (Config, error) {
 }
 
 type kubeReader struct {
-	config Connection
-	client *http.Client
-	token  string
+	config    Connection
+	client    *http.Client
+	token     string
+	inventory *prometheusInventoryReader
 }
 
 func newKubeReader(c Connection) (*kubeReader, error) {
@@ -135,6 +118,12 @@ func newKubeReader(c Connection) (*kubeReader, error) {
 	}
 	if len(tc.Certificates) == 0 && c.TokenFile == "" {
 		return nil, biz.Invalid("PROVIDER_AUTH_REQUIRED")
+	}
+	if c.PrometheusInventory != nil {
+		r.inventory, err = newPrometheusInventoryReader(*c.PrometheusInventory)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return r, nil
 }
@@ -170,10 +159,27 @@ func (k *kubeReader) get(ctx context.Context, path string, out any) error {
 	if resp.StatusCode != 200 {
 		return biz.Precondition("SOURCE_UNKNOWN")
 	}
-	if json.NewDecoder(io.LimitReader(resp.Body, 16<<20)).Decode(out) != nil {
+	decoder := json.NewDecoder(io.LimitReader(resp.Body, 16<<20))
+	if decoder.Decode(out) != nil {
+		return biz.Precondition("PROVIDER_RESPONSE_INVALID")
+	}
+	var trailing any
+	if decoder.Decode(&trailing) != io.EOF {
 		return biz.Precondition("PROVIDER_RESPONSE_INVALID")
 	}
 	return nil
+}
+
+func kubernetesDNSName(name string) bool {
+	if len(name) == 0 || len(name) > 253 {
+		return false
+	}
+	for _, part := range strings.Split(name, ".") {
+		if !biz.Name(part) {
+			return false
+		}
+	}
+	return true
 }
 
 type metadata struct {
@@ -231,11 +237,8 @@ type pod struct {
 		} `json:"volumes"`
 	} `json:"spec"`
 	Status struct {
-		Phase                      string            `json:"phase"`
-		Reason                     string            `json:"reason"`
-		InitContainerStatuses      []json.RawMessage `json:"initContainerStatuses"`
-		EphemeralContainerStatuses []json.RawMessage `json:"ephemeralContainerStatuses"`
-		ContainerStatuses          []struct {
+		Phase             string `json:"phase"`
+		ContainerStatuses []struct {
 			Name    string `json:"name"`
 			ImageID string `json:"imageID"`
 			Ready   bool   `json:"ready"`
@@ -256,22 +259,46 @@ func (k *kubeReader) nodes(ctx context.Context) ([]node, error) {
 	if l.Metadata.Continue != "" {
 		return nil, biz.Precondition("SOURCE_INCOMPLETE")
 	}
+	if l.Items == nil {
+		return nil, biz.Precondition("PROVIDER_RESPONSE_INVALID")
+	}
+	seenUIDs, seenNames := map[string]bool{}, map[string]bool{}
+	for _, item := range l.Items {
+		if !biz.Ref(item.Metadata.UID) || !kubernetesDNSName(item.Metadata.Name) || seenUIDs[item.Metadata.UID] || seenNames[item.Metadata.Name] {
+			return nil, biz.Precondition("PROVIDER_RESPONSE_INVALID")
+		}
+		seenUIDs[item.Metadata.UID], seenNames[item.Metadata.Name] = true, true
+	}
 	return l.Items, nil
 }
-func (k *kubeReader) pods(ctx context.Context) ([]pod, error) {
-	var l struct {
+
+// pods returns the complete API list and its opaque resourceVersion. A failed,
+// truncated or unidentified list cannot replace the current allocation set.
+func (k *kubeReader) pods(ctx context.Context) ([]pod, string, error) {
+	var list struct {
 		Items    []pod `json:"items"`
 		Metadata struct {
-			Continue string `json:"continue"`
+			Continue        string `json:"continue"`
+			ResourceVersion string `json:"resourceVersion"`
 		} `json:"metadata"`
 	}
-	if err := k.get(ctx, "/api/v1/pods", &l); err != nil {
-		return nil, err
+	if err := k.get(ctx, "/api/v1/pods", &list); err != nil {
+		return nil, "", err
 	}
-	if l.Metadata.Continue != "" {
-		return nil, biz.Precondition("SOURCE_INCOMPLETE")
+	if list.Metadata.Continue != "" || list.Metadata.ResourceVersion == "" {
+		return nil, "", biz.Precondition("SOURCE_INCOMPLETE")
 	}
-	return l.Items, nil
+	if list.Items == nil {
+		return nil, "", biz.Precondition("PROVIDER_RESPONSE_INVALID")
+	}
+	seen := map[string]bool{}
+	for _, item := range list.Items {
+		if !biz.Ref(item.Metadata.UID) || !biz.Name(item.Metadata.Namespace) || !kubernetesDNSName(item.Metadata.Name) || seen[item.Metadata.UID] {
+			return nil, "", biz.Precondition("PROVIDER_RESPONSE_INVALID")
+		}
+		seen[item.Metadata.UID] = true
+	}
+	return list.Items, list.Metadata.ResourceVersion, nil
 }
 func (k *kubeReader) selectedPods(ctx context.Context, namespace, selector string) ([]pod, error) {
 	var l struct {

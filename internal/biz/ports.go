@@ -21,10 +21,9 @@ type Reader interface {
 	Usages(context.Context, string, string, UsageState, string, int) ([]UsageProjection, error)
 	Devices(context.Context, string, string, string, int) ([]DeviceRecord, error)
 	Bindings(context.Context, BindingFilter, string, int) ([]Binding, error)
-	DeviceBindings(context.Context, string) ([]Binding, error)
-	SourceHealth(context.Context, string) ([]SourceWatermark, error)
-	PodEvidence(context.Context, PodRef) ([]Claim, []ReleaseProof, error)
-	OwnerClaims(context.Context, UsageRef) ([]Claim, error)
+	CurrentDeviceBindings(context.Context, string) ([]Binding, error)
+	CollectionState(context.Context, string) (*CollectionState, error)
+	CurrentBindingMetrics(context.Context, []string, time.Time, time.Time) ([]CurrentBindingMetric, error)
 }
 type Transaction interface {
 	Reader
@@ -90,75 +89,57 @@ type DeviceRecord struct {
 	SafeMemoryBudgetMiB  int64          `json:"safe_memory_budget_mib"`
 	BaselineDigest       string         `json:"baseline_digest"`
 }
-type SourceWatermark struct {
-	ConsumedNodeRevision uint64    `json:"consumed_node_revision,omitempty"`
-	ClusterID            string    `json:"cluster_id"`
-	NodeUID              string    `json:"node_uid"`
-	Source               string    `json:"source"`
-	Cursor               string    `json:"cursor"`
-	ObservedAt           time.Time `json:"observed_at"`
-	ReceivedAt           time.Time `json:"received_at"`
-	Complete             bool      `json:"complete"`
-	Issue                string    `json:"issue"`
-	// Cluster-wide pending demand is carried only by the first configured
-	// node's Kubernetes watermark, avoiding per-node duplication.
-	PendingByGroup map[string]int64 `json:"pending_by_group,omitempty"`
-}
-type Claim struct {
-	Pod              PodRef          `json:"pod"`
-	DeviceID         string          `json:"device_id"`
-	NodeUID          string          `json:"node_uid"`
-	Source           string          `json:"source"`
-	Cursor           string          `json:"cursor"`
-	ObservedAt       time.Time       `json:"observed_at"`
-	ReceivedAt       time.Time       `json:"received_at"`
-	State            AllocationState `json:"state"`
-	MemoryMiB        int64           `json:"memory_mib"`
-	CoreLimitPercent uint32          `json:"core_limit_percent"`
-	BaselineDigest   string          `json:"baseline_digest"`
-	MemoryBlockMiB   uint32          `json:"memory_block_mib"`
-	EvidenceRef      string          `json:"evidence_ref"`
-	// Only cryptographically verified owner assertions may populate these.
-	OwnerRef        *UsageRef `json:"owner_ref"`
-	ExecutionDigest string    `json:"execution_digest"`
-}
 
-// ReleaseProof covers one actual Pod/container/device and retires only claims
-// at or before the proven observation time. A missing API object is not proof.
-type ReleaseProof struct {
-	CheckedNodeRevision uint64    `json:"checked_node_revision,omitempty"`
-	Pod                 PodRef    `json:"pod"`
-	DeviceID            string    `json:"device_id"`
-	NodeUID             string    `json:"node_uid"`
-	ObservedAt          time.Time `json:"observed_at"`
-	ReceivedAt          time.Time `json:"received_at"`
-	EvidenceRef         string    `json:"evidence_ref"`
-	RuntimeExited       bool      `json:"runtime_exited"`
-	AdmissionRejected   bool      `json:"admission_rejected,omitempty"`
-	AllocationAbsent    bool      `json:"allocation_absent"`
-	NodeOnline          bool      `json:"node_online"`
-	OwnerRef            *UsageRef `json:"owner_ref"`
-	ExecutionDigest     string    `json:"execution_digest"`
-}
+// ObservationBatch is one current Kubernetes/Volcano projection. A failed
+// list is distinct from a complete, empty list and never ends occupancy.
 type ObservationBatch struct {
-	ConnectionRef string
-	NodeRevisions map[string]uint64
-	ClusterID     string
-	Devices       []DeviceRecord
-	Claims        []Claim
-	Releases      []ReleaseProof
-	Watermarks    []SourceWatermark
+	ClusterID                 string
+	BaseObservationRevision   uint64
+	ObservedAt                time.Time
+	ReceivedAt                time.Time
+	SnapshotRef               string
+	PodListComplete           bool
+	LivePodUIDs               []string
+	IncompletePodUIDs         []string
+	Bindings                  []ObservedBinding
+	PendingByGroup            map[string]int64
+	BindingIssues             []string
+	NodeListComplete          bool
+	LiveNodeUIDs              []string
+	InventoryCompleteNodeUIDs []string
+	Devices                   []DeviceRecord
 }
 
-type ReleaseRecheckScope struct {
-	Owner UsageRef
-	Pods  []PodRef
+// ObservedBinding contains one successfully decoded current assignment.
+// Only cryptographically verified owner assertions may populate OwnerRef.
+type ObservedBinding struct {
+	Pod              PodRef
+	NodeUID          string
+	DeviceID         string
+	MemoryMiB        int64
+	CoreLimitPercent uint32
+	BaselineDigest   string
+	MemoryBlockMiB   uint32
+	OwnerRef         *UsageRef
+	ExecutionDigest  string
 }
 
-type NodeFactProvider interface {
-	CollectRelease(context.Context, Cluster, []SupplyGroup, *ReleaseRecheckScope) (ObservationBatch, error)
+type CollectionState struct {
+	Revision       uint64           `json:"-"`
+	Observation    *Observation     `json:"observation"`
+	PendingByGroup map[string]int64 `json:"pending_by_group"`
 }
 
-type ReleaseNodeLocker interface {
-	LockReleaseNodes(context.Context, string, []string) (map[string]NodeTelemetryState, error)
+// BindingOwnerCandidate is private persistence metadata; it is not a tenant
+// association until an immutable Usage projection matches it.
+type BindingOwnerCandidate struct {
+	Ref             UsageRef `json:"ref"`
+	ExecutionDigest string   `json:"execution_digest"`
+}
+
+type CurrentBindingMetric struct {
+	Pod      PodRef
+	Node     NodeRef
+	GPUUUID  string
+	UsageRef UsageRef
 }

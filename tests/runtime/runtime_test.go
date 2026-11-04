@@ -47,7 +47,7 @@ func TestRuntimeLifecycle(t *testing.T) {
 	readiness := serverpkg.NewReadiness()
 	var logOutput bytes.Buffer
 	logger := newTestLogger(&logOutput)
-	observability, err := serverpkg.NewObservability("ani-accelerator-service-test", "test", readiness)
+	observability, err := serverpkg.NewObservability("ani-accelerator-service-test", "test", readiness, nil)
 	if err != nil {
 		t.Fatalf("NewObservability() error = %v", err)
 	}
@@ -118,7 +118,7 @@ func TestAdminReadinessUsesKratosErrorEncoding(t *testing.T) {
 	cfg := runtimeConfig()
 	readiness := serverpkg.NewReadiness()
 	logger := newTestLogger(io.Discard)
-	observability, err := serverpkg.NewObservability("ani-accelerator-service-test", "test", readiness)
+	observability, err := serverpkg.NewObservability("ani-accelerator-service-test", "test", readiness, nil)
 	if err != nil {
 		t.Fatalf("NewObservability() error = %v", err)
 	}

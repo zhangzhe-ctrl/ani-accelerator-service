@@ -40,7 +40,7 @@ enum UsageEndReason {
 enum AllocationState {
   ALLOCATION_STATE_UNSPECIFIED = 0; // 未知
   ACTIVE = 1; // 有可信分配事实
-  RELEASE_CONFIRMED = 2; // 正向证据确认实际分配已解除
+  RELEASE_CONFIRMED = 2; // 当前 Kubernetes/Volcano 分配已结束，不代表物理进程退出证明
   ALLOCATION_UNKNOWN = 3; // 尚不能排除占用
 }
 
@@ -544,7 +544,7 @@ message DeviceCapacity {
   int64 known_committed_units = 3 [json_name = "known_committed_units"];
   // 仅合格设备的估计值，不是锁。
   int64 known_free_units = 4 [json_name = "known_free_units"];
-  // 经验证的预算<=量化可表达容量。
+  // 当前注册 blocks * 冻结 F 的分配预算；不由物理显存监控限定。
   int64 safe_memory_budget_mib = 5 [json_name = "safe_memory_budget_mib"];
   // 已归一化一次的设备承诺。
   int64 committed_memory_mib = 6 [json_name = "committed_memory_mib"];
@@ -642,7 +642,7 @@ message PhysicalDevice {
   string vendor_device_id = 5 [json_name = "vendor_device_id"];
   // 归一化型号类别。
   string model_key = 6 [json_name = "model_key"];
-  // NVML等真实来源，<=2^63-1；不由blocks反推。
+  // 可选 Prometheus 物理显存展示值；0 表示未知，不参与分配预算。
   uint64 physical_memory_bytes = 7 [json_name = "physical_memory_bytes"];
   // HEALTHY/UNHEALTHY/UNKNOWN；不清除既有占用。
   string health = 8 [json_name = "health"];
@@ -833,7 +833,6 @@ message ListBindingsResponse {
 // 全部方法只接受Gov可信管理员委托；初始化也可由同校验CLI完成。
 service AcceleratorAdminService {
   // Trusted platform monitoring read; never accepts a fake tenant context.
-  rpc ListAdminGpuMetricScopes(AdminGpuMetricScopesRequest) returns (GpuMetricScopesResponse);
   rpc GetInitialization(GetInitializationRequest) returns (Initialization);
   rpc ListDiscoveredNodes(ListDiscoveredNodesRequest) returns (DiscoveredNodes);
   rpc CreateInitialization(CreateInitializationRequest) returns (InitializationOperation);
@@ -885,7 +884,6 @@ service AcceleratorCatalogService {
 // 没有RegisterConsumer/MarkClosing/Finalize，更没有TCC三阶段。
 service AcceleratorUsageService {
   // Trusted tenant monitoring read, including retained deleted-resource history.
-  rpc ListTenantGpuMetricScopes(TenantGpuMetricScopesRequest) returns (GpuMetricScopesResponse);
   // 仅Gov调用；异步投影同步。
   rpc SyncGpuUsage(SyncGpuUsageRequest) returns (SyncGpuUsageResponse);
   // 当前租户读取。
@@ -894,58 +892,6 @@ service AcceleratorUsageService {
   rpc ListGpuUsages(ListGpuUsagesRequest) returns (ListGpuUsagesResponse);
   // 读取可信绑定，不增加使用权。
   rpc ListBindings(ListBindingsRequest) returns (ListBindingsResponse);
-}
-// Internal selectors only. Governance never exposes topology to tenant clients.
-message GpuMetricScope {
-  string scope_id = 1 [json_name="scope_id"];
-  GpuUsageRef ref = 2;
-  string resource_kind = 3 [json_name="resource_kind"];
-  string cluster_id = 4 [json_name="cluster_id"];
-  NodeRef node = 5;
-  string namespace = 6;
-  string pod_name = 7 [json_name="pod_name"];
-  string container_name = 8 [json_name="container_name"];
-  string gpu_uuid = 9 [json_name="gpu_uuid"];
-  string vdevice_id = 10 [json_name="vdevice_id"];
-  string pod_uid = 11 [json_name="pod_uid"];
-  string device_id = 12 [json_name="device_id"];
-  string binding_id = 13 [json_name="binding_id"];
-  string valid_from = 14 [json_name="valid_from"];
-  string valid_to = 15 [json_name="valid_to"];
-  string evidence_at = 16 [json_name="evidence_at"];
-  string ownership_state = 17 [json_name="ownership_state"];
-  bool candidate_complete = 18 [json_name="candidate_complete"];
-  repeated string reasons = 19;
-  // Immutable reconciliation evidence reference for this ownership period.
-  string evidence_ref = 20 [json_name="evidence_ref"];
-}
-message AdminGpuMetricScopesRequest {
-  AdminRead context = 1;
-  string cluster_id = 2 [json_name="cluster_id"];
-  string tenant_id = 3 [json_name="tenant_id"];
-  GpuUsageRef ref = 4;
-  string start = 5;
-  string end = 6;
-  Page page = 7;
-  string snapshot_id = 8 [json_name="snapshot_id"];
-}
-message TenantGpuMetricScopesRequest {
-  TenantContext context = 1;
-  string cluster_id = 2 [json_name="cluster_id"];
-  GpuUsageRef ref = 3;
-  string start = 4;
-  string end = 5;
-  Page page = 6;
-  string snapshot_id = 7 [json_name="snapshot_id"];
-}
-message GpuMetricScopesResponse {
-  repeated GpuMetricScope items = 1;
-  string next_token = 2 [json_name="next_token"];
-  string snapshot_id = 3 [json_name="snapshot_id"];
-  string index_started_at = 4 [json_name="index_started_at"];
-  string evidence_at = 5 [json_name="evidence_at"];
-  bool index_complete = 6 [json_name="index_complete"];
-  repeated string reasons = 7;
 }
 message InitializationCheck {
   string key = 1;
@@ -975,21 +921,13 @@ message DiscoveredBaseline {
   string mode = 2;
   string source = 3;
 }
-message NodeSource {
-  string source = 1;
-  string observed_at = 2 [json_name="observed_at"];
-  string received_at = 3 [json_name="received_at"];
-  bool complete = 4;
-  repeated string issues = 5;
-}
 message DiscoveredNode {
   NodeRef node = 1;
   string group_id = 2 [json_name="group_id"];
   repeated DiscoveredGPU gpus = 3;
   repeated DiscoveredBaseline baselines = 4;
-  bool agent_online = 5 [json_name="agent_online"];
-  string agent_lease_expires_at = 6 [json_name="agent_lease_expires_at"];
-  repeated NodeSource sources = 7;
+  reserved 5, 6, 7;
+  reserved "agent_online", "agent_lease_expires_at", "sources";
   bool selectable = 8;
   repeated string blocking_reasons = 9 [json_name="blocking_reasons"];
 }

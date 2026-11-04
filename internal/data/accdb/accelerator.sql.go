@@ -105,12 +105,83 @@ func (q *Queries) ClustersData1(ctx context.Context, column1 []string, column2 i
 	return items, nil
 }
 
-const deviceBindingsData1 = `-- name: DeviceBindingsData1 :many
-SELECT payload FROM accelerator.bindings WHERE device_id=$1 ORDER BY binding_id
+const collectionStateData = `-- name: CollectionStateData :one
+SELECT observation_revision,current_observation FROM accelerator.clusters WHERE cluster_id=$1::uuid
 `
 
-func (q *Queries) DeviceBindingsData1(ctx context.Context, deviceID string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, deviceBindingsData1, deviceID)
+type CollectionStateDataRow struct {
+	ObservationRevision uint64
+	CurrentObservation  []byte
+}
+
+func (q *Queries) CollectionStateData(ctx context.Context, dollar_1 string) (CollectionStateDataRow, error) {
+	row := q.db.QueryRow(ctx, collectionStateData, dollar_1)
+	var i CollectionStateDataRow
+	err := row.Scan(&i.ObservationRevision, &i.CurrentObservation)
+	return i, err
+}
+
+const currentBindingByKeyData = `-- name: CurrentBindingByKeyData :one
+SELECT payload FROM accelerator.bindings WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 AND device_id=$4
+`
+
+func (q *Queries) CurrentBindingByKeyData(ctx context.Context, clusterID string, podUid string, containerName string, deviceID string) ([]byte, error) {
+	row := q.db.QueryRow(ctx, currentBindingByKeyData,
+		clusterID,
+		podUid,
+		containerName,
+		deviceID,
+	)
+	var payload []byte
+	err := row.Scan(&payload)
+	return payload, err
+}
+
+const currentBindingMetricsData = `-- name: CurrentBindingMetricsData :many
+SELECT b.payload AS binding_payload,d.payload AS device_payload
+FROM accelerator.bindings b
+JOIN accelerator.clusters c ON c.cluster_id=b.cluster_id
+JOIN accelerator.devices d ON d.cluster_id=b.cluster_id AND d.device_id=b.device_id AND d.inventory_present
+WHERE c.connection_ref=ANY($1::text[])
+ AND b.allocation_state=1 AND b.tenant_id IS NOT NULL
+ AND b.payload->'verified_usage_ref' IS NOT NULL
+ AND b.payload#>>'{observation,complete}'='true'
+ AND NULLIF(b.payload#>>'{observation,observed_at}','')::timestamptz>=$2::timestamptz
+ AND NULLIF(b.payload#>>'{observation,observed_at}','')::timestamptz<=$3::timestamptz
+ORDER BY b.cluster_id,b.binding_id
+`
+
+type CurrentBindingMetricsDataRow struct {
+	BindingPayload []byte
+	DevicePayload  []byte
+}
+
+func (q *Queries) CurrentBindingMetricsData(ctx context.Context, column1 []string, column2 time.Time, column3 time.Time) ([]CurrentBindingMetricsDataRow, error) {
+	rows, err := q.db.Query(ctx, currentBindingMetricsData, column1, column2, column3)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CurrentBindingMetricsDataRow{}
+	for rows.Next() {
+		var i CurrentBindingMetricsDataRow
+		if err := rows.Scan(&i.BindingPayload, &i.DevicePayload); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const currentDeviceBindingsData = `-- name: CurrentDeviceBindingsData :many
+SELECT payload FROM accelerator.bindings WHERE device_id=$1::uuid AND allocation_state IN (1,3) ORDER BY binding_id
+`
+
+func (q *Queries) CurrentDeviceBindingsData(ctx context.Context, dollar_1 string) ([][]byte, error) {
+	rows, err := q.db.Query(ctx, currentDeviceBindingsData, dollar_1)
 	if err != nil {
 		return nil, err
 	}
@@ -141,7 +212,7 @@ func (q *Queries) DevicePresent(ctx context.Context, clusterID string, deviceID 
 }
 
 const devicesData1 = `-- name: DevicesData1 :many
-SELECT payload FROM accelerator.devices WHERE cluster_id=$1 AND ($2='' OR group_id=NULLIF($2,'')::uuid) AND device_id>COALESCE(NULLIF($3,'')::uuid,'00000000-0000-0000-0000-000000000000') ORDER BY device_id LIMIT $4
+SELECT payload FROM accelerator.devices WHERE inventory_present AND cluster_id=$1 AND ($2='' OR group_id=NULLIF($2,'')::uuid) AND device_id>COALESCE(NULLIF($3,'')::uuid,'00000000-0000-0000-0000-000000000000') ORDER BY device_id LIMIT $4
 `
 
 func (q *Queries) DevicesData1(ctx context.Context, clusterID string, column2 interface{}, column3 interface{}, limit int32) ([][]byte, error) {
@@ -167,6 +238,26 @@ func (q *Queries) DevicesData1(ctx context.Context, clusterID string, column2 in
 		return nil, err
 	}
 	return items, nil
+}
+
+const endMissingCurrentBindings = `-- name: EndMissingCurrentBindings :exec
+UPDATE accelerator.bindings
+SET last_observation_revision=$2::bigint,
+ payload=jsonb_set(jsonb_set(jsonb_set(payload,'{state}','2'::jsonb,true),'{evidence_ref}',to_jsonb($5::text),true),'{observation}',
+  jsonb_build_object('complete',true,'observed_at',$3::text,'received_at',$4::text,
+   'issues','[]'::jsonb,'snapshot_ref',$5::text),true)
+WHERE cluster_id=$1::uuid AND allocation_state IN (1,3) AND last_observation_revision<>$2::bigint
+`
+
+func (q *Queries) EndMissingCurrentBindings(ctx context.Context, column1 string, column2 uint64, column3 string, column4 string, column5 string) error {
+	_, err := q.db.Exec(ctx, endMissingCurrentBindings,
+		column1,
+		column2,
+		column3,
+		column4,
+		column5,
+	)
+	return err
 }
 
 const groupData1 = `-- name: GroupData1 :one
@@ -274,6 +365,49 @@ func (q *Queries) InsertProfileWrite1(ctx context.Context, profileID string, pro
 	return err
 }
 
+const linkPendingBindingOwners = `-- name: LinkPendingBindingOwners :exec
+UPDATE accelerator.bindings
+SET tenant_id=$1::uuid,owner_service=$2::text,resource_id=$3::uuid,create_operation_id=$4::uuid,
+ payload=jsonb_set(payload,'{verified_usage_ref}',$8::jsonb,true)
+WHERE tenant_id IS NULL AND owner_candidate IS NOT NULL
+ AND cluster_id=$5::uuid AND container_name=$6::text
+ AND owner_candidate->'ref'->>'tenant_id'=($1::uuid)::text
+ AND owner_candidate->'ref'->>'owner_service'=$2::text
+ AND owner_candidate->'ref'->>'resource_id'=($3::uuid)::text
+ AND owner_candidate->'ref'->>'create_operation_id'=($4::uuid)::text
+ AND owner_candidate->>'execution_digest'=$7::text
+`
+
+func (q *Queries) LinkPendingBindingOwners(ctx context.Context, column1 string, column2 string, column3 string, column4 string, column5 string, column6 string, column7 string, column8 []byte) error {
+	_, err := q.db.Exec(ctx, linkPendingBindingOwners,
+		column1,
+		column2,
+		column3,
+		column4,
+		column5,
+		column6,
+		column7,
+		column8,
+	)
+	return err
+}
+
+const lockCollectionStateData = `-- name: LockCollectionStateData :one
+SELECT observation_revision,current_observation FROM accelerator.clusters WHERE cluster_id=$1::uuid FOR UPDATE
+`
+
+type LockCollectionStateDataRow struct {
+	ObservationRevision uint64
+	CurrentObservation  []byte
+}
+
+func (q *Queries) LockCollectionStateData(ctx context.Context, dollar_1 string) (LockCollectionStateDataRow, error) {
+	row := q.db.QueryRow(ctx, lockCollectionStateData, dollar_1)
+	var i LockCollectionStateDataRow
+	err := row.Scan(&i.ObservationRevision, &i.CurrentObservation)
+	return i, err
+}
+
 const lockWrite1 = `-- name: LockWrite1 :exec
 SELECT pg_advisory_xact_lock(hashtextextended($1,731903231))
 `
@@ -283,52 +417,40 @@ func (q *Queries) LockWrite1(ctx context.Context, hashtextextended string) error
 	return err
 }
 
-const podEvidenceData1 = `-- name: PodEvidenceData1 :many
-SELECT payload FROM accelerator.claims WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 ORDER BY device_id,source
+const markIncompleteCurrentBindings = `-- name: MarkIncompleteCurrentBindings :exec
+UPDATE accelerator.bindings
+SET last_observation_revision=$3::bigint,
+ payload=jsonb_set(jsonb_set(payload,'{state}','3'::jsonb,true),'{observation}',
+  jsonb_build_object('complete',false,
+   'observed_at',COALESCE(payload#>>'{observation,observed_at}',''),
+   'received_at',$4::text,'issues',jsonb_build_array('SOURCE_UNKNOWN'),
+   'snapshot_ref',COALESCE(payload#>>'{observation,snapshot_ref}','')),true)
+WHERE cluster_id=$1::uuid AND allocation_state IN (1,3) AND pod_uid=ANY($2::text[])
 `
 
-func (q *Queries) PodEvidenceData1(ctx context.Context, clusterID string, podUid string, containerName string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, podEvidenceData1, clusterID, podUid, containerName)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := [][]byte{}
-	for rows.Next() {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return nil, err
-		}
-		items = append(items, payload)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) MarkIncompleteCurrentBindings(ctx context.Context, column1 string, column2 []string, column3 uint64, column4 string) error {
+	_, err := q.db.Exec(ctx, markIncompleteCurrentBindings,
+		column1,
+		column2,
+		column3,
+		column4,
+	)
+	return err
 }
 
-const podEvidenceData2 = `-- name: PodEvidenceData2 :many
-SELECT payload FROM accelerator.release_proofs WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 ORDER BY device_id
+const markUnobservedDevicesUnknown = `-- name: MarkUnobservedDevicesUnknown :exec
+UPDATE accelerator.devices
+SET payload=jsonb_set(jsonb_set(payload,'{device,physical_memory_bytes}','0'::jsonb,true),'{device,observation}',
+ jsonb_build_object('complete',false,
+  'observed_at',COALESCE(payload#>>'{device,observation,observed_at}',''),
+  'received_at',$3::text,'issues',jsonb_build_array('SOURCE_UNKNOWN'),
+  'snapshot_ref',COALESCE(payload#>>'{device,observation,snapshot_ref}','')),true)
+WHERE cluster_id=$1::uuid AND inventory_present AND NOT(device_id=ANY($2::uuid[]))
 `
 
-func (q *Queries) PodEvidenceData2(ctx context.Context, clusterID string, podUid string, containerName string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, podEvidenceData2, clusterID, podUid, containerName)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := [][]byte{}
-	for rows.Next() {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return nil, err
-		}
-		items = append(items, payload)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+func (q *Queries) MarkUnobservedDevicesUnknown(ctx context.Context, column1 string, column2 []string, column3 string) error {
+	_, err := q.db.Exec(ctx, markUnobservedDevicesUnknown, column1, column2, column3)
+	return err
 }
 
 const poolData1 = `-- name: PoolData1 :one
@@ -406,116 +528,6 @@ func (q *Queries) ProfilesData1(ctx context.Context, clusterID string, column2 i
 	return items, nil
 }
 
-const reconcileBindingData1 = `-- name: ReconcileBindingData1 :many
-SELECT payload FROM accelerator.claims WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 AND device_id=$4 ORDER BY source
-`
-
-func (q *Queries) ReconcileBindingData1(ctx context.Context, clusterID string, podUid string, containerName string, deviceID string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, reconcileBindingData1,
-		clusterID,
-		podUid,
-		containerName,
-		deviceID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := [][]byte{}
-	for rows.Next() {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return nil, err
-		}
-		items = append(items, payload)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
-const reconcileBindingData2 = `-- name: ReconcileBindingData2 :one
-SELECT payload FROM accelerator.release_proofs WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 AND device_id=$4
-`
-
-func (q *Queries) ReconcileBindingData2(ctx context.Context, clusterID string, podUid string, containerName string, deviceID string) ([]byte, error) {
-	row := q.db.QueryRow(ctx, reconcileBindingData2,
-		clusterID,
-		podUid,
-		containerName,
-		deviceID,
-	)
-	var payload []byte
-	err := row.Scan(&payload)
-	return payload, err
-}
-
-const reconcileBindingData3 = `-- name: ReconcileBindingData3 :one
-SELECT payload FROM accelerator.bindings WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 AND device_id=$4
-`
-
-func (q *Queries) ReconcileBindingData3(ctx context.Context, clusterID string, podUid string, containerName string, deviceID string) ([]byte, error) {
-	row := q.db.QueryRow(ctx, reconcileBindingData3,
-		clusterID,
-		podUid,
-		containerName,
-		deviceID,
-	)
-	var payload []byte
-	err := row.Scan(&payload)
-	return payload, err
-}
-
-const reconcileBindingWrite4 = `-- name: ReconcileBindingWrite4 :exec
-INSERT INTO accelerator.bindings(binding_id,cluster_id,pod_uid,container_name,device_id,tenant_id,owner_service,resource_id,create_operation_id,payload) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) ON CONFLICT (cluster_id,pod_uid,container_name,device_id) DO UPDATE SET tenant_id=EXCLUDED.tenant_id,owner_service=EXCLUDED.owner_service,resource_id=EXCLUDED.resource_id,create_operation_id=EXCLUDED.create_operation_id,payload=EXCLUDED.payload
-`
-
-func (q *Queries) ReconcileBindingWrite4(ctx context.Context, bindingID string, clusterID string, podUid string, containerName string, deviceID string, tenantID *string, ownerService *string, resourceID *string, createOperationID *string, payload []byte) error {
-	_, err := q.db.Exec(ctx, reconcileBindingWrite4,
-		bindingID,
-		clusterID,
-		podUid,
-		containerName,
-		deviceID,
-		tenantID,
-		ownerService,
-		resourceID,
-		createOperationID,
-		payload,
-	)
-	return err
-}
-
-const releaseOwnerClaimsData = `-- name: ReleaseOwnerClaimsData :many
-SELECT payload FROM accelerator.claims WHERE tenant_id=$1 AND owner_service=$2 AND resource_id=$3 AND create_operation_id=$4 ORDER BY cluster_id,pod_uid,container_name,device_id,source
-`
-
-func (q *Queries) ReleaseOwnerClaimsData(ctx context.Context, tenantID *string, ownerService *string, resourceID *string, createOperationID *string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, releaseOwnerClaimsData,
-		tenantID,
-		ownerService,
-		resourceID,
-		createOperationID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := [][]byte{}
-	for rows.Next() {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return nil, err
-		}
-		items = append(items, payload)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const rememberWrite1 = `-- name: RememberWrite1 :exec
 INSERT INTO accelerator.admin_idempotency(actor_digest,method,idempotency_key,payload_digest,result) VALUES($1,$2,$3,$4,$5)
 `
@@ -547,6 +559,26 @@ func (q *Queries) ReplayRecord(ctx context.Context, actorDigest string, method s
 	return i, err
 }
 
+const retireMissingInventoryDevices = `-- name: RetireMissingInventoryDevices :exec
+UPDATE accelerator.devices SET inventory_present=false
+WHERE cluster_id=$1::uuid AND inventory_present AND node_uid=ANY($2::text[]) AND NOT(device_id=ANY($3::uuid[]))
+`
+
+func (q *Queries) RetireMissingInventoryDevices(ctx context.Context, column1 string, column2 []string, column3 []string) error {
+	_, err := q.db.Exec(ctx, retireMissingInventoryDevices, column1, column2, column3)
+	return err
+}
+
+const retireMissingNodeDevices = `-- name: RetireMissingNodeDevices :exec
+UPDATE accelerator.devices SET inventory_present=false
+WHERE cluster_id=$1::uuid AND inventory_present AND NOT(node_uid=ANY($2::text[]))
+`
+
+func (q *Queries) RetireMissingNodeDevices(ctx context.Context, column1 string, column2 []string) error {
+	_, err := q.db.Exec(ctx, retireMissingNodeDevices, column1, column2)
+	return err
+}
+
 const runtimeRestricted = `-- name: RuntimeRestricted :one
 SELECT accelerator.runtime_restricted()::boolean AS restricted
 `
@@ -558,75 +590,27 @@ func (q *Queries) RuntimeRestricted(ctx context.Context) (bool, error) {
 	return restricted, err
 }
 
-const saveObservationData1 = `-- name: SaveObservationData1 :one
-SELECT payload FROM accelerator.devices WHERE device_id=$1
+const saveCollectionStateCAS = `-- name: SaveCollectionStateCAS :execrows
+UPDATE accelerator.clusters SET observation_revision=observation_revision+1,current_observation=$3::jsonb WHERE cluster_id=$1::uuid AND observation_revision=$2::bigint
 `
 
-func (q *Queries) SaveObservationData1(ctx context.Context, deviceID string) ([]byte, error) {
-	row := q.db.QueryRow(ctx, saveObservationData1, deviceID)
-	var payload []byte
-	err := row.Scan(&payload)
-	return payload, err
-}
-
-const saveObservationData3 = `-- name: SaveObservationData3 :one
-SELECT payload FROM accelerator.claims WHERE cluster_id=$1 AND pod_uid=$2 AND container_name=$3 AND device_id=$4 AND source=$5
-`
-
-func (q *Queries) SaveObservationData3(ctx context.Context, clusterID string, podUid string, containerName string, deviceID string, source string) ([]byte, error) {
-	row := q.db.QueryRow(ctx, saveObservationData3,
-		clusterID,
-		podUid,
-		containerName,
-		deviceID,
-		source,
-	)
-	var payload []byte
-	err := row.Scan(&payload)
-	return payload, err
-}
-
-const saveObservationData6 = `-- name: SaveObservationData6 :one
-SELECT payload FROM accelerator.source_watermarks WHERE cluster_id=$1 AND node_uid=$2 AND source=$3
-`
-
-func (q *Queries) SaveObservationData6(ctx context.Context, clusterID string, nodeUid string, source string) ([]byte, error) {
-	row := q.db.QueryRow(ctx, saveObservationData6, clusterID, nodeUid, source)
-	var payload []byte
-	err := row.Scan(&payload)
-	return payload, err
-}
-
-const saveObservationData8 = `-- name: SaveObservationData8 :many
-SELECT DISTINCT ON (pod_uid,container_name,device_id) payload FROM accelerator.claims WHERE cluster_id=$1 ORDER BY pod_uid,container_name,device_id,source
-`
-
-func (q *Queries) SaveObservationData8(ctx context.Context, clusterID string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, saveObservationData8, clusterID)
+func (q *Queries) SaveCollectionStateCAS(ctx context.Context, column1 string, column2 uint64, column3 []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, saveCollectionStateCAS, column1, column2, column3)
 	if err != nil {
-		return nil, err
+		return 0, err
 	}
-	defer rows.Close()
-	items := [][]byte{}
-	for rows.Next() {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return nil, err
-		}
-		items = append(items, payload)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
+	return result.RowsAffected(), nil
 }
 
-const saveObservationWrite2 = `-- name: SaveObservationWrite2 :exec
-INSERT INTO accelerator.devices(device_id,cluster_id,group_id,node_uid,vendor_device_id,observed_at,payload) VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5,$6,$7) ON CONFLICT (device_id) DO UPDATE SET group_id=EXCLUDED.group_id,observed_at=EXCLUDED.observed_at,payload=EXCLUDED.payload WHERE accelerator.devices.cluster_id=EXCLUDED.cluster_id AND accelerator.devices.node_uid=EXCLUDED.node_uid AND accelerator.devices.vendor_device_id=EXCLUDED.vendor_device_id AND accelerator.devices.observed_at<=EXCLUDED.observed_at
+const saveObservationWrite2 = `-- name: SaveObservationWrite2 :execrows
+INSERT INTO accelerator.devices(device_id,cluster_id,group_id,node_uid,vendor_device_id,observed_at,payload,inventory_present)
+VALUES($1,$2,NULLIF($3,'')::uuid,$4,$5,$6,$7,true)
+ON CONFLICT (device_id) DO UPDATE SET group_id=EXCLUDED.group_id,observed_at=EXCLUDED.observed_at,payload=EXCLUDED.payload,inventory_present=true
+WHERE accelerator.devices.cluster_id=EXCLUDED.cluster_id AND accelerator.devices.node_uid=EXCLUDED.node_uid AND accelerator.devices.vendor_device_id=EXCLUDED.vendor_device_id
 `
 
-func (q *Queries) SaveObservationWrite2(ctx context.Context, deviceID string, clusterID string, column3 interface{}, nodeUid string, vendorDeviceID string, observedAt time.Time, payload []byte) error {
-	_, err := q.db.Exec(ctx, saveObservationWrite2,
+func (q *Queries) SaveObservationWrite2(ctx context.Context, deviceID string, clusterID string, column3 interface{}, nodeUid string, vendorDeviceID string, observedAt time.Time, payload []byte) (int64, error) {
+	result, err := q.db.Exec(ctx, saveObservationWrite2,
 		deviceID,
 		clusterID,
 		column3,
@@ -635,55 +619,10 @@ func (q *Queries) SaveObservationWrite2(ctx context.Context, deviceID string, cl
 		observedAt,
 		payload,
 	)
-	return err
-}
-
-const saveObservationWrite4 = `-- name: SaveObservationWrite4 :exec
-INSERT INTO accelerator.claims(cluster_id,pod_uid,container_name,device_id,source,observed_at,payload) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (cluster_id,pod_uid,container_name,device_id,source) DO UPDATE SET observed_at=EXCLUDED.observed_at,payload=EXCLUDED.payload WHERE accelerator.claims.observed_at<EXCLUDED.observed_at
-`
-
-func (q *Queries) SaveObservationWrite4(ctx context.Context, clusterID string, podUid string, containerName string, deviceID string, source string, observedAt time.Time, payload []byte) error {
-	_, err := q.db.Exec(ctx, saveObservationWrite4,
-		clusterID,
-		podUid,
-		containerName,
-		deviceID,
-		source,
-		observedAt,
-		payload,
-	)
-	return err
-}
-
-const saveObservationWrite5 = `-- name: SaveObservationWrite5 :exec
-INSERT INTO accelerator.release_proofs(cluster_id,pod_uid,container_name,device_id,observed_at,payload) VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT (cluster_id,pod_uid,container_name,device_id) DO UPDATE SET observed_at=EXCLUDED.observed_at,payload=EXCLUDED.payload WHERE accelerator.release_proofs.observed_at<EXCLUDED.observed_at
-`
-
-func (q *Queries) SaveObservationWrite5(ctx context.Context, clusterID string, podUid string, containerName string, deviceID string, observedAt time.Time, payload []byte) error {
-	_, err := q.db.Exec(ctx, saveObservationWrite5,
-		clusterID,
-		podUid,
-		containerName,
-		deviceID,
-		observedAt,
-		payload,
-	)
-	return err
-}
-
-const saveObservationWrite7 = `-- name: SaveObservationWrite7 :exec
-INSERT INTO accelerator.source_watermarks(cluster_id,node_uid,source,observed_at,payload) VALUES($1,$2,$3,$4,$5) ON CONFLICT (cluster_id,node_uid,source) DO UPDATE SET observed_at=EXCLUDED.observed_at,payload=EXCLUDED.payload WHERE (accelerator.source_watermarks.payload->>'received_at')::timestamptz <= (EXCLUDED.payload->>'received_at')::timestamptz
-`
-
-func (q *Queries) SaveObservationWrite7(ctx context.Context, clusterID string, nodeUid string, source string, observedAt time.Time, payload []byte) error {
-	_, err := q.db.Exec(ctx, saveObservationWrite7,
-		clusterID,
-		nodeUid,
-		source,
-		observedAt,
-		payload,
-	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const saveUsageData1 = `-- name: SaveUsageData1 :one
@@ -695,36 +634,6 @@ func (q *Queries) SaveUsageData1(ctx context.Context, tenantID string, ownerServ
 	var payload []byte
 	err := row.Scan(&payload)
 	return payload, err
-}
-
-const saveUsageData5 = `-- name: SaveUsageData5 :many
-SELECT payload FROM accelerator.claims WHERE tenant_id=$1 AND owner_service=$2 AND resource_id=$3 AND create_operation_id=$4 AND cluster_id=$5 ORDER BY pod_uid,container_name,device_id,source
-`
-
-func (q *Queries) SaveUsageData5(ctx context.Context, tenantID *string, ownerService *string, resourceID *string, createOperationID *string, clusterID string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, saveUsageData5,
-		tenantID,
-		ownerService,
-		resourceID,
-		createOperationID,
-		clusterID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := [][]byte{}
-	for rows.Next() {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return nil, err
-		}
-		items = append(items, payload)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const saveUsageWrite2 = `-- name: SaveUsageWrite2 :exec
@@ -790,30 +699,6 @@ func (q *Queries) SchemaVersion(ctx context.Context) (int32, error) {
 	return version, err
 }
 
-const sourceHealthData1 = `-- name: SourceHealthData1 :many
-SELECT payload FROM accelerator.source_watermarks WHERE cluster_id=$1 ORDER BY node_uid,source
-`
-
-func (q *Queries) SourceHealthData1(ctx context.Context, clusterID string) ([][]byte, error) {
-	rows, err := q.db.Query(ctx, sourceHealthData1, clusterID)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	items := [][]byte{}
-	for rows.Next() {
-		var payload []byte
-		if err := rows.Scan(&payload); err != nil {
-			return nil, err
-		}
-		items = append(items, payload)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
-}
-
 const updateGroupCAS = `-- name: UpdateGroupCAS :execrows
 UPDATE accelerator.supply_groups SET version=$1,payload=$2 WHERE group_id=$3 AND version=$4 AND baseline_digest=$5
 `
@@ -842,6 +727,30 @@ func (q *Queries) UpdateProfileCAS(ctx context.Context, payload []byte, profileI
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const upsertCurrentBindingWrite = `-- name: UpsertCurrentBindingWrite :exec
+INSERT INTO accelerator.bindings(binding_id,cluster_id,pod_uid,container_name,device_id,tenant_id,owner_service,resource_id,create_operation_id,payload,owner_candidate,last_observation_revision)
+VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+ON CONFLICT (cluster_id,pod_uid,container_name,device_id) DO UPDATE SET tenant_id=EXCLUDED.tenant_id,owner_service=EXCLUDED.owner_service,resource_id=EXCLUDED.resource_id,create_operation_id=EXCLUDED.create_operation_id,payload=EXCLUDED.payload,owner_candidate=EXCLUDED.owner_candidate,last_observation_revision=EXCLUDED.last_observation_revision
+`
+
+func (q *Queries) UpsertCurrentBindingWrite(ctx context.Context, bindingID string, clusterID string, podUid string, containerName string, deviceID string, tenantID *string, ownerService *string, resourceID *string, createOperationID *string, payload []byte, ownerCandidate []byte, lastObservationRevision uint64) error {
+	_, err := q.db.Exec(ctx, upsertCurrentBindingWrite,
+		bindingID,
+		clusterID,
+		podUid,
+		containerName,
+		deviceID,
+		tenantID,
+		ownerService,
+		resourceID,
+		createOperationID,
+		payload,
+		ownerCandidate,
+		lastObservationRevision,
+	)
+	return err
 }
 
 const usageData1 = `-- name: UsageData1 :one
