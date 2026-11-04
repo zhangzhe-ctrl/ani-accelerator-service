@@ -25,8 +25,8 @@ import (
 )
 
 // A-layer gate runs an ordinary go-built production executable. Its only
-// external substitutes are the authenticated Kubernetes, local runtime and NVML
-// sources. No test business implementation or injection RPC is linked into the
+// external substitute is authenticated Kubernetes. No test business
+// implementation or injection RPC is linked into the
 // executable. This is software coverage, not actual GPU validation.
 func TestFormalProductionWithoutTestProof(t *testing.T) {
 	dsn := os.Getenv("ACC_FORMAL_DSN_FILE")
@@ -46,7 +46,6 @@ func TestFormalProductionWithoutTestProof(t *testing.T) {
 	if err := os.Mkdir(sourceDir, 0700); err != nil {
 		t.Fatal(err)
 	}
-	nvmlDirectory := formalNVMLLibrary(t, work)
 	sourceBinary := filepath.Join(work, "source.test")
 	binary := filepath.Join(work, "ani-accelerator-service")
 	for _, args := range [][]string{{"test", "-c", "-o", sourceBinary, "./internal/data/provider"}, {"build", "-trimpath", "-o", binary, "./cmd/ani-accelerator-service"}} {
@@ -91,7 +90,7 @@ func TestFormalProductionWithoutTestProof(t *testing.T) {
 		cfg := fixture.WriteConfig(t)
 		cmd := exec.Command(binary, "-conf", cfg)
 		cmd.Dir = root
-		cmd.Env = append(os.Environ(), "GOMAXPROCS=2", "LD_LIBRARY_PATH="+nvmlDirectory)
+		cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
 		stop := startFormalCommand(t, cmd, productionLog)
 		productionPID = cmd.Process.Pid
 		deadline := time.Now().Add(10 * time.Second)
@@ -167,7 +166,7 @@ func TestFormalProductionWithoutTestProof(t *testing.T) {
 	}); e != nil {
 		t.Fatal(e)
 	}
-	record := map[string]any{"status": "PASS", "layer": "ordinary production executable with external source substitutes", "binary_sha256": formalFileHash(t, binary), "cluster_id": cluster.ClusterId, "group_id": group.GroupId, "profile_id": profile.ProfileId, "create": "PASS", "open": "PASS", "resolve": "PASS", "profile_count": 1, "group_version": 3, "admission": "OPEN", "execution_digest": resolved.Execution.ExecutionDigest, "hardware": "NOT_RUN", "source": "constructed authenticated Kubernetes, Unix CRI/PodResources and NVML library; production business, persistence and readers unchanged"}
+	record := map[string]any{"status": "PASS", "layer": "ordinary production executable with external source substitutes", "binary_sha256": formalFileHash(t, binary), "cluster_id": cluster.ClusterId, "group_id": group.GroupId, "profile_id": profile.ProfileId, "create": "PASS", "open": "PASS", "resolve": "PASS", "profile_count": 1, "group_version": 3, "admission": "OPEN", "execution_digest": resolved.Execution.ExecutionDigest, "hardware": "NOT_RUN", "source": "constructed authenticated Kubernetes; production business, persistence and readers unchanged"}
 	if out := os.Getenv("ACC_TEST_EVIDENCE_DIR"); out != "" {
 		if e = os.MkdirAll(out, 0700); e != nil {
 			t.Fatal(e)
@@ -280,36 +279,4 @@ func formalDatabase(t *testing.T, path string) string {
 		t.Fatal("test database configuration invalid")
 	}
 	return config.Database
-}
-
-// This shared library replaces only the external NVML ABI in a separate ordinary
-// production executable. No eligibility, rendering or persistence logic is faked.
-func formalNVMLLibrary(t *testing.T, root string) string {
-	t.Helper()
-	directory := filepath.Join(root, "nvml-external-source")
-	if err := os.Mkdir(directory, 0700); err != nil {
-		t.Fatal(err)
-	}
-	source := filepath.Join(directory, "nvml.c")
-	code := `#include <stdint.h>
-#include <stdio.h>
-typedef struct { uint64_t total, free, used; } memory;
-int nvmlInit(void) { return 0; }
-int nvmlInit_v2(void) { return 0; }
-int nvmlShutdown(void) { return 0; }
-int nvmlDeviceGetCount_v2(unsigned int *count) { *count = 1; return 0; }
-int nvmlDeviceGetHandleByIndex_v2(unsigned int i, void **device) { if (i) return 2; *device=(void*)1; return 0; }
-int nvmlDeviceGetUUID(void *device, char *text, unsigned int length) { snprintf(text,length,"GPU-01234567-89ab-cdef-0123-456789abcdef"); return 0; }
-int nvmlDeviceGetName(void *device, char *text, unsigned int length) { snprintf(text,length,"Test"); return 0; }
-int nvmlDeviceGetMemoryInfo(void *device, memory *info) { info->total = 24576ULL << 20; info->free=info->total; info->used=0; return 0; }
-const char *nvmlErrorString(int result) { return "external source fixture"; }
-`
-	if err := os.WriteFile(source, []byte(code), 0600); err != nil {
-		t.Fatal(err)
-	}
-	command := exec.Command("cc", "-shared", "-fPIC", "-o", filepath.Join(directory, "libnvidia-ml.so.1"), source)
-	if out, err := command.CombinedOutput(); err != nil {
-		t.Fatalf("external NVML fixture: %v\n%s", err, out)
-	}
-	return directory
 }
