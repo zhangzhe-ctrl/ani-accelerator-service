@@ -11,3 +11,12 @@ condition = "AND"
 paths = ['''^docs/evidence/gov-acc-v12-01/acc/replicas-comment/(source|restore)-admin_idempotency\.rows$''']
 regexTarget = "match"
 regexes = ['''^idempotency_key":"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"$''']
+
+[[rules]]
+id = "generic-api-key"
+[[rules.allowlists]]
+description = "SHA256 of cleanup-auth.json in the historical release artifact index, not an authentication value"
+condition = "AND"
+paths = ['''^docs/execution/records/acc-production-release-20261029\.json$''']
+regexTarget = "match"
+regexes = ['''^cleanup-auth\.json"\s*:\s*"[0-9a-f]{64}"$''']
